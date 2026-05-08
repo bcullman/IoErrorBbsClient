@@ -1,5 +1,13 @@
 # Changelog (Legacy Rollup)
 
+## Current Fork Updates
+
+### 2026-05
+
+- Removed saved-password support in `.bbsrc`.
+- Added optional macOS Keychain password storage with a build-time `--enable-keychain` switch and runtime `keychain 0|1` setting.
+- Added per-BBS Keychain delete handling and automatic deletion when Keychain storage is disabled.
+
 ## Contributor Notes Moved Out of Source Comments
 
 - Telnet negotiation fallback behavior (sending `IAC WONT` for unsupported options, including Heinous-compatible behavior) was added in the IO ERROR era.

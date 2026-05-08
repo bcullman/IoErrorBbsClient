@@ -10,6 +10,7 @@
 #include "utility.h"
 
 #ifdef ENABLE_KEYCHAIN
+#include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
 #endif
 
@@ -35,10 +36,9 @@ static KeychainPasswordStoreFunction ptrKeychainPasswordStoreFunction;
 #ifdef ENABLE_KEYCHAIN
 static bool buildKeychainAccountName( const char *ptrHost, const char *ptrUser,
                                       char *ptrAccountName, size_t accountNameSize );
-static OSStatus findKeychainItem( const char *ptrHost, const char *ptrUser,
-                                  SecKeychainItemRef *ptrItemRef,
-                                  void **ptrPasswordData,
-                                  UInt32 *ptrPasswordLength );
+static bool addKeychainQueryAccountName( CFMutableDictionaryRef queryRef,
+                                         const char *ptrHost,
+                                         const char *ptrUser );
 #endif
 static void clearPendingChangeKeychainPassword( void );
 static void clearPendingLoginKeychainPassword( void );
@@ -83,35 +83,31 @@ static bool buildKeychainAccountName( const char *ptrHost, const char *ptrUser,
           (size_t)charsWritten < accountNameSize;
 }
 
-static OSStatus findKeychainItem( const char *ptrHost, const char *ptrUser,
-                                  SecKeychainItemRef *ptrItemRef,
-                                  void **ptrPasswordData,
-                                  UInt32 *ptrPasswordLength )
+static bool addKeychainQueryAccountName( CFMutableDictionaryRef queryRef,
+                                         const char *ptrHost,
+                                         const char *ptrUser )
 {
    char aryAccountName[160];
+   CFStringRef accountNameRef;
 
-   if ( !buildKeychainAccountName( ptrHost, ptrUser, aryAccountName,
+   if ( queryRef == NULL ||
+        !buildKeychainAccountName( ptrHost, ptrUser, aryAccountName,
                                    sizeof( aryAccountName ) ) )
    {
-      return errSecParam;
+      return false;
    }
 
-#if defined( __clang__ )
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-   return SecKeychainFindGenericPassword(
-      NULL,
-      (UInt32)strlen( "BbcClient" ),
-      "BbcClient",
-      (UInt32)strlen( aryAccountName ),
-      aryAccountName,
-      ptrPasswordLength,
-      ptrPasswordData,
-      ptrItemRef );
-#if defined( __clang__ )
-#pragma clang diagnostic pop
-#endif
+   accountNameRef = CFStringCreateWithCString( kCFAllocatorDefault,
+                                               aryAccountName,
+                                               kCFStringEncodingUTF8 );
+   if ( accountNameRef == NULL )
+   {
+      return false;
+   }
+
+   CFDictionarySetValue( queryRef, kSecAttrAccount, accountNameRef );
+   CFRelease( accountNameRef );
+   return true;
 }
 #endif
 
@@ -206,25 +202,28 @@ static bool tryStorePendingChangePassword( const char *ptrHost, const char *ptrU
 bool deleteKeychainPassword( const char *ptrHost, const char *ptrUser )
 {
 #ifdef ENABLE_KEYCHAIN
+   CFMutableDictionaryRef queryRef;
    OSStatus status;
-   SecKeychainItemRef itemRef;
 
-   itemRef = NULL;
-   status = findKeychainItem( ptrHost, ptrUser, &itemRef, NULL, NULL );
-   if ( status != errSecSuccess || itemRef == NULL )
+   queryRef = CFDictionaryCreateMutable( kCFAllocatorDefault,
+                                         0,
+                                         &kCFTypeDictionaryKeyCallBacks,
+                                         &kCFTypeDictionaryValueCallBacks );
+   if ( queryRef == NULL )
    {
       return false;
    }
 
-#if defined( __clang__ )
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-   status = SecKeychainItemDelete( itemRef );
-#if defined( __clang__ )
-#pragma clang diagnostic pop
-#endif
-   CFRelease( itemRef );
+   CFDictionarySetValue( queryRef, kSecClass, kSecClassGenericPassword );
+   CFDictionarySetValue( queryRef, kSecAttrService, CFSTR( "BbcClient" ) );
+   if ( !addKeychainQueryAccountName( queryRef, ptrHost, ptrUser ) )
+   {
+      CFRelease( queryRef );
+      return false;
+   }
+
+   status = SecItemDelete( queryRef );
+   CFRelease( queryRef );
    return status == errSecSuccess;
 #else
    (void)ptrHost;
@@ -279,58 +278,62 @@ bool getKeychainPassword( const char *ptrHost, const char *ptrUser,
                           char *ptrPassword, size_t passwordSize )
 {
 #ifdef ENABLE_KEYCHAIN
-   void *ptrPasswordData;
+   CFDataRef passwordDataRef;
+   CFMutableDictionaryRef queryRef;
    OSStatus status;
-   UInt32 keychainPasswordLength;
-   SecKeychainItemRef itemRef;
+   const UInt8 *ptrPasswordData;
+   CFIndex keychainPasswordLength;
 
    if ( ptrPassword == NULL || passwordSize == 0 )
    {
       return false;
    }
 
-   ptrPasswordData = NULL;
-   itemRef = NULL;
-   keychainPasswordLength = 0;
-   status = findKeychainItem( ptrHost, ptrUser, &itemRef, &ptrPasswordData,
-                              &keychainPasswordLength );
-   if ( status != errSecSuccess || ptrPasswordData == NULL )
+   queryRef = CFDictionaryCreateMutable( kCFAllocatorDefault,
+                                         0,
+                                         &kCFTypeDictionaryKeyCallBacks,
+                                         &kCFTypeDictionaryValueCallBacks );
+   if ( queryRef == NULL )
    {
       return false;
    }
 
-   if ( keychainPasswordLength == 0 ||
+   CFDictionarySetValue( queryRef, kSecClass, kSecClassGenericPassword );
+   CFDictionarySetValue( queryRef, kSecAttrService, CFSTR( "BbcClient" ) );
+   CFDictionarySetValue( queryRef, kSecMatchLimit, kSecMatchLimitOne );
+   CFDictionarySetValue( queryRef, kSecReturnData, kCFBooleanTrue );
+   if ( !addKeychainQueryAccountName( queryRef, ptrHost, ptrUser ) )
+   {
+      CFRelease( queryRef );
+      return false;
+   }
+
+   passwordDataRef = NULL;
+   status = SecItemCopyMatching( queryRef, (CFTypeRef *)&passwordDataRef );
+   CFRelease( queryRef );
+   if ( status != errSecSuccess || passwordDataRef == NULL )
+   {
+      return false;
+   }
+
+   keychainPasswordLength = CFDataGetLength( passwordDataRef );
+   if ( keychainPasswordLength <= 0 ||
         (size_t)keychainPasswordLength >= passwordSize )
    {
-#if defined( __clang__ )
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-      SecKeychainItemFreeContent( NULL, ptrPasswordData );
-#if defined( __clang__ )
-#pragma clang diagnostic pop
-#endif
-      if ( itemRef != NULL )
-      {
-         CFRelease( itemRef );
-      }
+      CFRelease( passwordDataRef );
+      return false;
+   }
+
+   ptrPasswordData = CFDataGetBytePtr( passwordDataRef );
+   if ( ptrPasswordData == NULL )
+   {
+      CFRelease( passwordDataRef );
       return false;
    }
 
    memcpy( ptrPassword, ptrPasswordData, (size_t)keychainPasswordLength );
    ptrPassword[keychainPasswordLength] = '\0';
-#if defined( __clang__ )
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-   SecKeychainItemFreeContent( NULL, ptrPasswordData );
-#if defined( __clang__ )
-#pragma clang diagnostic pop
-#endif
-   if ( itemRef != NULL )
-   {
-      CFRelease( itemRef );
-   }
+   CFRelease( passwordDataRef );
    return true;
 #else
    (void)ptrHost;
@@ -762,6 +765,8 @@ bool setKeychainPassword( const char *ptrHost, const char *ptrUser,
 {
 #ifdef ENABLE_KEYCHAIN
    char aryAccountName[160];
+   CFDataRef passwordDataRef;
+   CFMutableDictionaryRef queryRef;
    OSStatus status;
 
    if ( ptrPassword == NULL ||
@@ -771,22 +776,37 @@ bool setKeychainPassword( const char *ptrHost, const char *ptrUser,
       return false;
    }
 
-#if defined( __clang__ )
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-   status = SecKeychainAddGenericPassword(
-      NULL,
-      (UInt32)strlen( "BbcClient" ),
-      "BbcClient",
-      (UInt32)strlen( aryAccountName ),
-      aryAccountName,
-      (UInt32)strlen( ptrPassword ),
-      ptrPassword,
-      NULL );
-#if defined( __clang__ )
-#pragma clang diagnostic pop
-#endif
+   queryRef = CFDictionaryCreateMutable( kCFAllocatorDefault,
+                                         0,
+                                         &kCFTypeDictionaryKeyCallBacks,
+                                         &kCFTypeDictionaryValueCallBacks );
+   if ( queryRef == NULL )
+   {
+      return false;
+   }
+
+   passwordDataRef = CFDataCreate( kCFAllocatorDefault,
+                                   (const UInt8 *)ptrPassword,
+                                   (CFIndex)strlen( ptrPassword ) );
+   if ( passwordDataRef == NULL )
+   {
+      CFRelease( queryRef );
+      return false;
+   }
+
+   CFDictionarySetValue( queryRef, kSecClass, kSecClassGenericPassword );
+   CFDictionarySetValue( queryRef, kSecAttrService, CFSTR( "BbcClient" ) );
+   if ( !addKeychainQueryAccountName( queryRef, ptrHost, ptrUser ) )
+   {
+      CFRelease( passwordDataRef );
+      CFRelease( queryRef );
+      return false;
+   }
+   CFDictionarySetValue( queryRef, kSecValueData, passwordDataRef );
+
+   status = SecItemAdd( queryRef, NULL );
+   CFRelease( passwordDataRef );
+   CFRelease( queryRef );
    return status == errSecSuccess;
 #else
    (void)ptrHost;
@@ -877,40 +897,64 @@ bool upsertKeychainPassword( const char *ptrHost, const char *ptrUser,
                              const char *ptrPassword )
 {
 #ifdef ENABLE_KEYCHAIN
+   CFMutableDictionaryRef queryRef;
+   CFMutableDictionaryRef updateRef;
+   CFDataRef passwordDataRef;
    OSStatus status;
-   SecKeychainItemRef itemRef;
 
    if ( ptrPassword == NULL )
    {
       return false;
    }
 
-   itemRef = NULL;
-   status = findKeychainItem( ptrHost, ptrUser, &itemRef, NULL, NULL );
-   if ( status == errSecItemNotFound )
+   queryRef = CFDictionaryCreateMutable( kCFAllocatorDefault,
+                                         0,
+                                         &kCFTypeDictionaryKeyCallBacks,
+                                         &kCFTypeDictionaryValueCallBacks );
+   updateRef = CFDictionaryCreateMutable( kCFAllocatorDefault,
+                                          0,
+                                          &kCFTypeDictionaryKeyCallBacks,
+                                          &kCFTypeDictionaryValueCallBacks );
+   passwordDataRef = NULL;
+   if ( queryRef == NULL || updateRef == NULL )
    {
-      return setKeychainPassword( ptrHost, ptrUser, ptrPassword );
-   }
-   if ( status != errSecSuccess || itemRef == NULL )
-   {
+      if ( queryRef != NULL )
+      {
+         CFRelease( queryRef );
+      }
+      if ( updateRef != NULL )
+      {
+         CFRelease( updateRef );
+      }
       return false;
    }
 
-#if defined( __clang__ )
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-   status = SecKeychainItemModifyAttributesAndData(
-      itemRef,
-      NULL,
-      (UInt32)strlen( ptrPassword ),
-      ptrPassword );
-#if defined( __clang__ )
-#pragma clang diagnostic pop
-#endif
-   CFRelease( itemRef );
+   CFDictionarySetValue( queryRef, kSecClass, kSecClassGenericPassword );
+   CFDictionarySetValue( queryRef, kSecAttrService, CFSTR( "BbcClient" ) );
+   if ( !addKeychainQueryAccountName( queryRef, ptrHost, ptrUser ) )
+   {
+      CFRelease( queryRef );
+      CFRelease( updateRef );
+      return false;
+   }
 
-   if ( status == errSecDuplicateItem )
+   passwordDataRef = CFDataCreate( kCFAllocatorDefault,
+                                   (const UInt8 *)ptrPassword,
+                                   (CFIndex)strlen( ptrPassword ) );
+   if ( passwordDataRef == NULL )
+   {
+      CFRelease( queryRef );
+      CFRelease( updateRef );
+      return false;
+   }
+
+   CFDictionarySetValue( updateRef, kSecValueData, passwordDataRef );
+   status = SecItemUpdate( queryRef, updateRef );
+   CFRelease( passwordDataRef );
+   CFRelease( updateRef );
+   CFRelease( queryRef );
+
+   if ( status == errSecItemNotFound )
    {
       return setKeychainPassword( ptrHost, ptrUser, ptrPassword );
    }

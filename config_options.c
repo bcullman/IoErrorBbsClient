@@ -96,8 +96,10 @@ void configureOptionsMenu( void )
       (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableNameAutocomplete );
    flagsConfiguration.hasNameAutocompleteSetting = 1;
 #ifdef ENABLE_KEYCHAIN
+   bool isKeychainPasswordDeleted;
    bool shouldUseKeychainBeforePrompt;
 
+   isKeychainPasswordDeleted = false;
    shouldUseKeychainBeforePrompt = flagsConfiguration.shouldUseKeychain != 0;
    stdPrintf( "Use macOS Keychain for password storage? (%s) -> ",
               flagsConfiguration.shouldUseKeychain ? "Yes" : "No" );
@@ -107,7 +109,21 @@ void configureOptionsMenu( void )
    {
       stdPrintf( "\r\nKeychain password storage will start after your next successful\r\nlogin.  Saved password autofill will be available on the login after that.\r\n" );
    }
-   if ( hasSavedKeychainPasswordContextForCurrentBbs() )
+   if ( shouldUseKeychainBeforePrompt && !flagsConfiguration.shouldUseKeychain &&
+        hasSavedKeychainPasswordContextForCurrentBbs() )
+   {
+      isKeychainPasswordDeleted = true;
+      if ( deleteSavedKeychainPasswordForCurrentBbs() )
+      {
+         stdPrintf( "\r\nSaved Keychain password for this BBS deleted because Keychain\r\nstorage was turned off.\r\n" );
+      }
+      else
+      {
+         stdPrintf( "\r\nNo saved Keychain password for this BBS was deleted after\r\nKeychain storage was turned off.\r\n" );
+      }
+   }
+   if ( !isKeychainPasswordDeleted &&
+        hasSavedKeychainPasswordContextForCurrentBbs() )
    {
       stdPrintf( "Forget saved Keychain password for this BBS? (No) -> " );
       if ( yesNoDefault( 0 ) )

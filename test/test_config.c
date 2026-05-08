@@ -888,6 +888,97 @@ static void configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage( void **state 
    cleanupWriteBbsRcFixture();
 }
 
+static void configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **state )
+{
+   // Arrange
+   const int aryMenuKeys[] = { 'o', 'q' };
+   const int aryYesNoAnswers[] = { 0, 0, 0, 1, 1, 1, 1, 0 };
+
+   (void)state;
+   resetState();
+
+   cleanupWriteBbsRcFixture();
+   ptrBbsRc = tmpfile();
+   friendList = slistCreate( 0, fSortCompareVoid );
+   enemyList = slistCreate( 0, sortCompareVoid );
+   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "Arrange failed: unable to initialize configBbsRc fixture" );
+      return;
+   }
+
+   snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   bbsPort = 23;
+   commandKey = ESC;
+   quitKey = CTRL_D;
+   suspKey = CTRL_Z;
+   shellKey = '!';
+   captureKey = 'c';
+   awayKey = 'a';
+   aryKeyMap['P'] = 'P';
+   aryKeyMap['W'] = 'W';
+   aryKeyMap['p'] = 'p';
+   aryKeyMap['w'] = 'w';
+   browserKey = 'w';
+   rows = 24;
+   isLoginShell = 0;
+   isBbsRcReadOnly = 0;
+   flagsConfiguration.shouldUseAnsi = 0;
+   flagsConfiguration.shouldUseTcpKeepalive = 1;
+   flagsConfiguration.shouldEnableClickableUrls = 1;
+   flagsConfiguration.shouldEnableTitleBar = 1;
+   flagsConfiguration.hasTitleBarSetting = 0;
+   flagsConfiguration.isScreenReaderModeEnabled = 0;
+   flagsConfiguration.hasScreenReaderModeSetting = 0;
+   flagsConfiguration.shouldEnableNameAutocomplete = 1;
+   flagsConfiguration.hasNameAutocompleteSetting = 1;
+   flagsConfiguration.shouldUseKeychain = 1;
+   isKeychainPasswordContextAvailable = true;
+   shouldDeleteKeychainPasswordSucceed = true;
+
+   setGetKeySequence( aryMenuKeys, sizeof( aryMenuKeys ) / sizeof( aryMenuKeys[0] ) );
+   setYesNoSequence( aryYesNoAnswers, sizeof( aryYesNoAnswers ) / sizeof( aryYesNoAnswers[0] ) );
+
+   // Act
+   configBbsRc();
+
+   // Assert
+   if ( flagsConfiguration.shouldUseKeychain )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "configBbsRc should disable keychain storage when the option is answered no" );
+      return;
+   }
+   if ( !isKeychainPasswordDeleted )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "configBbsRc should delete the saved keychain password for the current BBS when keychain storage is turned off" );
+      return;
+   }
+   if ( strstr( aryStdPrintfLog,
+                "Saved Keychain password for this BBS deleted because Keychain" ) == NULL ||
+        strstr( aryStdPrintfLog,
+                "storage was turned off." ) == NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "configBbsRc should explain that the saved keychain password was deleted when keychain storage is turned off; log was:\n%s",
+                aryStdPrintfLog );
+      return;
+   }
+   if ( strstr( aryStdPrintfLog,
+                "Forget saved Keychain password for this BBS? (No) -> " ) != NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "configBbsRc should not show the manual keychain delete prompt after automatically deleting the saved password; log was:\n%s",
+                aryStdPrintfLog );
+      return;
+   }
+
+   cleanupWriteBbsRcFixture();
+}
+
 static void configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword( void **state )
 {
    // Arrange
@@ -1257,6 +1348,7 @@ int main( void )
       cmocka_unit_test( configBbsRc_WhenOptionsToggleScreenReaderMode_UpdatesFlags ),
 #ifdef ENABLE_KEYCHAIN
       cmocka_unit_test( configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage ),
+      cmocka_unit_test( configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword ),
       cmocka_unit_test( configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword ),
 #endif
       cmocka_unit_test( writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne ),

@@ -9,12 +9,8 @@
 
 #include "defs.h"
 
-extern char aryAutoName[21];                              // Automatic login name
-#ifdef ENABLE_SAVE_PASSWORD
-extern char aryAutoPassword[21]; // Automatic password
-extern bool isAutoPasswordSent;  // Set after password sent to BBS
-#endif
-extern char aryEditor[80];                                // name of aryEditor to invoke
+extern char aryAutoName[21]; // Automatic login name
+extern char aryEditor[80];   // name of aryEditor to invoke
 extern char aryEscape[2];
 extern char aryLastName[MAX_USER_NAME_HISTORY_COUNT][21]; // last username received in post or X
 extern char aryMyEditor[80];                              // name of aryUser's preferred aryEditor
@@ -28,9 +24,9 @@ extern bool isAway;              // away from keyboard?
 extern bool isLoginShell;        // whether this client is a login shell
 extern bool isXland;             // X Land - auto-fill-in-recipient
 #ifdef USE_POSIX_SIGSETJMP
-extern sigjmp_buf jumpEnv;                                // Jump buffer for child-process return flow
+extern sigjmp_buf jumpEnv; // Jump buffer for child-process return flow
 #else
-extern jmp_buf jumpEnv;                                   // Jump buffer for child-process return flow
+extern jmp_buf jumpEnv; // Jump buffer for child-process return flow
 #endif
 
 extern int lastColor;     // last color code received from BBS

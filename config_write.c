@@ -191,16 +191,14 @@ static void writeOptionSettings( void )
             flagsConfiguration.isScreenReaderModeEnabled ? 1 : 0 );
    fprintf( ptrBbsRc, "autocomplete %d\n",
             flagsConfiguration.shouldEnableNameAutocomplete ? 1 : 0 );
+#ifdef ENABLE_KEYCHAIN
+   fprintf( ptrBbsRc, "keychain %d\n",
+            flagsConfiguration.shouldUseKeychain ? 1 : 0 );
+#endif
    if ( *aryAutoName )
    {
       fprintf( ptrBbsRc, "aryAutoName %s\n", aryAutoName );
    }
-#ifdef ENABLE_SAVE_PASSWORD
-   if ( *aryAutoPassword )
-   {
-      fprintf( ptrBbsRc, "autopass %s\n", aryAutoPassword );
-   }
-#endif
    if ( flagsConfiguration.shouldAutoAnswerAnsiPrompt )
    {
       fprintf( ptrBbsRc, "autoansi\n" );

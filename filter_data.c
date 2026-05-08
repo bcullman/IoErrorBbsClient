@@ -11,11 +11,11 @@
 #include "defs.h"
 #include "filter.h"
 #include "filter_globals.h"
+#include "macos_keychain.h"
 #include "network_globals.h"
 #include "telnet.h"
 #include "utility.h"
 static void printBufferedAnsiSequence( const char *ptrAnsiSequence, size_t sequenceLength );
-
 
 /// @brief Re-emit the standard continued-data color sequence through the data filter.
 ///
@@ -30,7 +30,6 @@ void continuedDataHelper( void )
       filterData( *ptrText );
    }
 }
-
 
 /// @brief Emit a transformed ANSI escape sequence for normal or post text.
 ///
@@ -69,7 +68,6 @@ void emitTransformedAnsiSequence( const char *ptrAnsiSequence, size_t sequenceLe
    printBufferedAnsiSequence( ptrAnsiSequence, sequenceLength );
 }
 
-
 /// @brief Filter ordinary incoming BBS data outside post and express contexts.
 ///
 /// @param inputChar Next input byte from the server.
@@ -84,6 +82,7 @@ void filterData( register int inputChar )
    if ( inputChar == '\n' )
    {
       filterUrl( aryFilterLine );
+      handleKeychainServerLine( aryFilterLine );
       if ( strstr( aryFilterLine, "Message received by " ) != NULL )
       {
          emitUrlDetectionReport();
@@ -180,7 +179,6 @@ void filterData( register int inputChar )
    }
 }
 
-
 /// @brief Reapply the correct color after a more prompt finishes.
 ///
 /// @return This function does not return a value.
@@ -201,7 +199,6 @@ void morePromptHelper( void )
    }
 }
 
-
 /// @brief Print a buffered ANSI escape sequence verbatim.
 ///
 /// @param ptrAnsiSequence ANSI sequence to print.
@@ -212,7 +209,6 @@ static void printBufferedAnsiSequence( const char *ptrAnsiSequence, size_t seque
 {
    stdPrintf( "%.*s", (int)sequenceLength, ptrAnsiSequence );
 }
-
 
 /// @brief Reprint the current filtered line after a local interruption.
 ///

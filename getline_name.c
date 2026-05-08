@@ -10,6 +10,7 @@
 #include "defs.h"
 #include "filter_globals.h"
 #include "getline_input.h"
+#include "macos_keychain.h"
 #include "utility.h"
 #define MAX_ALIAS_INPUT_LENGTH 19
 #define MAX_USER_NAME_INPUT_LENGTH 40
@@ -20,7 +21,6 @@ static void recallNextLastName( char *ptrBuffer, char **ptrCursor, int *ptrSmart
 static void recallPreviousLastName( char *ptrBuffer, char **ptrCursor,
                                     int *ptrSmart );
 static void rewindTypedName( char **ptrCursor, const char *ptrBuffer );
-
 
 /// @brief Clear any active name-autocomplete suffix from the display.
 ///
@@ -37,7 +37,6 @@ static void clearSmartCompletion( const char *ptrCursor, int *ptrSmart )
    }
 }
 
-
 /// @brief Read a user, room, or alias name with history and autocomplete support.
 ///
 /// @param quitPriv Mode selector controlling the special handling for login and X paths.
@@ -53,11 +52,13 @@ char *getName( int quitPriv )
 
    lastPtr = 0;
    printAnsiForegroundColorValue( color.inputText );
+   processBufferedKeychainServerText();
    if ( quitPriv == 1 && *aryAutoName &&
         strcmp( aryAutoName, "NONE" ) && !isAutoLoggedIn )
    {
       isAutoLoggedIn = 1;
       snprintf( junk, sizeof( junk ), "%s", aryAutoName );
+      recordCurrentBbsUser( junk );
       stdPrintf( "%s\r\n", junk );
       return junk;
    }
@@ -93,6 +94,7 @@ char *getName( int quitPriv )
          {
             aryNameBuffer[0] = CTRL_D;
             aryNameBuffer[1] = 0;
+            recordCurrentBbsUser( "" );
             return ( aryNameBuffer );
          }
          if ( inputChar == '_' )
@@ -216,9 +218,12 @@ char *getName( int quitPriv )
       snprintf( aryAutoName, sizeof( aryAutoName ), "%s", aryNameBuffer );
       writeBbsRc();
    }
+   if ( quitPriv == 1 )
+   {
+      recordCurrentBbsUser( aryNameBuffer );
+   }
    return ( aryNameBuffer );
 }
-
 
 /// @brief Move the cursor pointer to the end of the current name buffer.
 ///
@@ -233,7 +238,6 @@ static void moveCursorToBufferEnd( char **ptrCursor, char *ptrBuffer )
       ;
    }
 }
-
 
 /// @brief Recall the next saved name from history.
 ///
@@ -255,7 +259,6 @@ static void recallNextLastName( char *ptrBuffer, char **ptrCursor, int *ptrSmart
    }
    moveCursorToBufferEnd( ptrCursor, ptrBuffer );
 }
-
 
 /// @brief Recall the previous saved name from history.
 ///
@@ -299,7 +302,6 @@ static void recallPreviousLastName( char *ptrBuffer, char **ptrCursor,
    moveCursorToBufferEnd( ptrCursor, ptrBuffer );
 }
 
-
 /// @brief Rewind the terminal cursor back over the currently typed name.
 ///
 /// @param ptrCursor Current cursor position to rewind.
@@ -313,7 +315,6 @@ static void rewindTypedName( char **ptrCursor, const char *ptrBuffer )
       printf( "\b \b" );
    }
 }
-
 
 /// @brief Erase the highlighted smart-completion suffix from the terminal.
 ///
@@ -333,7 +334,6 @@ void smartErase( const char *ptrEnd )
       putchar( '\b' );
    }
 }
-
 
 /// @brief Find a unique name completion for the text typed so far.
 ///
@@ -393,7 +393,6 @@ int smartName( char *ptrBuffer, char *ptrEnd )
    }
    return 1;
 }
-
 
 /// @brief Print the smart-completed name with the completion suffix highlighted.
 ///

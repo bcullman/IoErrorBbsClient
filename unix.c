@@ -350,7 +350,6 @@ void techInfo( void )
               "Optimization: " BUILD_OPTIMIZATION_MODE "\r\n",
               "Platform support: " BUILD_PLATFORM_SUPPORT_MODE "\r\n",
               "Universal binary: " BUILD_UNIVERSAL_MODE "\r\n",
-              "Save password support: " BUILD_SAVE_PASSWORD_MODE "\r\n",
               "Sanitizers: " BUILD_SANITIZER_MODE "\r\n",
               "Native optimizations: " BUILD_NATIVE_OPTIMIZATION_MODE "\r\n",
               "Stack protector: " BUILD_STACK_PROTECTOR_MODE "\r\n",

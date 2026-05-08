@@ -14,6 +14,7 @@
 #include "ext.h"
 #include "filter.h"
 #include "getline_input.h"
+#include "macos_keychain.h"
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -29,6 +30,11 @@ static char aryCapturedString[256];
 static int capPutsCallCount;
 static char aryCapturedDots[256];
 static size_t capturedDotCount;
+static char aryHiddenKeychainInput[64];
+static char aryRecordedBbsUser[64];
+static char aryStubKeychainPassword[64];
+static unsigned int processBufferedKeychainServerTextCallCount;
+static bool shouldAutoFillFromKeychain;
 
 static void setInputSequence( const int *aryKeys, size_t count )
 {
@@ -48,6 +54,11 @@ static void resetTracking( void )
    capPutsCallCount = 0;
    aryCapturedDots[0] = '\0';
    capturedDotCount = 0;
+   aryHiddenKeychainInput[0] = '\0';
+   aryRecordedBbsUser[0] = '\0';
+   aryStubKeychainPassword[0] = '\0';
+   processBufferedKeychainServerTextCallCount = 0;
+   shouldAutoFillFromKeychain = false;
 }
 
 static void setupWhoList( const char *ptrFirst, const char *ptrSecond )
@@ -174,10 +185,64 @@ int popQueue( char *ptrObject, queue *ptrQueue )
 
 void replyMessage( void )
 {
+   // Test stub: away-message sending is not relevant in this test.
+}
+
+void clearKeychainSessionState( void )
+{
+   // Test stub: keychain session state is not relevant in this test.
+}
+
+bool tryDeleteKeychainPassword( const char *ptrHost, const char *ptrUser )
+{
+   (void)ptrHost;
+   (void)ptrUser;
+   return false;
+}
+
+bool tryGetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             char *ptrPassword, size_t passwordSize )
+{
+   (void)ptrHost;
+   (void)ptrPassword;
+   (void)passwordSize;
+   (void)ptrUser;
+   return false;
+}
+
+void handleKeychainHiddenInput( const char *ptrPassword )
+{
+   snprintf( aryHiddenKeychainInput, sizeof( aryHiddenKeychainInput ),
+             "%s", ptrPassword );
+}
+
+void handleKeychainServerLine( const char *ptrLine )
+{
+   (void)ptrLine;
+}
+
+void processBufferedKeychainServerText( void )
+{
+   processBufferedKeychainServerTextCallCount++;
+}
+
+void recordCurrentBbsUser( const char *ptrUser )
+{
+   snprintf( aryRecordedBbsUser, sizeof( aryRecordedBbsUser ), "%s", ptrUser );
+}
+
+bool trySetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             const char *ptrPassword )
+{
+   (void)ptrHost;
+   (void)ptrPassword;
+   (void)ptrUser;
+   return false;
 }
 
 void sendBlock( void )
 {
+   // Test stub: telnet block signaling is not relevant in this test.
 }
 
 int stdPrintf( const char *format, ... )
@@ -189,8 +254,29 @@ int stdPrintf( const char *format, ... )
    return 0;
 }
 
+bool tryGetKeychainPasswordForPrompt( char *ptrPassword, size_t passwordSize )
+{
+   if ( !shouldAutoFillFromKeychain )
+   {
+      return false;
+   }
+
+   snprintf( ptrPassword, passwordSize, "%s", aryStubKeychainPassword );
+   return true;
+}
+
+bool tryUpsertKeychainPassword( const char *ptrHost, const char *ptrUser,
+                                const char *ptrPassword )
+{
+   (void)ptrHost;
+   (void)ptrPassword;
+   (void)ptrUser;
+   return false;
+}
+
 void writeBbsRc( void )
 {
+   // Test stub: config persistence is not relevant in this test.
 }
 
 static void smartName_WhenUniquePrefix_ExpandsToFullName( void **state )
@@ -277,6 +363,32 @@ static void getString_WhenSimpleInputProvided_ReturnsTypedString( void **state )
    }
 }
 
+static void getName_WhenAutoLoginUsed_ProcessesBufferedKeychainServerText( void **state )
+{
+   // Arrange
+   char *ptrResult;
+
+   (void)state;
+
+   resetTracking();
+   isAutoLoggedIn = 0;
+   snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Stilgar" );
+
+   // Act
+   ptrResult = getName( 1 );
+
+   // Assert
+   if ( strcmp( ptrResult, "Stilgar" ) != 0 )
+   {
+      fail_msg( "auto-login name prompt should return 'Stilgar'; got '%s'", ptrResult );
+   }
+   if ( processBufferedKeychainServerTextCallCount != 1 )
+   {
+      fail_msg( "auto-login name prompt should process buffered keychain server text exactly once; got %u calls",
+                processBufferedKeychainServerTextCallCount );
+   }
+}
+
 static void getString_WhenCtrlWUsed_RemovesPreviousWord( void **state )
 {
    // Arrange
@@ -324,6 +436,48 @@ static void getString_WhenHiddenInputUsed_CapturesDotsInsteadOfPlainText( void *
    if ( strcmp( aryCapturedDots, "......" ) != 0 )
    {
       fail_msg( "hidden getString should capture one dot per character; got '%s'", aryCapturedDots );
+   }
+   if ( strcmp( aryHiddenKeychainInput, "secret" ) != 0 )
+   {
+      fail_msg( "hidden getString should forward manual hidden input to keychain handler; got '%s'",
+                aryHiddenKeychainInput );
+   }
+}
+
+static void getString_WhenKeychainReturnsPassword_UsesHiddenAutofill( void **state )
+{
+   // Arrange
+   char aryResult[64];
+   const int aryKeys[] = { 'x', 'y', 'z', '\n' };
+
+   (void)state;
+
+   resetTracking();
+   shouldAutoFillFromKeychain = true;
+   snprintf( aryStubKeychainPassword, sizeof( aryStubKeychainPassword ),
+             "%s", "stored-secret" );
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   getString( -20, aryResult, 0 );
+
+   // Assert
+   if ( strcmp( aryResult, "stored-secret" ) != 0 )
+   {
+      fail_msg( "hidden getString should use keychain password when available; got '%s'", aryResult );
+   }
+   if ( inputIndex != 0 )
+   {
+      fail_msg( "keychain autofill should not consume queued keystrokes; consumed %zu of %zu inputs",
+                inputIndex, inputCount );
+   }
+   if ( strcmp( aryCapturedDots, "............." ) != 0 )
+   {
+      fail_msg( "keychain autofill should capture one dot per character; got '%s'", aryCapturedDots );
+   }
+   if ( aryHiddenKeychainInput[0] != '\0' )
+   {
+      fail_msg( "keychain autofill should not call hidden-input handler; got '%s'", aryHiddenKeychainInput );
    }
 }
 
@@ -401,6 +555,32 @@ static void getName_WhenAutocompleteEnabled_ExpandsUniqueName( void **state )
    teardownWhoList();
 }
 
+static void getName_WhenLoginHandleEntered_RecordsCurrentBbsUser( void **state )
+{
+   // Arrange
+   char *ptrResult;
+   const int aryKeys[] = { 'D', 'o', 'c', '\n' };
+
+   (void)state;
+
+   resetTracking();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   ptrResult = getName( 1 );
+
+   // Assert
+   if ( strcmp( ptrResult, "Doc" ) != 0 )
+   {
+      fail_msg( "getName should preserve the typed login handle; got '%s'", ptrResult );
+   }
+   if ( strcmp( aryRecordedBbsUser, "Doc" ) != 0 )
+   {
+      fail_msg( "getName should record the current BBS user for login prompts; got '%s'",
+                aryRecordedBbsUser );
+   }
+}
+
 static void getName_WhenAutocompleteDisabled_LeavesTypedPrefixUnchanged( void **state )
 {
    // Arrange
@@ -436,8 +616,11 @@ int main( void )
       cmocka_unit_test( getString_WhenSimpleInputProvided_ReturnsTypedString ),
       cmocka_unit_test( getString_WhenCtrlWUsed_RemovesPreviousWord ),
       cmocka_unit_test( getString_WhenHiddenInputUsed_CapturesDotsInsteadOfPlainText ),
+      cmocka_unit_test( getString_WhenKeychainReturnsPassword_UsesHiddenAutofill ),
       cmocka_unit_test( getString_WhenRepeatedInvalidControlInputReceived_FlushesInput ),
       cmocka_unit_test( getString_WhenCtrlRReceived_IgnoresItAsInvalidInput ),
+      cmocka_unit_test( getName_WhenAutoLoginUsed_ProcessesBufferedKeychainServerText ),
+      cmocka_unit_test( getName_WhenLoginHandleEntered_RecordsCurrentBbsUser ),
       cmocka_unit_test( getName_WhenAutocompleteEnabled_ExpandsUniqueName ),
       cmocka_unit_test( getName_WhenAutocompleteDisabled_LeavesTypedPrefixUnchanged ),
    };

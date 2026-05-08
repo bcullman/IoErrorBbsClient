@@ -24,15 +24,11 @@ void copyright( void )
               "  1995-2003 Michael Hampton.      (GPL: Cool stuff)\r\n",
               "  1993-1994 Doug Siebert.         (GPL: Client core)\r\n",
               "Portions Copyright (C)\r\n",
-#ifdef ENABLE_SAVE_PASSWORD
-              "  1995 Jonathan Pickard.          (GPL: Saved-password algorithm)\r\n",
-#endif
               "  1994 David Bailey.              (GPL: Expanded friend list)\r\n",
               "  1994 Marc Dionne.               (GPL: Early patches to client core)\r\n",
               "  Above portions used with permission.\r\n",
               (char *)NULL );
 }
-
 
 /// @brief Print a variable list of lines through the built-in pager.
 ///
@@ -70,7 +66,6 @@ void feedPager( int startrow, ... )
    va_end( ap );
    return;
 }
-
 
 /// @brief Run the client information submenu.
 ///
@@ -110,7 +105,6 @@ void information( void )
       }
    }
 }
-
 
 /// @brief Display the bundled GPL license text.
 ///
@@ -346,7 +340,6 @@ void license( void )
               "                     END OF TERMS AND CONDITIONS\r\n",
               (char *)NULL );
 }
-
 
 /// @brief Display the GPL warranty disclaimer text.
 ///

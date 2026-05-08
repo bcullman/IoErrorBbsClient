@@ -8,6 +8,7 @@
 #include "client_globals.h"
 #include "config_globals.h"
 #include "defs.h"
+#include "macos_keychain.h"
 #include "network_globals.h"
 #include "unix.h"
 #include "utility.h"
@@ -182,6 +183,7 @@ void connectBbs( void )
    char aryPortString[8];
    const char *ptrLookupHost;
 
+   clearKeychainSessionState();
    if ( !*aryBbsHost )
    {
       snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", BBS_HOSTNAME );

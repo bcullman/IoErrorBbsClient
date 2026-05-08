@@ -29,9 +29,6 @@ typedef enum
    BBRC_CMD_AWAYKEY,
    BBRC_CMD_AUTOANSI,
    BBRC_CMD_AUTONAME,
-#ifdef ENABLE_SAVE_PASSWORD
-   BBRC_CMD_AUTOPASS,
-#endif
    BBRC_CMD_BOLD,
    BBRC_CMD_BROWSER,
    BBRC_CMD_CAPTURE,
@@ -42,6 +39,7 @@ typedef enum
    BBRC_CMD_EDITOR,
    BBRC_CMD_ENEMY,
    BBRC_CMD_FRIEND,
+   BBRC_CMD_KEYCHAIN,
    BBRC_CMD_KEYMAP,
    BBRC_CMD_MACRO,
    BBRC_CMD_NEW_AWAY,
@@ -262,13 +260,11 @@ static BbsRcCommandId detectBbsRcCommand( const char *ptrLine )
          { "titlebar", 8, BBRC_CMD_TITLEBAR },
          { "screenreader", 12, BBRC_CMD_SCREENREADER },
          { "autocomplete", 12, BBRC_CMD_AUTOCOMPLETE },
+         { "keychain", 8, BBRC_CMD_KEYCHAIN },
          { "urlsummary", 10, BBRC_CMD_CLICKABLE_URLS },
          { "color ", 6, BBRC_CMD_COLOR },
          { "aryAutoName ", sizeof( "aryAutoName " ) - 1, BBRC_CMD_AUTONAME },
          { "autoansi", 9, BBRC_CMD_AUTOANSI },
-#ifdef ENABLE_SAVE_PASSWORD
-         { "autopass ", 9, BBRC_CMD_AUTOPASS },
-#endif
          { "aryBrowser ", sizeof( "aryBrowser " ) - 1, BBRC_CMD_BROWSER },
          { "aryEditor ", sizeof( "aryEditor " ) - 1, BBRC_CMD_EDITOR },
          { "site ", 5, BBRC_CMD_SITE },
@@ -437,10 +433,6 @@ static void initializeBbsRcDefaults( void )
 
    isAutoLoggedIn = 0;
    *aryAutoName = 0;
-#ifdef ENABLE_SAVE_PASSWORD
-   isAutoPasswordSent = 0;
-   *aryAutoPassword = 0;
-#endif
 
    *aryEditor = 0;
    *aryBbsHost = 0;
@@ -454,6 +446,7 @@ static void initializeBbsRcDefaults( void )
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
    flagsConfiguration.shouldEnableTitleBar = 1;
+   flagsConfiguration.shouldUseKeychain = 0;
    flagsConfiguration.hasTitleBarSetting = 0;
    flagsConfiguration.isScreenReaderModeEnabled = 0;
    flagsConfiguration.hasScreenReaderModeSetting = 0;
@@ -1117,6 +1110,17 @@ static bool processBbsRcSettingCommand( BbsRcCommandId commandId,
          }
          return true;
 
+      case BBRC_CMD_KEYCHAIN:
+         optionValue = parseBooleanSettingValue( ptrLine, strlen( "keychain" ),
+                                                 "keychain option", false );
+         if ( optionValue != BBRC_OPTION_INVALID )
+         {
+#ifdef ENABLE_KEYCHAIN
+            flagsConfiguration.shouldUseKeychain = (unsigned int)optionValue;
+#endif
+         }
+         return true;
+
       case BBRC_CMD_COLOR:
          if ( !parseColorScheme( ptrLine ) )
          {
@@ -1140,12 +1144,6 @@ static bool processBbsRcSettingCommand( BbsRcCommandId commandId,
          }
          return true;
 
-#ifdef ENABLE_SAVE_PASSWORD
-      case BBRC_CMD_AUTOPASS:
-         strncpy( aryAutoPassword, ptrLine + 9, 21 );
-         aryAutoPassword[20] = 0;
-         return true;
-#endif
       default:
          return false;
    }

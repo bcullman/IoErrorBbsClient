@@ -473,6 +473,70 @@ static void handleKeychainServerLine_WhenPasswordChangeSucceeds_StoresNewPasswor
    }
 }
 
+static void handleKeychainServerLine_WhenDocPasswordChangePromptsMismatch_DoesNotStorePassword( void **state )
+{
+   // Arrange
+   (void)state;
+
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.iscabbs.com" );
+   recordCurrentBbsUser( "Stilgar" );
+   stagePasswordChangePrompt( "New Password: " );
+   handleKeychainHiddenInput( "arrakis" );
+   stagePasswordChangePrompt( "Again for verification: " );
+   handleKeychainHiddenInput( "caladan" );
+
+   // Act
+   handleKeychainServerLine( "Your passwords didn't match.  Please try again." );
+   handleKeychainServerLine( "So be it." );
+
+   // Assert
+   if ( keychainStoreCallCount != 0 )
+   {
+      fail_msg( "DOC password mismatch must clear staged password and store nothing; got %u store calls",
+                keychainStoreCallCount );
+   }
+}
+
+static void handleKeychainServerLine_WhenDocPasswordChangeSucceeds_StoresNewPassword( void **state )
+{
+   // Arrange
+   (void)state;
+
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.iscabbs.com" );
+   recordCurrentBbsUser( "Stilgar" );
+   stagePasswordChangePrompt( "Old Password: " );
+   handleKeychainHiddenInput( "sietch" );
+   stagePasswordChangePrompt( "New Password: " );
+   handleKeychainHiddenInput( "arrakis" );
+   stagePasswordChangePrompt( "Again for verification: " );
+   handleKeychainHiddenInput( "arrakis" );
+
+   // Act
+   handleKeychainServerLine( "So be it." );
+
+   // Assert
+   if ( keychainStoreCallCount != 1 )
+   {
+      fail_msg( "DOC password change success should trigger exactly one password store; got %u",
+                keychainStoreCallCount );
+   }
+   if ( strcmp( aryStoredHost, "bbs.iscabbs.com" ) != 0 )
+   {
+      fail_msg( "DOC password change should store against host 'bbs.iscabbs.com'; got '%s'",
+                aryStoredHost );
+   }
+   if ( strcmp( aryStoredPassword, "arrakis" ) != 0 )
+   {
+      fail_msg( "DOC password change should store password 'arrakis'; got '%s'",
+                aryStoredPassword );
+   }
+   if ( strcmp( aryStoredUser, "Stilgar" ) != 0 )
+   {
+      fail_msg( "DOC password change should store user 'Stilgar'; got '%s'",
+                aryStoredUser );
+   }
+}
+
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
@@ -518,6 +582,14 @@ int main( void )
          teardownTest ),
       cmocka_unit_test_setup_teardown(
          handleKeychainServerLine_WhenPasswordChangeSucceeds_StoresNewPassword,
+         setupTest,
+         teardownTest ),
+      cmocka_unit_test_setup_teardown(
+         handleKeychainServerLine_WhenDocPasswordChangePromptsMismatch_DoesNotStorePassword,
+         setupTest,
+         teardownTest ),
+      cmocka_unit_test_setup_teardown(
+         handleKeychainServerLine_WhenDocPasswordChangeSucceeds_StoresNewPassword,
          setupTest,
          teardownTest ),
    };

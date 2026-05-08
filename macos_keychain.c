@@ -502,7 +502,8 @@ bool hasSavedKeychainPasswordContextForCurrentBbs( void )
 
 static bool isChangePasswordSuccessLine( const char *ptrLine )
 {
-   return doesContainDelimitedText( ptrLine, "Password changed." );
+   return doesContainDelimitedText( ptrLine, "Password changed." ) ||
+          doesContainDelimitedText( ptrLine, "So be it." );
 }
 
 static bool isCurrentPasswordFailureLine( const char *ptrLine )
@@ -585,8 +586,11 @@ static bool lineEndsWith( const char *ptrText, const char *ptrSuffix )
 static bool isNewPasswordMismatchLine( const char *ptrLine )
 {
    return doesContainDelimitedText(
-      ptrLine,
-      "The passwords you typed didn't match.  Please try again." );
+             ptrLine,
+             "Your passwords didn't match.  Please try again." ) ||
+          doesContainDelimitedText(
+             ptrLine,
+             "The passwords you typed didn't match.  Please try again." );
 }
 
 static bool isSkippableBbsUser( const char *ptrUser )
@@ -702,6 +706,18 @@ static KeychainPasswordPromptType parseKeychainPasswordPromptType( const char *p
    const char *ptrText;
 
    ptrText = skipLinePrefix( ptrLine );
+   if ( lineEndsWith( ptrText, "Old Password: " ) )
+   {
+      return KEYCHAIN_PASSWORD_PROMPT_CHANGE_CURRENT;
+   }
+   if ( lineEndsWith( ptrText, "New Password: " ) )
+   {
+      return KEYCHAIN_PASSWORD_PROMPT_CHANGE_NEW;
+   }
+   if ( lineEndsWith( ptrText, "Again for verification: " ) )
+   {
+      return KEYCHAIN_PASSWORD_PROMPT_CHANGE_CONFIRM;
+   }
    if ( lineEndsWith( ptrText, "Please enter a password: " ) )
    {
       return KEYCHAIN_PASSWORD_PROMPT_CHANGE_NEW;

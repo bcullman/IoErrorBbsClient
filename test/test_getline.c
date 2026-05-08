@@ -185,10 +185,12 @@ int popQueue( char *ptrObject, queue *ptrQueue )
 
 void replyMessage( void )
 {
+   // Test stub: away-message sending is not relevant in this test.
 }
 
 void clearKeychainSessionState( void )
 {
+   // Test stub: keychain session state is not relevant in this test.
 }
 
 bool tryDeleteKeychainPassword( const char *ptrHost, const char *ptrUser )
@@ -240,6 +242,7 @@ bool trySetKeychainPassword( const char *ptrHost, const char *ptrUser,
 
 void sendBlock( void )
 {
+   // Test stub: telnet block signaling is not relevant in this test.
 }
 
 int stdPrintf( const char *format, ... )
@@ -273,6 +276,7 @@ bool tryUpsertKeychainPassword( const char *ptrHost, const char *ptrUser,
 
 void writeBbsRc( void )
 {
+   // Test stub: config persistence is not relevant in this test.
 }
 
 static void smartName_WhenUniquePrefix_ExpandsToFullName( void **state )

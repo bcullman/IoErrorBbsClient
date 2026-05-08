@@ -288,6 +288,7 @@ int netPutChar( int inputChar )
 
 void clearKeychainSessionState( void )
 {
+   // Test stub: keychain session state is not relevant in this test.
 }
 
 bool tryDeleteKeychainPassword( const char *ptrHost, const char *ptrUser )

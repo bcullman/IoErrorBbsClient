@@ -358,6 +358,7 @@ int inKey( void )
 
 void information( void )
 {
+   // Test stub: information-screen output is not relevant in this test.
 }
 
 int more( int *line, int percent )
@@ -375,10 +376,12 @@ noreturn void myExit( void )
 
 void resetTerm( void )
 {
+   // Test stub: terminal reset behavior is not relevant in this test.
 }
 
 void setTerm( void )
 {
+   // Test stub: terminal setup behavior is not relevant in this test.
 }
 
 void sInfo( const char *message, const char *heading )

@@ -118,6 +118,7 @@ noreturn void myExit( void )
 
 void openBrowser( void )
 {
+   // Test stub: browser launching is not relevant in this test.
 }
 
 void run( const char *ptrCommand, const char *ptrArg )
@@ -137,6 +138,7 @@ int stdPrintf( const char *format, ... )
 
 void suspend( void )
 {
+   // Test stub: suspend handling is not relevant in this test.
 }
 
 int telReceive( int inputChar )

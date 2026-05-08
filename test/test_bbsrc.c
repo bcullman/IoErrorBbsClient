@@ -117,6 +117,7 @@ static int *const aryTestColorFields[COLOR_FIELD_COUNT] =
 
 void configBbsRc( void )
 {
+   // Test stub: interactive config flow is not relevant in this test.
 }
 
 void defaultColors( int setall )
@@ -283,10 +284,12 @@ FILE *findBbsFriends( void )
 
 void resetTerm( void )
 {
+   // Test stub: terminal reset behavior is not relevant in this test.
 }
 
 void setTerm( void )
 {
+   // Test stub: terminal setup behavior is not relevant in this test.
 }
 
 void setup( int oldversion )

@@ -54,6 +54,7 @@ int colorize( const char *ptrText )
 
 void continuedPostHelper( void )
 {
+   // Test stub: continued-post handling is not relevant in this test.
 }
 
 noreturn void fatalPerror( const char *error, const char *heading )
@@ -118,6 +119,7 @@ int readFoldedKey( void )
 
 void looper( void )
 {
+   // Test stub: main-loop behavior is not relevant in this test.
 }
 
 int more( int *line, int percentComplete )
@@ -183,6 +185,7 @@ void sendBlock( void )
 
 void tempFileError( void )
 {
+   // Test stub: temp-file error handling is not relevant in this test.
 }
 
 int yesNo( void )

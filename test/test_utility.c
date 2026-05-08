@@ -28,6 +28,7 @@ static int lastNetPutChar;
 // Stubs for utility.c dependencies that are outside this test target's scope.
 void deinitialize( void )
 {
+   // Test stub: shutdown side effects are not relevant in this test.
 }
 
 void flushInput( unsigned int count )
@@ -59,6 +60,7 @@ int netPutChar( int inputChar )
 
 void resetTerm( void )
 {
+   // Test stub: terminal reset behavior is not relevant in this test.
 }
 
 void sError( const char *message, const char *heading )
@@ -75,10 +77,12 @@ void sPerror( const char *message, const char *heading )
 
 void sendBlock( void )
 {
+   // Test stub: telnet block signaling is not relevant in this test.
 }
 
 void sigOff( void )
 {
+   // Test stub: signal cleanup is not relevant in this test.
 }
 
 int stdPrintf( const char *format, ... )

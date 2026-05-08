@@ -43,6 +43,12 @@ need to type your password.
 If you change your handle, the client will need to know your new handle.
 Just press ENTER at the Password prompt, and type in your new handle. The
 client will then remember your new handle.
+.sp
+The
+.I ~/.bbsrc
+file stores client settings. On macOS, builds configured with
+.B --enable-keychain
+can store passwords within Keychain.
 
 .SH CONFIGURATION
 To configure your client, you will enter the client configuration menu.
@@ -101,7 +107,7 @@ executable command line rather than shell syntax.
 .SH FILES
 .TP
 .I ~/.bbsrc
-Client configuration file.
+Client configuration file. Passwords are not stored here.
 .TP
 .I ~/.bbsfriends
 Friend list.

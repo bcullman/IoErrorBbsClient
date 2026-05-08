@@ -82,6 +82,20 @@ make release-package
 `make release-package` creates a stripped release binary under `release/`.
 On macOS, it also keeps a matching `.dSYM` bundle for postmortem debugging.
 
+Optional macOS Keychain build:
+
+```bash
+make clean
+autoreconf -i
+./configure --enable-keychain
+make -j4
+make check
+make cppcheck
+```
+
+Keychain-enabled builds can store passwords in macOS Keychain. The runtime
+setting is written as `keychain 0` or `keychain 1` in `~/.bbsrc`.
+
 ## Shell And Editor Commands
 
 The shell hotkey and external editor setting can now use a normal command with

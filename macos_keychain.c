@@ -46,6 +46,7 @@ static void clearStoredSecret( char *ptrBuffer, size_t bufferSize );
 static const char *findCurrentBbsHost( void );
 static const char *findCurrentBbsUser( void );
 static bool hasCurrentBbsUser( void );
+static bool doesContainDelimitedText( const char *ptrText, const char *ptrExpected );
 static bool isChangePasswordSuccessLine( const char *ptrLine );
 static bool isCurrentPasswordFailureLine( const char *ptrLine );
 static bool isKeychainRuntimeEnabled( void );
@@ -151,6 +152,27 @@ static void clearStoredSecret( char *ptrBuffer, size_t bufferSize )
    for ( bufferIndex = 0; bufferIndex < bufferSize; bufferIndex++ )
    {
       ptrCursor[bufferIndex] = '\0';
+   }
+}
+
+void processBufferedKeychainServerText( void )
+{
+   if ( !isPendingLookupFromKeychain )
+   {
+      return;
+   }
+
+   if ( isLoginPasswordFailureLine( aryFilterLine ) )
+   {
+      isLookupSuppressed = true;
+      clearPendingLoginKeychainPassword();
+      return;
+   }
+
+   if ( isCurrentPasswordFailureLine( aryFilterLine ) )
+   {
+      isLookupSuppressed = true;
+      clearPendingChangeKeychainPassword();
    }
 }
 
@@ -325,6 +347,11 @@ void setKeychainPasswordStoreFunctionForTesting(
    ptrKeychainPasswordStoreFunction = ptrStoreFunction;
 }
 
+void setPendingKeychainLookupForTesting( bool isPendingLookup )
+{
+   isPendingLookupFromKeychain = isPendingLookup;
+}
+
 bool tryStorePendingLoginPassword( const char *ptrHost, const char *ptrUser,
                                    KeychainPasswordStoreFunction ptrStoreFunction )
 {
@@ -475,12 +502,12 @@ bool hasSavedKeychainPasswordContextForCurrentBbs( void )
 
 static bool isChangePasswordSuccessLine( const char *ptrLine )
 {
-   return strcmp( skipLinePrefix( ptrLine ), "Password changed." ) == 0;
+   return doesContainDelimitedText( ptrLine, "Password changed." );
 }
 
 static bool isCurrentPasswordFailureLine( const char *ptrLine )
 {
-   return strcmp( skipLinePrefix( ptrLine ), "Password unchanged." ) == 0;
+   return doesContainDelimitedText( ptrLine, "Password unchanged." );
 }
 
 static bool isKeychainRuntimeEnabled( void )
@@ -490,7 +517,49 @@ static bool isKeychainRuntimeEnabled( void )
 
 static bool isLoginPasswordFailureLine( const char *ptrLine )
 {
-   return strcmp( skipLinePrefix( ptrLine ), "Wrong password..." ) == 0;
+   return doesContainDelimitedText( ptrLine, "Incorrect login." ) ||
+          doesContainDelimitedText( ptrLine, "Wrong password..." );
+}
+
+static bool doesContainDelimitedText( const char *ptrText, const char *ptrExpected )
+{
+   size_t expectedLength;
+
+   if ( ptrText == NULL || ptrExpected == NULL )
+   {
+      return false;
+   }
+
+   expectedLength = strlen( ptrExpected );
+   while ( *ptrText != '\0' )
+   {
+      const char *ptrSegmentEnd;
+      const char *ptrSegmentStart;
+      size_t segmentLength;
+
+      ptrSegmentStart = skipLinePrefix( ptrText );
+      ptrSegmentEnd = ptrSegmentStart;
+      while ( *ptrSegmentEnd != '\0' && *ptrSegmentEnd != '\r' &&
+              *ptrSegmentEnd != '\n' )
+      {
+         ptrSegmentEnd++;
+      }
+
+      segmentLength = (size_t)( ptrSegmentEnd - ptrSegmentStart );
+      if ( segmentLength == expectedLength &&
+           strncmp( ptrSegmentStart, ptrExpected, expectedLength ) == 0 )
+      {
+         return true;
+      }
+
+      ptrText = ptrSegmentEnd;
+      while ( *ptrText == '\r' || *ptrText == '\n' )
+      {
+         ptrText++;
+      }
+   }
+
+   return false;
 }
 
 static bool lineEndsWith( const char *ptrText, const char *ptrSuffix )
@@ -515,8 +584,9 @@ static bool lineEndsWith( const char *ptrText, const char *ptrSuffix )
 
 static bool isNewPasswordMismatchLine( const char *ptrLine )
 {
-   return strcmp( skipLinePrefix( ptrLine ),
-                  "The passwords you typed didn't match.  Please try again." ) == 0;
+   return doesContainDelimitedText(
+      ptrLine,
+      "The passwords you typed didn't match.  Please try again." );
 }
 
 static bool isSkippableBbsUser( const char *ptrUser )
@@ -752,6 +822,7 @@ bool tryGetKeychainPasswordForPrompt( char *ptrPassword, size_t passwordSize )
 {
    const char *ptrHost;
 
+   processBufferedKeychainServerText();
    keychainPasswordPromptType = parseKeychainPasswordPromptType( aryFilterLine );
    isPendingLookupFromKeychain = false;
 
@@ -782,6 +853,7 @@ bool tryGetKeychainPasswordForPrompt( char *ptrPassword, size_t passwordSize )
    }
 
    isPendingLookupFromKeychain = true;
+   isLookupSuppressed = true;
    return true;
 }
 

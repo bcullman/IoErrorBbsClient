@@ -52,6 +52,7 @@ char *getName( int quitPriv )
 
    lastPtr = 0;
    printAnsiForegroundColorValue( color.inputText );
+   processBufferedKeychainServerText();
    if ( quitPriv == 1 && *aryAutoName &&
         strcmp( aryAutoName, "NONE" ) && !isAutoLoggedIn )
    {

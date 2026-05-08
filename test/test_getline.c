@@ -33,6 +33,7 @@ static size_t capturedDotCount;
 static char aryHiddenKeychainInput[64];
 static char aryRecordedBbsUser[64];
 static char aryStubKeychainPassword[64];
+static unsigned int processBufferedKeychainServerTextCallCount;
 static bool shouldAutoFillFromKeychain;
 
 static void setInputSequence( const int *aryKeys, size_t count )
@@ -56,6 +57,7 @@ static void resetTracking( void )
    aryHiddenKeychainInput[0] = '\0';
    aryRecordedBbsUser[0] = '\0';
    aryStubKeychainPassword[0] = '\0';
+   processBufferedKeychainServerTextCallCount = 0;
    shouldAutoFillFromKeychain = false;
 }
 
@@ -217,6 +219,11 @@ void handleKeychainServerLine( const char *ptrLine )
    (void)ptrLine;
 }
 
+void processBufferedKeychainServerText( void )
+{
+   processBufferedKeychainServerTextCallCount++;
+}
+
 void recordCurrentBbsUser( const char *ptrUser )
 {
    snprintf( aryRecordedBbsUser, sizeof( aryRecordedBbsUser ), "%s", ptrUser );
@@ -349,6 +356,32 @@ static void getString_WhenSimpleInputProvided_ReturnsTypedString( void **state )
    {
       fail_msg( "getString should capture plain input via capPuts; got calls=%d text='%s'",
                 capPutsCallCount, aryCapturedString );
+   }
+}
+
+static void getName_WhenAutoLoginUsed_ProcessesBufferedKeychainServerText( void **state )
+{
+   // Arrange
+   char *ptrResult;
+
+   (void)state;
+
+   resetTracking();
+   isAutoLoggedIn = 0;
+   snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Stilgar" );
+
+   // Act
+   ptrResult = getName( 1 );
+
+   // Assert
+   if ( strcmp( ptrResult, "Stilgar" ) != 0 )
+   {
+      fail_msg( "auto-login name prompt should return 'Stilgar'; got '%s'", ptrResult );
+   }
+   if ( processBufferedKeychainServerTextCallCount != 1 )
+   {
+      fail_msg( "auto-login name prompt should process buffered keychain server text exactly once; got %u calls",
+                processBufferedKeychainServerTextCallCount );
    }
 }
 
@@ -582,6 +615,7 @@ int main( void )
       cmocka_unit_test( getString_WhenKeychainReturnsPassword_UsesHiddenAutofill ),
       cmocka_unit_test( getString_WhenRepeatedInvalidControlInputReceived_FlushesInput ),
       cmocka_unit_test( getString_WhenCtrlRReceived_IgnoresItAsInvalidInput ),
+      cmocka_unit_test( getName_WhenAutoLoginUsed_ProcessesBufferedKeychainServerText ),
       cmocka_unit_test( getName_WhenLoginHandleEntered_RecordsCurrentBbsUser ),
       cmocka_unit_test( getName_WhenAutocompleteEnabled_ExpandsUniqueName ),
       cmocka_unit_test( getName_WhenAutocompleteDisabled_LeavesTypedPrefixUnchanged ),

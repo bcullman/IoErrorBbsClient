@@ -298,6 +298,143 @@ static void handleKeychainServerLine_WhenWrongPasswordSeen_DoesNotStorePasswordL
    }
 }
 
+static void handleKeychainServerLine_WhenIncorrectLoginFollowsAutofill_ManualRetryStoresNewPassword( void **state )
+{
+   // Arrange
+   (void)state;
+
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.iscabbs.com" );
+   stageManualLoginPrompt();
+   setPendingKeychainLookupForTesting( true );
+
+   // Act
+   handleKeychainServerLine( "Incorrect login.\r" );
+   stageManualLoginPrompt();
+   handleKeychainHiddenInput( "arrakis" );
+   handleKeychainServerLine( "Welcome to ISCABBS, Stilgar!\r" );
+
+   // Assert
+   if ( keychainStoreCallCount != 1 )
+   {
+      fail_msg( "failed keychain autofill followed by a successful manual retry should store exactly one replacement password; got %u",
+                keychainStoreCallCount );
+   }
+   if ( strcmp( aryStoredHost, "bbs.iscabbs.com" ) != 0 )
+   {
+      fail_msg( "manual retry after failed autofill should store against host 'bbs.iscabbs.com'; got '%s'",
+                aryStoredHost );
+   }
+   if ( strcmp( aryStoredPassword, "arrakis" ) != 0 )
+   {
+      fail_msg( "manual retry after failed autofill should store replacement password 'arrakis'; got '%s'",
+                aryStoredPassword );
+   }
+   if ( strcmp( aryStoredUser, "Stilgar" ) != 0 )
+   {
+      fail_msg( "manual retry after failed autofill should store user 'Stilgar'; got '%s'",
+                aryStoredUser );
+   }
+}
+
+static void tryGetKeychainPasswordForPrompt_WhenIncorrectLoginAndRepromptShareBuffer_SuppressesAutoFill( void **state )
+{
+   // Arrange
+   char aryPassword[80];
+   bool isAutoFilled;
+
+   (void)state;
+
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.iscabbs.com" );
+   recordCurrentBbsUser( "Stilgar" );
+   snprintf( aryFilterLine, sizeof( aryFilterLine ), "%s",
+             "Incorrect login.\rName: Password: " );
+   setPendingKeychainLookupForTesting( true );
+
+   // Act
+   isAutoFilled = tryGetKeychainPasswordForPrompt( aryPassword,
+                                                   sizeof( aryPassword ) );
+
+   // Assert
+   if ( isAutoFilled )
+   {
+      fail_msg( "buffered incorrect-login reprompt must suppress keychain autofill for the next prompt" );
+   }
+
+   // Arrange
+   handleKeychainHiddenInput( "arrakis" );
+
+   // Act
+   handleKeychainServerLine( "Welcome to ISCABBS, Stilgar!\r" );
+
+   // Assert
+   if ( keychainStoreCallCount != 1 )
+   {
+      fail_msg( "manual retry after buffered incorrect-login reprompt should store exactly one replacement password; got %u",
+                keychainStoreCallCount );
+   }
+   if ( strcmp( aryStoredHost, "bbs.iscabbs.com" ) != 0 )
+   {
+      fail_msg( "buffered incorrect-login reprompt should store against host 'bbs.iscabbs.com'; got '%s'",
+                aryStoredHost );
+   }
+   if ( strcmp( aryStoredPassword, "arrakis" ) != 0 )
+   {
+      fail_msg( "buffered incorrect-login reprompt should store replacement password 'arrakis'; got '%s'",
+                aryStoredPassword );
+   }
+   if ( strcmp( aryStoredUser, "Stilgar" ) != 0 )
+   {
+      fail_msg( "buffered incorrect-login reprompt should store user 'Stilgar'; got '%s'",
+                aryStoredUser );
+   }
+}
+
+static void processBufferedKeychainServerText_WhenIncorrectLoginAndNamePromptShareBuffer_SuppressesNextAutoFill( void **state )
+{
+   // Arrange
+   char aryPassword[80];
+   bool isAutoFilled;
+
+   (void)state;
+
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.iscabbs.com" );
+   recordCurrentBbsUser( "Stilgar" );
+   snprintf( aryFilterLine, sizeof( aryFilterLine ), "%s",
+             "Incorrect login.\rName: " );
+   setPendingKeychainLookupForTesting( true );
+
+   // Act
+   processBufferedKeychainServerText();
+
+   snprintf( aryFilterLine, sizeof( aryFilterLine ), "%s", "Password: " );
+   isAutoFilled = tryGetKeychainPasswordForPrompt( aryPassword,
+                                                   sizeof( aryPassword ) );
+
+   // Assert
+   if ( isAutoFilled )
+   {
+      fail_msg( "buffered incorrect-login name prompt must suppress the following password autofill" );
+   }
+
+   // Arrange
+   handleKeychainHiddenInput( "arrakis" );
+
+   // Act
+   handleKeychainServerLine( "Welcome to ISCABBS, Stilgar!\r" );
+
+   // Assert
+   if ( keychainStoreCallCount != 1 )
+   {
+      fail_msg( "manual retry after buffered incorrect-login name prompt should store exactly one replacement password; got %u",
+                keychainStoreCallCount );
+   }
+   if ( strcmp( aryStoredPassword, "arrakis" ) != 0 )
+   {
+      fail_msg( "buffered incorrect-login name prompt should store replacement password 'arrakis'; got '%s'",
+                aryStoredPassword );
+   }
+}
+
 static void handleKeychainServerLine_WhenPasswordChangeSucceeds_StoresNewPassword( void **state )
 {
    // Arrange
@@ -365,6 +502,18 @@ int main( void )
          teardownTest ),
       cmocka_unit_test_setup_teardown(
          handleKeychainServerLine_WhenWrongPasswordSeen_DoesNotStorePasswordLater,
+         setupTest,
+         teardownTest ),
+      cmocka_unit_test_setup_teardown(
+         handleKeychainServerLine_WhenIncorrectLoginFollowsAutofill_ManualRetryStoresNewPassword,
+         setupTest,
+         teardownTest ),
+      cmocka_unit_test_setup_teardown(
+         tryGetKeychainPasswordForPrompt_WhenIncorrectLoginAndRepromptShareBuffer_SuppressesAutoFill,
+         setupTest,
+         teardownTest ),
+      cmocka_unit_test_setup_teardown(
+         processBufferedKeychainServerText_WhenIncorrectLoginAndNamePromptShareBuffer_SuppressesNextAutoFill,
          setupTest,
          teardownTest ),
       cmocka_unit_test_setup_teardown(

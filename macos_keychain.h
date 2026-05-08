@@ -61,6 +61,9 @@ void handleKeychainHiddenInput( const char *ptrPassword );
 /// @param ptrLine Completed server output line.
 void handleKeychainServerLine( const char *ptrLine );
 
+/// @brief Inspect the current buffered server text for keychain failure events.
+void processBufferedKeychainServerText( void );
+
 /// @brief Record the current BBS user name for host-scoped lookups.
 ///
 /// @param ptrUser BBS user name.
@@ -71,6 +74,11 @@ void recordCurrentBbsUser( const char *ptrUser );
 /// @param ptrStoreFunction Replacement callback, or `NULL` to restore the default backend.
 void setKeychainPasswordStoreFunctionForTesting(
    KeychainPasswordStoreFunction ptrStoreFunction );
+
+/// @brief Mark the current login attempt as having used a keychain-loaded password in tests.
+///
+/// @param isPendingLookup `true` to simulate a keychain autofill attempt, otherwise `false`.
+void setPendingKeychainLookupForTesting( bool isPendingLookup );
 
 /// @brief Store a new password for a specific host and user.
 ///

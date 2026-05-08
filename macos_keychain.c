@@ -179,7 +179,7 @@ static KeychainPasswordStoreFunction resolveKeychainPasswordStoreFunction( void 
       return ptrKeychainPasswordStoreFunction;
    }
 
-   return upsertKeychainPassword;
+   return tryUpsertKeychainPassword;
 }
 
 static bool tryStorePendingChangePassword( const char *ptrHost, const char *ptrUser,
@@ -199,7 +199,7 @@ static bool tryStorePendingChangePassword( const char *ptrHost, const char *ptrU
    return ptrStoreFunction( ptrHost, ptrUser, aryPendingChangePassword );
 }
 
-bool deleteKeychainPassword( const char *ptrHost, const char *ptrUser )
+bool tryDeleteKeychainPassword( const char *ptrHost, const char *ptrUser )
 {
 #ifdef ENABLE_KEYCHAIN
    CFMutableDictionaryRef queryRef;
@@ -232,7 +232,7 @@ bool deleteKeychainPassword( const char *ptrHost, const char *ptrUser )
 #endif
 }
 
-bool deleteSavedKeychainPasswordForCurrentBbs( void )
+bool tryDeleteSavedKeychainPasswordForCurrentBbs( void )
 {
    const char *ptrHost;
    const char *ptrUser;
@@ -244,7 +244,7 @@ bool deleteSavedKeychainPasswordForCurrentBbs( void )
       return false;
    }
 
-   return deleteKeychainPassword( ptrHost, ptrUser );
+   return tryDeleteKeychainPassword( ptrHost, ptrUser );
 }
 
 static const char *findCurrentBbsHost( void )
@@ -274,8 +274,8 @@ static const char *findCurrentBbsUser( void )
    return NULL;
 }
 
-bool getKeychainPassword( const char *ptrHost, const char *ptrUser,
-                          char *ptrPassword, size_t passwordSize )
+bool tryGetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             char *ptrPassword, size_t passwordSize )
 {
 #ifdef ENABLE_KEYCHAIN
    CFDataRef passwordDataRef;
@@ -760,8 +760,8 @@ void recordCurrentBbsUser( const char *ptrUser )
    snprintf( aryCurrentBbsUser, sizeof( aryCurrentBbsUser ), "%s", ptrUser );
 }
 
-bool setKeychainPassword( const char *ptrHost, const char *ptrUser,
-                          const char *ptrPassword )
+bool trySetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             const char *ptrPassword )
 {
 #ifdef ENABLE_KEYCHAIN
    char aryAccountName[160];
@@ -882,8 +882,8 @@ bool tryGetKeychainPasswordForPrompt( char *ptrPassword, size_t passwordSize )
       return false;
    }
 
-   if ( !getKeychainPassword( ptrHost, aryCurrentBbsUser, ptrPassword,
-                              passwordSize ) )
+   if ( !tryGetKeychainPassword( ptrHost, aryCurrentBbsUser, ptrPassword,
+                                 passwordSize ) )
    {
       return false;
    }
@@ -893,8 +893,8 @@ bool tryGetKeychainPasswordForPrompt( char *ptrPassword, size_t passwordSize )
    return true;
 }
 
-bool upsertKeychainPassword( const char *ptrHost, const char *ptrUser,
-                             const char *ptrPassword )
+bool tryUpsertKeychainPassword( const char *ptrHost, const char *ptrUser,
+                                const char *ptrPassword )
 {
 #ifdef ENABLE_KEYCHAIN
    CFMutableDictionaryRef queryRef;
@@ -956,7 +956,7 @@ bool upsertKeychainPassword( const char *ptrHost, const char *ptrUser,
 
    if ( status == errSecItemNotFound )
    {
-      return setKeychainPassword( ptrHost, ptrUser, ptrPassword );
+      return trySetKeychainPassword( ptrHost, ptrUser, ptrPassword );
    }
 
    return status == errSecSuccess;

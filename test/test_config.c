@@ -135,7 +135,7 @@ int colorize( const char *ptrText )
    return 1;
 }
 
-bool deleteSavedKeychainPasswordForCurrentBbs( void )
+bool tryDeleteSavedKeychainPasswordForCurrentBbs( void )
 {
    isKeychainPasswordDeleted = true;
    return shouldDeleteKeychainPasswordSucceed;

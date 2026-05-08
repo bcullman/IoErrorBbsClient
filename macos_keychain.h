@@ -18,14 +18,14 @@ void clearKeychainSessionState( void );
 /// @brief Delete the saved password for the current BBS host and known user.
 ///
 /// @return `true` if the saved password was deleted, otherwise `false`.
-bool deleteSavedKeychainPasswordForCurrentBbs( void );
+bool tryDeleteSavedKeychainPasswordForCurrentBbs( void );
 
 /// @brief Delete a stored password for a specific host and user.
 ///
 /// @param ptrHost BBS host name.
 /// @param ptrUser BBS user name.
 /// @return `true` if the stored password was deleted, otherwise `false`.
-bool deleteKeychainPassword( const char *ptrHost, const char *ptrUser );
+bool tryDeleteKeychainPassword( const char *ptrHost, const char *ptrUser );
 
 /// @brief Report whether the current BBS host and user identify one saved password.
 ///
@@ -39,8 +39,8 @@ bool hasSavedKeychainPasswordContextForCurrentBbs( void );
 /// @param ptrPassword Destination buffer for the password.
 /// @param passwordSize Size of `ptrPassword`.
 /// @return `true` if a password was loaded, otherwise `false`.
-bool getKeychainPassword( const char *ptrHost, const char *ptrUser,
-                          char *ptrPassword, size_t passwordSize );
+bool tryGetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             char *ptrPassword, size_t passwordSize );
 
 /// @brief Parse a successful-login server line and extract the BBS user.
 ///
@@ -86,8 +86,8 @@ void setPendingKeychainLookupForTesting( bool isPendingLookup );
 /// @param ptrUser BBS user name.
 /// @param ptrPassword Password to store.
 /// @return `true` if the password was stored, otherwise `false`.
-bool setKeychainPassword( const char *ptrHost, const char *ptrUser,
-                          const char *ptrPassword );
+bool trySetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             const char *ptrPassword );
 
 /// @brief Try to auto-fill the current hidden password prompt from keychain.
 ///
@@ -111,7 +111,7 @@ bool tryStorePendingLoginPassword( const char *ptrHost, const char *ptrUser,
 /// @param ptrUser BBS user name.
 /// @param ptrPassword Password to store.
 /// @return `true` if the password was saved, otherwise `false`.
-bool upsertKeychainPassword( const char *ptrHost, const char *ptrUser,
-                             const char *ptrPassword );
+bool tryUpsertKeychainPassword( const char *ptrHost, const char *ptrUser,
+                                const char *ptrPassword );
 
 #endif // MACOS_KEYCHAIN_H_INCLUDED

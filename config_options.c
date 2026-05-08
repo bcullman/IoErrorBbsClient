@@ -113,7 +113,7 @@ void configureOptionsMenu( void )
         hasSavedKeychainPasswordContextForCurrentBbs() )
    {
       isKeychainPasswordDeleted = true;
-      if ( deleteSavedKeychainPasswordForCurrentBbs() )
+      if ( tryDeleteSavedKeychainPasswordForCurrentBbs() )
       {
          stdPrintf( "\r\nSaved Keychain password for this BBS deleted because Keychain\r\nstorage was turned off.\r\n" );
       }
@@ -128,7 +128,7 @@ void configureOptionsMenu( void )
       stdPrintf( "Forget saved Keychain password for this BBS? (No) -> " );
       if ( yesNoDefault( 0 ) )
       {
-         if ( deleteSavedKeychainPasswordForCurrentBbs() )
+         if ( tryDeleteSavedKeychainPasswordForCurrentBbs() )
          {
             stdPrintf( "\r\nSaved Keychain password for this BBS deleted.\r\n" );
          }

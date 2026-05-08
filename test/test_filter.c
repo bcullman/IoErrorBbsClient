@@ -290,15 +290,15 @@ void clearKeychainSessionState( void )
 {
 }
 
-bool deleteKeychainPassword( const char *ptrHost, const char *ptrUser )
+bool tryDeleteKeychainPassword( const char *ptrHost, const char *ptrUser )
 {
    (void)ptrHost;
    (void)ptrUser;
    return false;
 }
 
-bool getKeychainPassword( const char *ptrHost, const char *ptrUser,
-                          char *ptrPassword, size_t passwordSize )
+bool tryGetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             char *ptrPassword, size_t passwordSize )
 {
    (void)ptrHost;
    (void)ptrPassword;
@@ -323,8 +323,8 @@ void recordCurrentBbsUser( const char *ptrUser )
    (void)ptrUser;
 }
 
-bool setKeychainPassword( const char *ptrHost, const char *ptrUser,
-                          const char *ptrPassword )
+bool trySetKeychainPassword( const char *ptrHost, const char *ptrUser,
+                             const char *ptrPassword )
 {
    (void)ptrHost;
    (void)ptrPassword;
@@ -391,8 +391,8 @@ bool tryGetKeychainPasswordForPrompt( char *ptrPassword, size_t passwordSize )
    return false;
 }
 
-bool upsertKeychainPassword( const char *ptrHost, const char *ptrUser,
-                             const char *ptrPassword )
+bool tryUpsertKeychainPassword( const char *ptrHost, const char *ptrUser,
+                                const char *ptrPassword )
 {
    (void)ptrHost;
    (void)ptrPassword;

@@ -1065,7 +1065,7 @@ static void configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPass
 }
 #endif
 
-static void writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne( void **state )
+static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **state )
 {
    // Arrange
    char aryOutput[4096];
@@ -1086,6 +1086,7 @@ static void writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne( void **state 
 
    snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
    snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Alice" );
    bbsPort = 23;
    commandKey = ESC;
    quitKey = CTRL_D;
@@ -1093,35 +1094,19 @@ static void writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne( void **state 
    shellKey = '!';
    captureKey = 'c';
    awayKey = 'a';
-   color.text = 10;
-   color.forum = 11;
-   color.number = 14;
-   color.errorTextColor = 9;
-   color.ansiBlackTextColor = 8;
-   color.ansiBlueTextColor = 8;
-   color.ansiMagentaTextColor = 8;
-   color.postDate = 13;
-   color.postName = 12;
-   color.postText = 15;
-   color.postFriendDate = 9;
-   color.postFriendName = 10;
-   color.postFriendText = 11;
-   color.anonymous = 12;
-   color.morePrompt = 14;
-   color.ansiWhiteTextColor = 8;
-   color.reserved5 = 8;
-   color.background = COLOR_VALUE_DEFAULT;
-   color.inputText = 15;
-   color.inputHighlight = 10;
-   color.expressText = 11;
-   color.expressName = 13;
-   color.expressFriendText = 14;
-   color.expressFriendName = 13;
+   browserKey = 'w';
+   aryKeyMap['p'] = 'P';
+   aryKeyMap['P'] = 'p';
+   aryKeyMap['w'] = 'W';
+   aryKeyMap['W'] = 'w';
    flagsConfiguration.shouldUseTcpKeepalive = true;
+   flagsConfiguration.shouldAutoAnswerAnsiPrompt = true;
    flagsConfiguration.shouldEnableClickableUrls = true;
    flagsConfiguration.shouldEnableTitleBar = true;
    flagsConfiguration.isScreenReaderModeEnabled = true;
    flagsConfiguration.shouldEnableNameAutocomplete = false;
+   flagsConfiguration.shouldSquelchExpress = true;
+   flagsConfiguration.shouldSquelchPost = true;
    flagsConfiguration.shouldUseKeychain = false;
 
    // Act
@@ -1131,79 +1116,98 @@ static void writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne( void **state 
    if ( !tryReadFileIntoBuffer( ptrBbsRc, aryOutput, sizeof( aryOutput ) ) )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "Assert failed: unable to read generated .bbsrc output" );
+      fail_msg( "Assert failed: unable to read generated config.toml output" );
       return;
    }
-   if ( strstr( aryOutput, "\nkeepalive 1\n" ) == NULL )
+   if ( strstr( aryOutput, "[connection]\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keepalive 1' when keepalive is enabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit a [connection] section; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nclickableurls 1\n" ) == NULL )
+   if ( strstr( aryOutput, "auto_login_name = \"Alice\"\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'clickableurls 1' when clickable URLs are enabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit auto_login_name as a TOML string; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\ntitlebar 1\n" ) == NULL )
+   if ( strstr( aryOutput, "editor = \"nano\"\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'titlebar 1' when title bar updates are enabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit editor as a TOML string; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nscreenreader 1\n" ) == NULL )
+   if ( strstr( aryOutput, "host = \"bbs.example.net\"\n" ) == NULL ||
+        strstr( aryOutput, "port = 23\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'screenreader 1' when screen reader mode is enabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit the configured host and port in TOML form; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nautocomplete 0\n" ) == NULL )
+   if ( strstr( aryOutput, "[local_command_keys]\n" ) == NULL ||
+        strstr( aryOutput, "away = \"a\"\n" ) == NULL ||
+        strstr( aryOutput, "browser = \"w\"\n" ) == NULL ||
+        strstr( aryOutput, "capture = \"c\"\n" ) == NULL ||
+        strstr( aryOutput, "command = \"esc\"\n" ) == NULL ||
+        strstr( aryOutput, "quit = \"ctrl-d\"\n" ) == NULL ||
+        strstr( aryOutput, "shell = \"!\"\n" ) == NULL ||
+        strstr( aryOutput, "suspend = \"ctrl-z\"\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'autocomplete 0' when autocomplete is disabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit canonical TOML local-command key strings; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[defaults]\n" ) == NULL ||
+        strstr( aryOutput, "show_full_profile_by_default = true\n" ) == NULL ||
+        strstr( aryOutput, "show_long_who_by_default = true\n" ) == NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "writeBbsRc should emit the semantic default-action toggles; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[behavior]\n" ) == NULL ||
+        strstr( aryOutput, "auto_answer_ansi = true\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
+        strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_posts = true\n" ) == NULL ||
+        strstr( aryOutput, "tcp_keepalive = true\n" ) == NULL ||
+        strstr( aryOutput, "update_title_bar = true\n" ) == NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "writeBbsRc should emit TOML boolean behavior settings; output was:\n%s", aryOutput );
       return;
    }
 #ifndef ENABLE_KEYCHAIN
-   if ( strstr( aryOutput, "\nkeychain " ) != NULL )
+   if ( strstr( aryOutput, "use_keychain = " ) != NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit keychain configuration when keychain support is not compiled in; output was:\n%s",
+      fail_msg( "writeBbsRc should omit use_keychain when keychain support is not compiled in; output was:\n%s",
                 aryOutput );
       return;
    }
 #else
-   if ( strstr( aryOutput, "\nkeychain 0\n" ) == NULL )
+   if ( strstr( aryOutput, "use_keychain = false\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keychain 0' when keychain support is compiled in and disabled at runtime; output was:\n%s",
+      fail_msg( "writeBbsRc should emit use_keychain = false when keychain support is compiled in and disabled; output was:\n%s",
                 aryOutput );
       return;
    }
 #endif
-   if ( strstr( aryOutput, "\nsite bbs.example.net 23\n" ) == NULL )
+   if ( strstr( aryOutput, "\ncolor " ) != NULL || strstr( aryOutput, "\nfriend " ) != NULL ||
+        strstr( aryOutput, "\nenemy " ) != NULL || strstr( aryOutput, "\na1 " ) != NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit a plain site line without a secure suffix; output was:\n%s", aryOutput );
-      return;
-   }
-   if ( strstr( aryOutput, "\ncolor brightgreen brightyellow brightcyan brightred brightblack brightblack brightblack brightmagenta brightblue brightwhite brightred brightgreen brightyellow brightblue brightcyan brightblack brightblack default brightwhite brightgreen brightyellow brightmagenta brightcyan brightmagenta\n" ) == NULL )
-   {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit bright ANSI color names when palette values have ANSI 16 names; output was:\n%s", aryOutput );
-      return;
-   }
-   if ( strstr( aryOutput, "\naryBrowser " ) != NULL )
-   {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit obsolete browser configuration; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should only emit the TOML core-setting sections in this commit; output was:\n%s", aryOutput );
       return;
    }
 
    cleanupWriteBbsRcFixture();
 }
 
-static void writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero( void **state )
+static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **state )
 {
    // Arrange
    char aryOutput[4096];
@@ -1224,6 +1228,7 @@ static void writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero( void **stat
 
    snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
    snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   aryAutoName[0] = '\0';
    bbsPort = 23;
    commandKey = ESC;
    quitKey = CTRL_D;
@@ -1231,35 +1236,19 @@ static void writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero( void **stat
    shellKey = '!';
    captureKey = 'c';
    awayKey = 'a';
-   color.text = 10;
-   color.forum = 123;
-   color.number = 14;
-   color.errorTextColor = 9;
-   color.ansiBlackTextColor = 8;
-   color.ansiBlueTextColor = 8;
-   color.ansiMagentaTextColor = 8;
-   color.postDate = 13;
-   color.postName = 12;
-   color.postText = 15;
-   color.postFriendDate = 9;
-   color.postFriendName = 10;
-   color.postFriendText = 11;
-   color.anonymous = 12;
-   color.morePrompt = 14;
-   color.ansiWhiteTextColor = 8;
-   color.reserved5 = 8;
-   color.background = COLOR_VALUE_DEFAULT;
-   color.inputText = 15;
-   color.inputHighlight = 10;
-   color.expressText = 11;
-   color.expressName = 13;
-   color.expressFriendText = 14;
-   color.expressFriendName = 13;
+   browserKey = 'w';
+   aryKeyMap['p'] = 'p';
+   aryKeyMap['P'] = 'P';
+   aryKeyMap['w'] = 'w';
+   aryKeyMap['W'] = 'W';
    flagsConfiguration.shouldUseTcpKeepalive = false;
+   flagsConfiguration.shouldAutoAnswerAnsiPrompt = false;
    flagsConfiguration.shouldEnableClickableUrls = false;
    flagsConfiguration.shouldEnableTitleBar = false;
    flagsConfiguration.isScreenReaderModeEnabled = false;
    flagsConfiguration.shouldEnableNameAutocomplete = true;
+   flagsConfiguration.shouldSquelchExpress = false;
+   flagsConfiguration.shouldSquelchPost = false;
    flagsConfiguration.shouldUseKeychain = false;
 #ifdef ENABLE_KEYCHAIN
    flagsConfiguration.shouldUseKeychain = true;
@@ -1272,66 +1261,57 @@ static void writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero( void **stat
    if ( !tryReadFileIntoBuffer( ptrBbsRc, aryOutput, sizeof( aryOutput ) ) )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "Assert failed: unable to read generated .bbsrc output" );
+      fail_msg( "Assert failed: unable to read generated config.toml output" );
       return;
    }
-   if ( strstr( aryOutput, "\nkeepalive 0\n" ) == NULL )
+   if ( strstr( aryOutput, "auto_login_name = " ) != NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keepalive 0' when keepalive is disabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should omit auto_login_name when no value is configured; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nclickableurls 0\n" ) == NULL )
+   if ( strstr( aryOutput, "show_full_profile_by_default = false\n" ) == NULL ||
+        strstr( aryOutput, "show_long_who_by_default = false\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'clickableurls 0' when clickable URLs are disabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit false semantic default toggles when key remapping is disabled; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\ntitlebar 0\n" ) == NULL )
+   if ( strstr( aryOutput, "auto_answer_ansi = false\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
+        strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_posts = false\n" ) == NULL ||
+        strstr( aryOutput, "tcp_keepalive = false\n" ) == NULL ||
+        strstr( aryOutput, "update_title_bar = false\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'titlebar 0' when title bar updates are disabled; output was:\n%s", aryOutput );
-      return;
-   }
-   if ( strstr( aryOutput, "\nscreenreader 0\n" ) == NULL )
-   {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'screenreader 0' when screen reader mode is disabled; output was:\n%s", aryOutput );
-      return;
-   }
-   if ( strstr( aryOutput, "\nautocomplete 1\n" ) == NULL )
-   {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'autocomplete 1' when autocomplete is enabled; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit TOML false values for disabled behavior settings; output was:\n%s", aryOutput );
       return;
    }
 #ifndef ENABLE_KEYCHAIN
-   if ( strstr( aryOutput, "\nkeychain " ) != NULL )
+   if ( strstr( aryOutput, "use_keychain = " ) != NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit keychain configuration when keychain support is not compiled in; output was:\n%s",
+      fail_msg( "writeBbsRc should omit use_keychain when keychain support is not compiled in; output was:\n%s",
                 aryOutput );
       return;
    }
 #else
-   if ( strstr( aryOutput, "\nkeychain 1\n" ) == NULL )
+   if ( strstr( aryOutput, "use_keychain = true\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keychain 1' when keychain support is compiled in and enabled at runtime; output was:\n%s",
+      fail_msg( "writeBbsRc should emit use_keychain = true when keychain support is compiled in and enabled; output was:\n%s",
                 aryOutput );
       return;
    }
 #endif
-   if ( strstr( aryOutput, "\ncolor brightgreen 123 brightcyan brightred brightblack brightblack brightblack brightmagenta brightblue brightwhite brightred brightgreen brightyellow brightblue brightcyan brightblack brightblack default brightwhite brightgreen brightyellow brightmagenta brightcyan brightmagenta\n" ) == NULL )
+   if ( strstr( aryOutput, "\ncolor " ) != NULL || strstr( aryOutput, "\nfriend " ) != NULL ||
+        strstr( aryOutput, "\nenemy " ) != NULL || strstr( aryOutput, "\na1 " ) != NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should fall back to numeric palette values when no named color exists; output was:\n%s", aryOutput );
-      return;
-   }
-   if ( strstr( aryOutput, "\naryBrowser " ) != NULL )
-   {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit obsolete browser configuration; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should not emit deferred non-core config domains in this commit; output was:\n%s", aryOutput );
       return;
    }
 
@@ -1354,8 +1334,8 @@ int main( void )
       cmocka_unit_test( configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword ),
       cmocka_unit_test( configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword ),
 #endif
-      cmocka_unit_test( writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne ),
-      cmocka_unit_test( writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero ),
+      cmocka_unit_test( writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues ),
+      cmocka_unit_test( writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

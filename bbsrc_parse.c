@@ -5,7 +5,7 @@
  */
 
 /*
- * This file parses .bbsrc and applies the configured settings.
+ * This file parses config.toml and applies the configured settings.
  */
 #include "bbsrc.h"
 #include "client.h"
@@ -16,328 +16,135 @@
 #include "defs.h"
 #include "filter_globals.h"
 #include "utility.h"
+
 #define MAX_LINE_LENGTH 512
-#define FRIEND_COMMAND_PREFIX_LEN 7
-#define FRIEND_NAME_PARSE_LENGTH 19
-#define FRIEND_INFO_OFFSET 30
-#define FRIEND_INFO_COPY_LENGTH 53
-#define FRIEND_RECORD_MAGIC 0x3231
+#define MAX_SECTION_NAME_LENGTH 64
+#define MAX_VALUE_LENGTH 256
 
 typedef enum
 {
-   BBRC_CMD_UNKNOWN = 0,
-   BBRC_CMD_AWAYKEY,
-   BBRC_CMD_AUTOANSI,
-   BBRC_CMD_AUTONAME,
-   BBRC_CMD_BOLD,
-   BBRC_CMD_BROWSER,
-   BBRC_CMD_CAPTURE,
-   BBRC_CMD_CLICKABLE_URLS,
-   BBRC_CMD_COLOR,
-   BBRC_CMD_COMMANDKEY,
-   BBRC_CMD_AUTOCOMPLETE,
-   BBRC_CMD_EDITOR,
-   BBRC_CMD_ENEMY,
-   BBRC_CMD_FRIEND,
-   BBRC_CMD_KEYCHAIN,
-   BBRC_CMD_KEYMAP,
-   BBRC_CMD_NEW_AWAY,
-   BBRC_CMD_OLD_AWAY,
-   BBRC_CMD_QUIT,
-   BBRC_CMD_REREAD,
-   BBRC_CMD_SHELL,
-   BBRC_CMD_SITE,
-   BBRC_CMD_SQUELCH,
-   BBRC_CMD_SUSP,
-   BBRC_CMD_TCP_KEEPALIVE,
-   BBRC_CMD_TITLEBAR,
-   BBRC_CMD_URL,
-   BBRC_CMD_SCREENREADER,
-   BBRC_CMD_VERSION,
-   BBRC_CMD_XLAND,
-   BBRC_CMD_XWRAP
-} BbsRcCommandId;
-
-typedef struct
-{
-   const char *ptrPrefix;
-   size_t prefixLength;
-   BbsRcCommandId commandId;
-} BbsRcCommandSpec;
-
-typedef enum
-{
-   BBRC_OPTION_INVALID = -1,
-   BBRC_OPTION_DISABLED = 0,
-   BBRC_OPTION_ENABLED = 1
-} BbsRcOptionValue;
+   TOML_SECTION_NONE = 0,
+   TOML_SECTION_BEHAVIOR,
+   TOML_SECTION_CONNECTION,
+   TOML_SECTION_DEFAULTS,
+   TOML_SECTION_LOCAL_COMMAND_KEYS,
+   TOML_SECTION_UNKNOWN
+} TomlSectionId;
 
 typedef struct
 {
    int lineNumber;
    int reads;
-   int tmpVersion;
-   bool shouldShowBrowserMigrationNotice;
-   bool shouldRewriteBbsRc;
-} BbsRcReadState;
+   bool shouldRewriteConfig;
+} ConfigReadState;
 
-static bool addFriendFromLine( const char *ptrLine );
 static void applyBbsRcKeyDefaults( void );
-static int ctrl( const char *ptrToken );
-static BbsRcCommandId detectBbsRcCommand( const char *ptrLine );
-static void ensureDefaultAwayMessage( void );
-static bool finalizeBbsRcRead( BbsRcReadState *ptrState );
+static void applyDefaultUppercasePreference( int lowerKey,
+                                             bool shouldUseUppercaseByDefault );
+static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState );
 static void initializeBbsRcDefaults( void );
 static void initializeBbsRcLists( void );
-static bool isNewAwayMessageCommand( const char *ptrLine );
-static BbsRcOptionValue parseBooleanSettingValue( const char *ptrLine, size_t prefixLength, const char *ptrSettingName, bool shouldAllowAnyNonZeroValue );
-static bool parseColorScheme( const char *ptrLine );
-static bool parseNamedColorScheme( const char *ptrColorSpec );
-static bool processBbsRcCommandLine( const char *ptrLine, BbsRcReadState *ptrState );
-static bool processBbsRcConnectionCommand( BbsRcCommandId commandId,
-                                           const char *ptrLine,
-                                           BbsRcReadState *ptrState );
-static bool processBbsRcHotkeyCommand( BbsRcCommandId commandId,
-                                       const char *ptrLine );
-static bool processBbsRcListCommand( BbsRcCommandId commandId,
-                                     const char *ptrLine );
-static bool processBbsRcMigrationCommand( BbsRcCommandId commandId,
-                                          const char *ptrLine );
-static bool processBbsRcSettingCommand( BbsRcCommandId commandId,
-                                        const char *ptrLine,
-                                        BbsRcReadState *ptrState );
-static bool readLegacyBbsFriends( char *ptrLine, BbsRcReadState *ptrState );
-static void writeDecodedBbsRcText( const char *ptrToken, char *ptrWriteBuffer,
-                                   char ( *aryAwayBuffers )[80] );
+static bool isIllegalCommandKeyValue( int inputChar );
+static bool tryParseBooleanValue( const char *ptrValue,
+                                  const char *ptrKeyName,
+                                  bool *ptrOutValue );
+static bool tryParseIntegerValue( const char *ptrValue,
+                                  const char *ptrKeyName,
+                                  int minimumValue,
+                                  int maximumValue,
+                                  int *ptrOutValue );
+static bool tryParseLocalCommandKeyValue( const char *ptrValue,
+                                          const char *ptrKeyName,
+                                          bool isCommandKey,
+                                          int *ptrOutValue );
+static bool tryParseTomlKeyValueLine( const char *ptrLine,
+                                      char *aryKeyName,
+                                      size_t keyNameSize,
+                                      char *aryValue,
+                                      size_t valueSize );
+static bool tryParseTomlQuotedString( const char *ptrValue,
+                                      char *aryOutput,
+                                      size_t outputSize );
+static TomlSectionId parseTomlSectionLine( const char *ptrLine,
+                                           char *arySectionName,
+                                           size_t sectionNameSize );
+static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
+                                    const char *ptrKeyName,
+                                    const char *ptrValue,
+                                    ConfigReadState *ptrState );
+static char *trimWhitespace( char *ptrText );
 static void warnAboutBbsRcConflicts( void );
 
-/// @brief Parse and add one `friend` directive from `.bbsrc`.
-///
-/// @param ptrLine Raw `friend` line from the config file.
-///
-/// @return `true` on success, otherwise `false`.
-static bool addFriendFromLine( const char *ptrLine )
-{
-   friend *ptrFriend;
-
-   if ( strlen( ptrLine ) == FRIEND_COMMAND_PREFIX_LEN )
-   {
-      stdPrintf( "Empty username in 'friend'.\n" );
-      return true;
-   }
-   if ( slistFind( friendList, (void *)( ptrLine + FRIEND_COMMAND_PREFIX_LEN ), fStrCompareVoid ) != -1 )
-   {
-      stdPrintf( "Duplicate username in 'friend'.\n" );
-      return true;
-   }
-
-   ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
-   if ( !ptrFriend )
-   {
-      fatalExit( "Out of memory adding 'friend'!\n", "Fatal error" );
-      return false;
-   }
-
-   if ( strlen( ptrLine ) > FRIEND_INFO_OFFSET )
-   {
-      int nameLength;
-      size_t nameLengthToCopy;
-
-      strncpy( ptrFriend->info, ptrLine + FRIEND_INFO_OFFSET, FRIEND_INFO_COPY_LENGTH );
-      nameLengthToCopy = 0;
-      for ( nameLength = FRIEND_NAME_PARSE_LENGTH; nameLength > 0; nameLength-- )
-      {
-         if ( ptrLine[FRIEND_COMMAND_PREFIX_LEN + nameLength] == ' ' )
-         {
-            nameLengthToCopy = (size_t)nameLength;
-         }
-         else
-         {
-            break;
-         }
-      }
-      strncpy( ptrFriend->name, ptrLine + FRIEND_COMMAND_PREFIX_LEN, nameLengthToCopy );
-   }
-   else
-   {
-      strncpy( ptrFriend->name, ptrLine + FRIEND_COMMAND_PREFIX_LEN, FRIEND_NAME_PARSE_LENGTH );
-      snprintf( ptrFriend->info, sizeof( ptrFriend->info ), "%s", "(None)" );
-   }
-
-   ptrFriend->magic = FRIEND_RECORD_MAGIC;
-   if ( !slistAddItem( friendList, ptrFriend, 1 ) )
-   {
-      fatalExit( "Can't add 'friend' to list!\n", "Fatal error" );
-      return false;
-   }
-   return true;
-}
-
-/// @brief Apply default hotkey values when the config did not define them.
+/// @brief Apply default local-command key values when the config omits them.
 ///
 /// @return This helper does not return a value.
 static void applyBbsRcKeyDefaults( void )
 {
-   if ( commandKey == -1 )
-   {
-      commandKey = ESC;
-   }
    if ( awayKey == -1 )
    {
       awayKey = 'a';
-   }
-   if ( quitKey == -1 )
-   {
-      quitKey = CTRL_D;
-   }
-   if ( suspKey == -1 )
-   {
-      suspKey = CTRL_Z;
-   }
-   if ( captureKey == -1 )
-   {
-      captureKey = 'c';
-   }
-   if ( shellKey == -1 )
-   {
-      shellKey = '!';
    }
    if ( browserKey == -1 )
    {
       browserKey = 'w';
    }
+   if ( captureKey == -1 )
+   {
+      captureKey = 'c';
+   }
+   if ( commandKey == -1 )
+   {
+      commandKey = ESC;
+   }
+   if ( quitKey == -1 )
+   {
+      quitKey = CTRL_D;
+   }
+   if ( shellKey == -1 )
+   {
+      shellKey = '!';
+   }
+   if ( suspKey == -1 )
+   {
+      suspKey = CTRL_Z;
+   }
 }
 
-/// @brief Decode a config token into a control-key value.
+/// @brief Flip a two-key command mapping between lowercase and uppercase defaults.
 ///
-/// `^X` spellings and literal control characters are normalized to the same
-/// control-key result.
-///
-/// @param ptrToken Token to decode.
-///
-/// @return Parsed control-key value.
-static int ctrl( const char *ptrToken )
-{
-   int parseIndex = *ptrToken;
-
-   if ( parseIndex == '^' )
-   {
-      if ( ( ( parseIndex = *++ptrToken ) >= '@' && parseIndex <= '_' ) || parseIndex == '?' )
-      {
-         parseIndex ^= 0x40;
-      }
-      else if ( parseIndex >= 'a' && parseIndex <= 'z' )
-      {
-         parseIndex ^= 0x60;
-      }
-   }
-   if ( parseIndex == '\r' )
-   {
-      parseIndex = '\n';
-   }
-   return ( parseIndex );
-}
-
-/// @brief Detect which `.bbsrc` command family a raw line belongs to.
-///
-/// @param ptrLine Raw config line.
-///
-/// @return Matching command identifier.
-static BbsRcCommandId detectBbsRcCommand( const char *ptrLine )
-{
-   static const BbsRcCommandSpec aryCommands[] =
-      {
-         { "reread ", 7, BBRC_CMD_REREAD },
-         { "xwrap ", 6, BBRC_CMD_XWRAP },
-         { "bold", 4, BBRC_CMD_BOLD },
-         { "xland", 5, BBRC_CMD_XLAND },
-         { "version ", 8, BBRC_CMD_VERSION },
-         { "squelch ", 8, BBRC_CMD_SQUELCH },
-         { "keepalive", 9, BBRC_CMD_TCP_KEEPALIVE },
-         { "clickableurls", 13, BBRC_CMD_CLICKABLE_URLS },
-         { "titlebar", 8, BBRC_CMD_TITLEBAR },
-         { "screenreader", 12, BBRC_CMD_SCREENREADER },
-         { "autocomplete", 12, BBRC_CMD_AUTOCOMPLETE },
-         { "keychain", 8, BBRC_CMD_KEYCHAIN },
-         { "urlsummary", 10, BBRC_CMD_CLICKABLE_URLS },
-         { "color ", 6, BBRC_CMD_COLOR },
-         { "aryAutoName ", sizeof( "aryAutoName " ) - 1, BBRC_CMD_AUTONAME },
-         { "autoansi", 9, BBRC_CMD_AUTOANSI },
-         { "aryBrowser ", sizeof( "aryBrowser " ) - 1, BBRC_CMD_BROWSER },
-         { "aryEditor ", sizeof( "aryEditor " ) - 1, BBRC_CMD_EDITOR },
-         { "site ", 5, BBRC_CMD_SITE },
-         { "friend ", FRIEND_COMMAND_PREFIX_LEN, BBRC_CMD_FRIEND },
-         { "enemy ", 6, BBRC_CMD_ENEMY },
-         { "commandkey ", 11, BBRC_CMD_COMMANDKEY },
-         { "awaykey ", 8, BBRC_CMD_AWAYKEY },
-         { "quit ", 5, BBRC_CMD_QUIT },
-         { "susp ", 5, BBRC_CMD_SUSP },
-         { "capture ", 8, BBRC_CMD_CAPTURE },
-         { "aryKeyMap ", sizeof( "aryKeyMap " ) - 1, BBRC_CMD_KEYMAP },
-         { "url ", 4, BBRC_CMD_URL },
-         { "aryAwayMessageLines ", sizeof( "aryAwayMessageLines " ) - 1, BBRC_CMD_OLD_AWAY },
-         { "shellkey ", 9, BBRC_CMD_SHELL },
-         { "aryShell ", sizeof( "aryShell " ) - 1, BBRC_CMD_SHELL } };
-   size_t itemIndex;
-
-   if ( isNewAwayMessageCommand( ptrLine ) )
-   {
-      return BBRC_CMD_NEW_AWAY;
-   }
-   for ( itemIndex = 0; itemIndex < sizeof( aryCommands ) / sizeof( aryCommands[0] ); itemIndex++ )
-   {
-      if ( !strncmp( ptrLine, aryCommands[itemIndex].ptrPrefix,
-                     aryCommands[itemIndex].prefixLength ) )
-      {
-         return aryCommands[itemIndex].commandId;
-      }
-   }
-   return BBRC_CMD_UNKNOWN;
-}
-
-/// @brief Ensure there is at least one away-message line configured.
+/// @param lowerKey Lowercase command character in the key map.
+/// @param shouldUseUppercaseByDefault Non-zero to map the lowercase key to the
+/// uppercase action by default, zero to restore the normal lowercase default.
 ///
 /// @return This helper does not return a value.
-static void ensureDefaultAwayMessage( void )
+static void applyDefaultUppercasePreference( int lowerKey,
+                                             bool shouldUseUppercaseByDefault )
 {
-   if ( !**aryAwayMessageLines )
+   int upperKey;
+
+   upperKey = toupper( lowerKey );
+   if ( shouldUseUppercaseByDefault )
    {
-      snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ),
-                "%s", "I'm away from my keyboard right now." );
-      *aryAwayMessageLines[1] = 0;
+      aryKeyMap[lowerKey] = (char)upperKey;
+      aryKeyMap[upperKey] = (char)lowerKey;
+   }
+   else
+   {
+      aryKeyMap[lowerKey] = (char)lowerKey;
+      aryKeyMap[upperKey] = (char)upperKey;
    }
 }
 
-/// @brief Finalize config state after `.bbsrc` parsing completes.
+/// @brief Finalize config state after parsing completes.
 ///
 /// @param ptrState Running read state to finalize.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool finalizeBbsRcRead( BbsRcReadState *ptrState )
+static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState )
 {
    applyBbsRcKeyDefaults();
-   ensureDefaultAwayMessage();
-
    defaultColors( 0 );
    warnAboutBbsRcConflicts();
-
-   for ( unsigned int friendIndex = 0; friendIndex < friendList->nitems; friendIndex++ )
-   {
-      const friend *ptrFriend = friendList->items[friendIndex];
-      char *ptrNameCopy;
-
-      if ( !( ptrNameCopy = (char *)calloc( 1, strlen( ptrFriend->name ) + 1 ) ) )
-      {
-         fatalExit( "Out of memory for list copy!\r\n", "Fatal error" );
-         return false;
-      }
-      snprintf( ptrNameCopy, strlen( ptrFriend->name ) + 1, "%s", ptrFriend->name );
-      if ( !( slistAddItem( whoList, ptrNameCopy, 1 ) ) )
-      {
-         fatalExit( "Out of memory adding item in list copy!\r\n", "Fatal error" );
-         return false;
-      }
-   }
 
    slistSort( friendList );
    slistSort( enemyList );
@@ -346,44 +153,35 @@ static bool finalizeBbsRcRead( BbsRcReadState *ptrState )
    if ( !*aryBbsHost )
    {
       snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", BBS_HOSTNAME );
+   }
+   if ( bbsPort == 0 )
+   {
       bbsPort = BBS_PORT_NUMBER;
    }
    if ( !*aryEditor )
    {
       snprintf( aryEditor, sizeof( aryEditor ), "%s", DEFAULT_EDITOR_CONFIG_VALUE );
    }
-   if ( version != ptrState->tmpVersion )
+   if ( ptrState->reads == 0 )
    {
-      if ( ptrState->reads )
-      {
-         setup( ptrState->tmpVersion );
-      }
-      else
-      {
-         setup( -1 );
-      }
+      setup( -1 );
    }
-   else if ( !flagsConfiguration.hasScreenReaderModeSetting )
+   if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
       promptForScreenReaderModeIfUnset();
-      ptrState->shouldRewriteBbsRc = true;
+      ptrState->shouldRewriteConfig = true;
    }
    if ( !flagsConfiguration.hasTitleBarSetting )
    {
       flagsConfiguration.hasTitleBarSetting = 1;
-      ptrState->shouldRewriteBbsRc = true;
+      ptrState->shouldRewriteConfig = true;
    }
    if ( !flagsConfiguration.hasNameAutocompleteSetting )
    {
       defaultNameAutocompleteIfUnset();
-      ptrState->shouldRewriteBbsRc = true;
+      ptrState->shouldRewriteConfig = true;
    }
-   if ( ptrState->shouldShowBrowserMigrationNotice )
-   {
-      stdPrintf( "IMPORTANT: Your browser preference was removed due to client updates.\n" );
-      stdPrintf( "The client now relies on terminal links and the macOS default browser.\n" );
-   }
-   if ( ptrState->shouldRewriteBbsRc && !isBbsRcReadOnly )
+   if ( ptrState->shouldRewriteConfig && !isBbsRcReadOnly )
    {
       writeBbsRc();
    }
@@ -397,7 +195,7 @@ static bool finalizeBbsRcRead( BbsRcReadState *ptrState )
    return true;
 }
 
-/// @brief Initialize default config values before `.bbsrc` parsing begins.
+/// @brief Initialize default config values before parsing begins.
 ///
 /// @return This helper does not return a value.
 static void initializeBbsRcDefaults( void )
@@ -405,13 +203,13 @@ static void initializeBbsRcDefaults( void )
    int parseIndex;
 
    version = INT_VERSION;
-   commandKey = -1;
-   shellKey = -1;
-   captureKey = -1;
-   suspKey = -1;
-   quitKey = -1;
    awayKey = -1;
    browserKey = -1;
+   captureKey = -1;
+   commandKey = -1;
+   quitKey = -1;
+   shellKey = -1;
+   suspKey = -1;
 
    for ( parseIndex = 0; parseIndex <= 127; parseIndex++ )
    {
@@ -428,25 +226,29 @@ static void initializeBbsRcDefaults( void )
 
    isAutoLoggedIn = 0;
    *aryAutoName = 0;
-
-   *aryEditor = 0;
+   *aryAwayMessageLines[0] = 0;
    *aryBbsHost = 0;
+   *aryEditor = 0;
+   bbsPort = 0;
    ptrBbsRc = findBbsRc();
    bbsFriends = findBbsFriends();
+
+   flagsConfiguration.hasNameAutocompleteSetting = 0;
+   flagsConfiguration.hasScreenReaderModeSetting = 0;
+   flagsConfiguration.hasTitleBarSetting = 0;
+   flagsConfiguration.isMorePromptActive = 0;
+   flagsConfiguration.isScreenReaderModeEnabled = 0;
+   flagsConfiguration.shouldAutoAnswerAnsiPrompt = 0;
+   flagsConfiguration.shouldDisableBold = 0;
+   flagsConfiguration.shouldEnableClickableUrls = 1;
+   flagsConfiguration.shouldEnableNameAutocomplete = 1;
+   flagsConfiguration.shouldEnableTitleBar = 1;
+   flagsConfiguration.shouldSquelchExpress = 0;
+   flagsConfiguration.shouldSquelchPost = 0;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseBold = 0;
-   flagsConfiguration.shouldDisableBold = 0;
-   flagsConfiguration.isMorePromptActive = 0;
-   flagsConfiguration.shouldAutoAnswerAnsiPrompt = 0;
-   flagsConfiguration.shouldUseTcpKeepalive = 1;
-   flagsConfiguration.shouldEnableClickableUrls = 1;
-   flagsConfiguration.shouldEnableTitleBar = 1;
    flagsConfiguration.shouldUseKeychain = 0;
-   flagsConfiguration.hasTitleBarSetting = 0;
-   flagsConfiguration.isScreenReaderModeEnabled = 0;
-   flagsConfiguration.hasScreenReaderModeSetting = 0;
-   flagsConfiguration.shouldEnableNameAutocomplete = 1;
-   flagsConfiguration.hasNameAutocompleteSetting = 0;
+   flagsConfiguration.shouldUseTcpKeepalive = 1;
 
    defaultColors( 1 );
 
@@ -463,7 +265,7 @@ static void initializeBbsRcDefaults( void )
    ptrExpressMessageBuffer = aryExpressMessageBuffer;
 }
 
-/// @brief Create the list structures used while reading `.bbsrc`.
+/// @brief Create the list structures used while reading config.
 ///
 /// @return This helper does not return a value.
 static void initializeBbsRcLists( void )
@@ -482,693 +284,607 @@ static void initializeBbsRcLists( void )
    }
 }
 
-/// @brief Check whether a line is one of the numbered away-message commands.
+/// @brief Reject command-prefix values that collide with reserved local keys.
 ///
-/// @param ptrLine Raw config line.
+/// @param inputChar Parsed key value to validate.
 ///
-/// @return `true` if the line is a numbered away-message command, otherwise `false`.
-static bool isNewAwayMessageCommand( const char *ptrLine )
+/// @return `true` when the key is illegal for the command prefix.
+static bool isIllegalCommandKeyValue( int inputChar )
 {
-   return ptrLine[0] == 'a' && ptrLine[1] >= '1' &&
-          ptrLine[1] <= '5' && ptrLine[2] == ' ';
+   static const char aryIllegalKeys[] =
+      { '\0', 1, 3, CTRL_D, 5, '\b', '\n', '\r', 17, 19, CTRL_U, CTRL_W, CTRL_X, 25, CTRL_Z, DEL };
+   size_t itemIndex;
+
+   for ( itemIndex = 0; itemIndex < sizeof( aryIllegalKeys ); itemIndex++ )
+   {
+      if ( inputChar == aryIllegalKeys[itemIndex] )
+      {
+         return true;
+      }
+   }
+
+   return inputChar >= ' ';
 }
 
-/// @brief Parse an on/off-style `.bbsrc` setting value.
+/// @brief Parse a TOML boolean value.
 ///
-/// @param ptrLine Raw config line.
-/// @param prefixLength Length of the directive prefix.
-/// @param ptrSettingName Setting name used in error messages.
-/// @param shouldAllowAnyNonZeroValue Non-zero to treat any non-zero digit as enabled.
-///
-/// @return Parsed setting value enum.
-static BbsRcOptionValue parseBooleanSettingValue( const char *ptrLine, size_t prefixLength, const char *ptrSettingName, bool shouldAllowAnyNonZeroValue )
-{
-   const char *ptrValue;
-
-   if ( strlen( ptrLine ) == prefixLength )
-   {
-      return BBRC_OPTION_ENABLED;
-   }
-   if ( ptrLine[prefixLength] != ' ' )
-   {
-      stdPrintf( "Invalid definition of %s ignored.\n", ptrSettingName );
-      return BBRC_OPTION_INVALID;
-   }
-
-   ptrValue = ptrLine + prefixLength + 1;
-   while ( *ptrValue != '\0' && isspace( (unsigned char)*ptrValue ) )
-   {
-      ptrValue++;
-   }
-
-   if ( *ptrValue == '\0' || *ptrValue == '1' )
-   {
-      return BBRC_OPTION_ENABLED;
-   }
-   if ( *ptrValue == '0' )
-   {
-      return BBRC_OPTION_DISABLED;
-   }
-   if ( shouldAllowAnyNonZeroValue && isdigit( (unsigned char)*ptrValue ) )
-   {
-      return (BbsRcOptionValue)( atoi( ptrValue ) != 0 );
-   }
-
-   stdPrintf( "Invalid definition of %s ignored.\n", ptrSettingName );
-   return BBRC_OPTION_INVALID;
-}
-
-/// @brief Parse a full `.bbsrc` color scheme into the active color fields.
-///
-/// @param ptrLine Raw `color` directive line.
+/// @param ptrValue Raw value text to decode.
+/// @param ptrKeyName Key name used in error messages.
+/// @param ptrOutValue Destination for the decoded boolean.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool parseColorScheme( const char *ptrLine )
+static bool tryParseBooleanValue( const char *ptrValue,
+                                  const char *ptrKeyName,
+                                  bool *ptrOutValue )
 {
-   if ( strlen( ptrLine ) == 6 + COLOR_FIELD_COUNT )
+   if ( strcmp( ptrValue, "false" ) == 0 )
    {
-      int colorIndex;
-
-      for ( colorIndex = 0; colorIndex < COLOR_FIELD_COUNT; colorIndex++ )
-      {
-         setColorFieldValue( colorIndex, colorValueFromLegacyDigit( ptrLine[6 + colorIndex] ) );
-      }
-      if ( ptrLine[6 + COLOR_BACKGROUND_INDEX] == '9' )
-      {
-         setColorFieldValue( COLOR_BACKGROUND_INDEX, COLOR_VALUE_DEFAULT );
-      }
+      *ptrOutValue = false;
+      return true;
+   }
+   if ( strcmp( ptrValue, "true" ) == 0 )
+   {
+      *ptrOutValue = true;
       return true;
    }
 
-   return parseNamedColorScheme( ptrLine + 6 );
+   stdPrintf( "Invalid boolean value for '%s' ignored.\n", ptrKeyName );
+   return false;
 }
 
-/// @brief Parse a named-color `.bbsrc` color scheme.
+/// @brief Parse a TOML integer value within a fixed range.
 ///
-/// @param ptrColorSpec Color specification text after the directive prefix.
+/// @param ptrValue Raw value text to decode.
+/// @param ptrKeyName Key name used in error messages.
+/// @param minimumValue Minimum accepted value.
+/// @param maximumValue Maximum accepted value.
+/// @param ptrOutValue Destination for the decoded integer.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool parseNamedColorScheme( const char *ptrColorSpec )
+static bool tryParseIntegerValue( const char *ptrValue,
+                                  const char *ptrKeyName,
+                                  int minimumValue,
+                                  int maximumValue,
+                                  int *ptrOutValue )
 {
-   int colorIndex;
+   char *ptrEnd;
+   long parsedValue;
 
-   colorIndex = 0;
-   while ( *ptrColorSpec != '\0' )
+   if ( ptrValue == NULL || *ptrValue == '\0' )
    {
-      char aryToken[16];
-      int colorValue;
-      size_t tokenLength;
-      const char *ptrTokenStart;
-
-      while ( isspace( (unsigned char)*ptrColorSpec ) )
-      {
-         ptrColorSpec++;
-      }
-      if ( *ptrColorSpec == '\0' )
-      {
-         break;
-      }
-      if ( colorIndex >= COLOR_FIELD_COUNT )
-      {
-         return false;
-      }
-
-      ptrTokenStart = ptrColorSpec;
-      while ( *ptrColorSpec != '\0' && !isspace( (unsigned char)*ptrColorSpec ) )
-      {
-         ptrColorSpec++;
-      }
-      tokenLength = (size_t)( ptrColorSpec - ptrTokenStart );
-      if ( tokenLength == 0 || tokenLength >= sizeof( aryToken ) )
-      {
-         return false;
-      }
-
-      memcpy( aryToken, ptrTokenStart, tokenLength );
-      aryToken[tokenLength] = '\0';
-
-      if ( isdigit( (unsigned char)aryToken[0] ) )
-      {
-         size_t digitIndex;
-
-         colorValue = 0;
-         for ( digitIndex = 0; digitIndex < tokenLength; digitIndex++ )
-         {
-            if ( !isdigit( (unsigned char)aryToken[digitIndex] ) )
-            {
-               return false;
-            }
-            colorValue = colorValue * 10 + ( aryToken[digitIndex] - '0' );
-         }
-      }
-      else
-      {
-         colorValue = colorValueFromName( aryToken );
-      }
-      if ( colorValue < 0 )
-      {
-         return false;
-      }
-
-      setColorFieldValue( colorIndex++, colorValue );
+      stdPrintf( "Invalid integer value for '%s' ignored.\n", ptrKeyName );
+      return false;
    }
 
-   return colorIndex == COLOR_FIELD_COUNT;
-}
-
-/// @brief Dispatch one normalized `.bbsrc` line to the correct command handler.
-///
-/// @param ptrLine Normalized config line.
-/// @param ptrState Running `.bbsrc` read state.
-///
-/// @return `true` to continue parsing, otherwise `false`.
-static bool processBbsRcCommandLine( const char *ptrLine, BbsRcReadState *ptrState )
-{
-   int parseIndex;
-   const char *ptrToken;
-   BbsRcCommandId commandId = detectBbsRcCommand( ptrLine );
-   bool isHandled = true;
-
-   if ( processBbsRcSettingCommand( commandId, ptrLine, ptrState ) )
+   errno = 0;
+   parsedValue = strtol( ptrValue, &ptrEnd, 10 );
+   if ( errno != 0 || ptrEnd == ptrValue || *ptrEnd != '\0' ||
+        parsedValue < minimumValue || parsedValue > maximumValue )
    {
-      return true;
-   }
-   if ( processBbsRcConnectionCommand( commandId, ptrLine, ptrState ) )
-   {
-      return true;
-   }
-   if ( processBbsRcListCommand( commandId, ptrLine ) )
-   {
-      return true;
-   }
-   if ( processBbsRcHotkeyCommand( commandId, ptrLine ) )
-   {
-      return true;
-   }
-   if ( processBbsRcMigrationCommand( commandId, ptrLine ) )
-   {
-      return true;
+      stdPrintf( "Invalid integer value for '%s' ignored.\n", ptrKeyName );
+      return false;
    }
 
-   switch ( commandId )
-   {
-      case BBRC_CMD_REREAD:
-      case BBRC_CMD_XWRAP:
-         break;
-
-      case BBRC_CMD_KEYMAP:
-         parseIndex = *( ptrLine + ( sizeof( "aryKeyMap " ) - 1 ) );
-         ptrToken = ptrLine + sizeof( "aryKeyMap " );
-         if ( *ptrToken++ == ' ' && parseIndex > 32 && parseIndex < 128 )
-         {
-            aryKeyMap[parseIndex] = *ptrToken;
-         }
-         else
-         {
-            stdPrintf( "Invalid value for 'aryKeyMap' ignored.\n" );
-         }
-         break;
-
-      case BBRC_CMD_UNKNOWN:
-      default:
-         isHandled = false;
-         break;
-   }
-
-   if ( !isHandled && *ptrLine != '#' && *ptrLine &&
-        strncmp( ptrLine, "friend ", FRIEND_COMMAND_PREFIX_LEN ) )
-   {
-      stdPrintf( "Syntax error in .bbsrc file in line %d.\n", ptrState->lineNumber );
-   }
-
+   *ptrOutValue = (int)parsedValue;
    return true;
 }
 
-/// @brief Handle connection, editor, and site-related `.bbsrc` commands.
+/// @brief Parse one local-command key string.
 ///
-/// @param commandId Parsed command identifier.
-/// @param ptrLine Raw config line.
-/// @param ptrState Running `.bbsrc` read state.
-///
-/// @return `true` if the command was handled, otherwise `false`.
-static bool processBbsRcConnectionCommand( BbsRcCommandId commandId,
-                                           const char *ptrLine,
-                                           BbsRcReadState *ptrState )
-{
-   switch ( commandId )
-   {
-      case BBRC_CMD_BROWSER:
-         ptrState->shouldShowBrowserMigrationNotice = true;
-         ptrState->shouldRewriteBbsRc = true;
-         return true;
-
-      case BBRC_CMD_EDITOR:
-         if ( *aryEditor )
-         {
-            stdPrintf( "Multiple definition of 'aryEditor' ignored.\n" );
-         }
-         else
-         {
-            strncpy( aryEditor, ptrLine + ( sizeof( "aryEditor " ) - 1 ), 72 );
-         }
-         return true;
-
-      case BBRC_CMD_SITE:
-         if ( *aryBbsHost )
-         {
-            stdPrintf( "Multiple definition of 'site' ignored.\n" );
-         }
-         else
-         {
-            int parseIndex;
-
-            for ( parseIndex = 5;
-                  ( aryBbsHost[parseIndex - 5] = ptrLine[parseIndex] ) &&
-                  ptrLine[parseIndex] != ' ' && parseIndex < 68;
-                  parseIndex++ )
-            {
-               ;
-            }
-            if ( parseIndex == 68 || parseIndex == 5 )
-            {
-               stdPrintf( "Illegal hostname in 'site', using default.\n" );
-               *aryBbsHost = 0;
-            }
-            else
-            {
-               const char *ptrPortSpec;
-
-               aryBbsHost[parseIndex - 5] = 0;
-               ptrPortSpec = ptrLine + parseIndex;
-               while ( *ptrPortSpec != '\0' && isspace( (unsigned char)*ptrPortSpec ) )
-               {
-                  ptrPortSpec++;
-               }
-               if ( isdigit( (unsigned char)*ptrPortSpec ) )
-               {
-                  bbsPort = (unsigned short)atoi( ptrPortSpec );
-               }
-               else
-               {
-                  bbsPort = BBS_PORT_NUMBER;
-               }
-            }
-            if ( !strcmp( aryBbsHost, "206.217.131.27" ) )
-            {
-               snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", BBS_HOSTNAME );
-            }
-         }
-         return true;
-
-      default:
-         return false;
-   }
-}
-
-/// @brief Handle hotkey-related `.bbsrc` commands.
-///
-/// @param commandId Parsed command identifier.
-/// @param ptrLine Raw config line.
-///
-/// @return `true` if the command was handled, otherwise `false`.
-static bool processBbsRcHotkeyCommand( BbsRcCommandId commandId,
-                                       const char *ptrLine )
-{
-   switch ( commandId )
-   {
-      case BBRC_CMD_COMMANDKEY:
-         if ( commandKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'commandkey' ignored.\n" );
-         }
-         else
-         {
-            commandKey = ctrl( ptrLine + 11 );
-            if ( findChar( "\0x01\0x03\0x04\0x05\b\n\r\0x11\0x13\0x15\0x17\0x18\0x19\0x1a\0x7f",
-                           commandKey ) ||
-                 commandKey >= ' ' )
-            {
-               stdPrintf( "Illegal value for 'commandkey', using default of 'Esc'.\n" );
-               commandKey = 0x1b;
-            }
-         }
-         return true;
-
-      case BBRC_CMD_AWAYKEY:
-         if ( awayKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'awaykey' ignored.\n" );
-         }
-         else
-         {
-            awayKey = ctrl( ptrLine + 8 );
-         }
-         return true;
-
-      case BBRC_CMD_QUIT:
-         if ( quitKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'quit' ignored.\n" );
-         }
-         else
-         {
-            quitKey = ctrl( ptrLine + 5 );
-         }
-         return true;
-
-      case BBRC_CMD_SUSP:
-         if ( suspKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'susp' ignored.\n" );
-         }
-         else
-         {
-            suspKey = ctrl( ptrLine + 5 );
-         }
-         return true;
-
-      case BBRC_CMD_CAPTURE:
-         if ( captureKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'capture' ignored.\n" );
-         }
-         else
-         {
-            captureKey = ctrl( ptrLine + 8 );
-         }
-         return true;
-
-      case BBRC_CMD_URL:
-         if ( browserKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'url' ignored.\n" );
-         }
-         else
-         {
-            browserKey = ctrl( ptrLine + 4 );
-         }
-         return true;
-
-      case BBRC_CMD_SHELL:
-         if ( shellKey >= 0 )
-         {
-            stdPrintf( "Additional definition for 'shellkey' ignored.\n" );
-         }
-         else
-         {
-            if ( !strncmp( ptrLine, "shellkey ", 9 ) )
-            {
-               shellKey = ctrl( ptrLine + 9 );
-            }
-            else
-            {
-               shellKey = ctrl( ptrLine + ( sizeof( "aryShell " ) - 1 ) );
-            }
-         }
-         return true;
-
-      default:
-         return false;
-   }
-}
-
-/// @brief Handle friend and enemy list `.bbsrc` commands.
-///
-/// @param commandId Parsed command identifier.
-/// @param ptrLine Raw config line.
-///
-/// @return `true` if the command was handled, otherwise `false`.
-static bool processBbsRcListCommand( BbsRcCommandId commandId,
-                                     const char *ptrLine )
-{
-   switch ( commandId )
-   {
-      case BBRC_CMD_FRIEND:
-         if ( bbsFriends )
-         {
-            char aryScratchLine[MAX_LINE_LENGTH + 1];
-
-            if ( fgets( aryScratchLine, MAX_LINE_LENGTH + 1, bbsFriends ) )
-            {
-               return true;
-            }
-         }
-         return addFriendFromLine( ptrLine );
-
-      case BBRC_CMD_ENEMY:
-         if ( strlen( ptrLine ) == 6 )
-         {
-            stdPrintf( "Empty username in 'enemy'.\n" );
-         }
-         else if ( slistFind( enemyList, (void *)( ptrLine + 6 ), strCompareVoid ) != -1 )
-         {
-            stdPrintf( "Duplicate username in 'enemy'.\n" );
-         }
-         else
-         {
-            char *ptrNameCopy;
-
-            ptrNameCopy = (char *)calloc( 1, strlen( ptrLine + 6 ) + 1 );
-            if ( !ptrNameCopy )
-            {
-               fatalExit( "Out of memory adding 'enemy'!\n", "Fatal error" );
-               return false;
-            }
-            snprintf( ptrNameCopy, strlen( ptrLine + 6 ) + 1, "%s", ptrLine + 6 );
-            if ( !slistAddItem( enemyList, (void *)ptrNameCopy, 1 ) )
-            {
-               fatalExit( "Can't add 'enemy' to list!\n", "Fatal error" );
-               return false;
-            }
-         }
-         return true;
-
-      default:
-         return false;
-   }
-}
-
-/// @brief Handle obsolete and migration-only `.bbsrc` commands.
-///
-/// @param commandId Parsed command identifier.
-/// @param ptrLine Raw config line.
-/// @param ptrState Running `.bbsrc` read state.
-///
-/// @return `true` if the command was handled, otherwise `false`.
-static bool processBbsRcMigrationCommand( BbsRcCommandId commandId,
-                                          const char *ptrLine )
-{
-   switch ( commandId )
-   {
-      case BBRC_CMD_OLD_AWAY:
-         writeDecodedBbsRcText( ptrLine + ( sizeof( "aryAwayMessageLines " ) - 1 ),
-                                aryAwayMessageLines[0], aryAwayMessageLines );
-         return true;
-
-      case BBRC_CMD_NEW_AWAY:
-         snprintf( aryAwayMessageLines[ptrLine[1] - '1'],
-                   sizeof( aryAwayMessageLines[0] ), "%s", ptrLine + 3 );
-         return true;
-
-      default:
-         return false;
-   }
-}
-
-/// @brief Handle boolean and setting-style `.bbsrc` commands.
-///
-/// @param commandId Parsed command identifier.
-/// @param ptrLine Raw config line.
-/// @param ptrState Running `.bbsrc` read state.
-///
-/// @return `true` if the command was handled, otherwise `false`.
-static bool processBbsRcSettingCommand( BbsRcCommandId commandId,
-                                        const char *ptrLine,
-                                        BbsRcReadState *ptrState )
-{
-   BbsRcOptionValue optionValue;
-
-   switch ( commandId )
-   {
-      case BBRC_CMD_BOLD:
-         flagsConfiguration.shouldUseBold = 1;
-         return true;
-
-      case BBRC_CMD_XLAND:
-         isXland = 0;
-         return true;
-
-      case BBRC_CMD_VERSION:
-         ptrState->tmpVersion = atoi( ptrLine + 8 );
-         return true;
-
-      case BBRC_CMD_SQUELCH:
-         switch ( atoi( ptrLine + 8 ) )
-         {
-            case 1:
-               flagsConfiguration.shouldSquelchExpress = 1;
-               break;
-            case 2:
-               flagsConfiguration.shouldSquelchPost = 1;
-               break;
-            case 3:
-               flagsConfiguration.shouldSquelchPost = 1;
-               flagsConfiguration.shouldSquelchExpress = 1;
-               break;
-            default:
-               break;
-         }
-         return true;
-
-      case BBRC_CMD_TCP_KEEPALIVE:
-         optionValue = parseBooleanSettingValue( ptrLine, 9, "'keepalive'", true );
-         if ( optionValue != BBRC_OPTION_INVALID )
-         {
-            flagsConfiguration.shouldUseTcpKeepalive = (unsigned int)optionValue;
-         }
-         return true;
-
-      case BBRC_CMD_CLICKABLE_URLS:
-         optionValue = parseBooleanSettingValue( ptrLine, strlen( "clickableurls" ),
-                                                 "clickable URL option", false );
-         if ( optionValue != BBRC_OPTION_INVALID )
-         {
-            flagsConfiguration.shouldEnableClickableUrls = (unsigned int)optionValue;
-         }
-         return true;
-
-      case BBRC_CMD_TITLEBAR:
-         optionValue = parseBooleanSettingValue( ptrLine, strlen( "titlebar" ),
-                                                 "title bar option", false );
-         if ( optionValue != BBRC_OPTION_INVALID )
-         {
-            flagsConfiguration.shouldEnableTitleBar = (unsigned int)optionValue;
-            flagsConfiguration.hasTitleBarSetting = 1;
-         }
-         return true;
-
-      case BBRC_CMD_SCREENREADER:
-         optionValue = parseBooleanSettingValue( ptrLine, strlen( "screenreader" ),
-                                                 "screen reader option", false );
-         if ( optionValue != BBRC_OPTION_INVALID )
-         {
-            flagsConfiguration.isScreenReaderModeEnabled = (unsigned int)optionValue;
-            flagsConfiguration.hasScreenReaderModeSetting = 1;
-         }
-         return true;
-
-      case BBRC_CMD_AUTOCOMPLETE:
-         optionValue = parseBooleanSettingValue( ptrLine, strlen( "autocomplete" ),
-                                                 "autocomplete option", false );
-         if ( optionValue != BBRC_OPTION_INVALID )
-         {
-            flagsConfiguration.shouldEnableNameAutocomplete = (unsigned int)optionValue;
-            flagsConfiguration.hasNameAutocompleteSetting = 1;
-         }
-         return true;
-
-      case BBRC_CMD_KEYCHAIN:
-         optionValue = parseBooleanSettingValue( ptrLine, strlen( "keychain" ),
-                                                 "keychain option", false );
-         if ( optionValue != BBRC_OPTION_INVALID )
-         {
-#ifdef ENABLE_KEYCHAIN
-            flagsConfiguration.shouldUseKeychain = (unsigned int)optionValue;
-#endif
-         }
-         return true;
-
-      case BBRC_CMD_COLOR:
-         if ( !parseColorScheme( ptrLine ) )
-         {
-            stdPrintf( "Invalid 'color' scheme on line %d, ignored.\n",
-                       ptrState->lineNumber );
-         }
-         return true;
-
-      case BBRC_CMD_AUTONAME:
-         if ( strncmp( ptrLine + ( sizeof( "aryAutoName " ) - 1 ), "Guest", 5 ) )
-         {
-            strncpy( aryAutoName, ptrLine + ( sizeof( "aryAutoName " ) - 1 ), 21 );
-            aryAutoName[20] = 0;
-         }
-         return true;
-
-      case BBRC_CMD_AUTOANSI:
-         if ( strlen( ptrLine ) <= 9 || ptrLine[9] != 'N' )
-         {
-            flagsConfiguration.shouldAutoAnswerAnsiPrompt = 1;
-         }
-         return true;
-
-      default:
-         return false;
-   }
-}
-
-/// @brief Read `.bbsrc` and apply the configured client settings.
-///
-/// @return This function does not return a value.
-void readBbsRc( void )
-{
-   char aryLine[MAX_LINE_LENGTH + 1];
-   BbsRcReadState state = { 0 };
-
-   initializeBbsRcLists();
-   initializeBbsRcDefaults();
-
-   while ( readNormalizedLine( ptrBbsRc, aryLine, sizeof( aryLine ),
-                               &state.lineNumber, &state.reads, ".bbsrc" ) )
-   {
-      if ( !processBbsRcCommandLine( aryLine, &state ) )
-      {
-         return;
-      }
-   }
-
-   if ( !readLegacyBbsFriends( aryLine, &state ) )
-   {
-      return;
-   }
-
-   finalizeBbsRcRead( &state );
-}
-
-/// @brief Read legacy `.bbsfriends` entries after `.bbsrc` parsing.
-///
-/// @param ptrLine Reusable line buffer.
-/// @param ptrState Running `.bbsrc` read state.
+/// @param ptrValue TOML string literal for the key.
+/// @param ptrKeyName Key name used in error messages.
+/// @param isCommandKey Non-zero when parsing the command-prefix key.
+/// @param ptrOutValue Destination for the decoded key code.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool readLegacyBbsFriends( char *ptrLine, BbsRcReadState *ptrState )
+static bool tryParseLocalCommandKeyValue( const char *ptrValue,
+                                          const char *ptrKeyName,
+                                          bool isCommandKey,
+                                          int *ptrOutValue )
 {
-   if ( bbsFriends )
+   char aryDecodedValue[32];
+   int parsedKeyValue;
+
+   if ( !tryParseTomlQuotedString( ptrValue, aryDecodedValue, sizeof( aryDecodedValue ) ) )
    {
-      rewind( bbsFriends );
+      stdPrintf( "Invalid key value for '%s' ignored.\n", ptrKeyName );
+      return false;
    }
-   while ( readNormalizedLine( bbsFriends, ptrLine, sizeof( char[MAX_LINE_LENGTH + 1] ),
-                               &ptrState->lineNumber, &ptrState->reads, ".bbsfriends" ) )
+   if ( strcmp( aryDecodedValue, "backspace" ) == 0 )
    {
-      if ( !strncmp( ptrLine, "friend ", FRIEND_COMMAND_PREFIX_LEN ) )
+      parsedKeyValue = '\b';
+   }
+   else if ( strcmp( aryDecodedValue, "del" ) == 0 )
+   {
+      parsedKeyValue = DEL;
+   }
+   else if ( strcmp( aryDecodedValue, "enter" ) == 0 )
+   {
+      parsedKeyValue = '\n';
+   }
+   else if ( strcmp( aryDecodedValue, "esc" ) == 0 )
+   {
+      parsedKeyValue = ESC;
+   }
+   else if ( strcmp( aryDecodedValue, "space" ) == 0 )
+   {
+      parsedKeyValue = ' ';
+   }
+   else if ( strcmp( aryDecodedValue, "tab" ) == 0 )
+   {
+      parsedKeyValue = '\t';
+   }
+   else if ( strncmp( aryDecodedValue, "ctrl-", 5 ) == 0 &&
+             aryDecodedValue[5] != '\0' &&
+             aryDecodedValue[6] == '\0' &&
+             isalpha( (unsigned char)aryDecodedValue[5] ) )
+   {
+      parsedKeyValue = toupper( (unsigned char)aryDecodedValue[5] ) ^ 0x40;
+   }
+   else if ( aryDecodedValue[0] != '\0' && aryDecodedValue[1] == '\0' &&
+             isprint( (unsigned char)aryDecodedValue[0] ) )
+   {
+      parsedKeyValue = aryDecodedValue[0];
+   }
+   else
+   {
+      stdPrintf( "Invalid key value for '%s' ignored.\n", ptrKeyName );
+      return false;
+   }
+
+   if ( isCommandKey && isIllegalCommandKeyValue( parsedKeyValue ) )
+   {
+      stdPrintf( "Illegal value for '%s', using default of 'esc'.\n", ptrKeyName );
+      return false;
+   }
+
+   *ptrOutValue = parsedKeyValue;
+   return true;
+}
+
+/// @brief Split a TOML assignment line into key and value text.
+///
+/// @param ptrLine Raw line content.
+/// @param aryKeyName Destination for the decoded key name.
+/// @param keyNameSize Capacity of `aryKeyName`.
+/// @param aryValue Destination for the trimmed value text.
+/// @param valueSize Capacity of `aryValue`.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseTomlKeyValueLine( const char *ptrLine,
+                                      char *aryKeyName,
+                                      size_t keyNameSize,
+                                      char *aryValue,
+                                      size_t valueSize )
+{
+   const char *ptrEquals;
+   char aryKeyBuffer[MAX_SECTION_NAME_LENGTH];
+   char aryValueBuffer[MAX_VALUE_LENGTH];
+   const char *ptrTrimmedKey;
+   const char *ptrTrimmedValue;
+   size_t keyLength;
+   size_t valueLength;
+
+   ptrEquals = strchr( ptrLine, '=' );
+   if ( ptrEquals == NULL )
+   {
+      return false;
+   }
+
+   keyLength = (size_t)( ptrEquals - ptrLine );
+   valueLength = strlen( ptrEquals + 1 );
+   if ( keyLength >= sizeof( aryKeyBuffer ) || valueLength >= sizeof( aryValueBuffer ) )
+   {
+      return false;
+   }
+
+   memcpy( aryKeyBuffer, ptrLine, keyLength );
+   aryKeyBuffer[keyLength] = '\0';
+   memcpy( aryValueBuffer, ptrEquals + 1, valueLength + 1 );
+
+   ptrTrimmedKey = trimWhitespace( aryKeyBuffer );
+   ptrTrimmedValue = trimWhitespace( aryValueBuffer );
+   if ( *ptrTrimmedKey == '\0' || *ptrTrimmedValue == '\0' ||
+        strlen( ptrTrimmedKey ) >= keyNameSize || strlen( ptrTrimmedValue ) >= valueSize )
+   {
+      return false;
+   }
+
+   snprintf( aryKeyName, keyNameSize, "%s", ptrTrimmedKey );
+   snprintf( aryValue, valueSize, "%s", ptrTrimmedValue );
+   return true;
+}
+
+/// @brief Decode a TOML double-quoted string.
+///
+/// @param ptrValue Raw value text to decode.
+/// @param aryOutput Destination buffer for decoded text.
+/// @param outputSize Capacity of `aryOutput`.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseTomlQuotedString( const char *ptrValue,
+                                      char *aryOutput,
+                                      size_t outputSize )
+{
+   size_t inputIndex;
+   size_t outputIndex;
+   size_t valueLength;
+
+   valueLength = strlen( ptrValue );
+   if ( valueLength < 2 || ptrValue[0] != '"' || ptrValue[valueLength - 1] != '"' )
+   {
+      return false;
+   }
+
+   outputIndex = 0;
+   for ( inputIndex = 1; inputIndex + 1 < valueLength; inputIndex++ )
+   {
+      int decodedChar;
+
+      decodedChar = (unsigned char)ptrValue[inputIndex];
+      if ( decodedChar == '\\' )
       {
-         if ( !addFriendFromLine( ptrLine ) )
+         inputIndex++;
+         if ( inputIndex + 1 > valueLength )
          {
             return false;
          }
-      }
-   }
+         switch ( ptrValue[inputIndex] )
+         {
+            case '"':
+               decodedChar = '"';
+               break;
 
+            case '\\':
+               decodedChar = '\\';
+               break;
+
+            case 'n':
+               decodedChar = '\n';
+               break;
+
+            case 'r':
+               decodedChar = '\r';
+               break;
+
+            case 't':
+               decodedChar = '\t';
+               break;
+
+            default:
+               return false;
+         }
+      }
+
+      if ( outputIndex + 1 >= outputSize )
+      {
+         return false;
+      }
+      aryOutput[outputIndex++] = (char)decodedChar;
+   }
+   aryOutput[outputIndex] = '\0';
    return true;
 }
 
-/// @brief Warn about conflicting `.bbsrc` hotkey definitions.
+/// @brief Decode a TOML section header.
+///
+/// @param ptrLine Raw line content.
+/// @param arySectionName Destination for the decoded section name.
+/// @param sectionNameSize Capacity of `arySectionName`.
+///
+/// @return Matching section enum.
+static TomlSectionId parseTomlSectionLine( const char *ptrLine,
+                                           char *arySectionName,
+                                           size_t sectionNameSize )
+{
+   size_t sectionNameLength;
+
+   sectionNameLength = strlen( ptrLine );
+   if ( sectionNameLength < 3 || ptrLine[0] != '[' || ptrLine[sectionNameLength - 1] != ']' )
+   {
+      return TOML_SECTION_NONE;
+   }
+   sectionNameLength -= 2;
+   if ( sectionNameLength >= sectionNameSize )
+   {
+      return TOML_SECTION_NONE;
+   }
+
+   memcpy( arySectionName, ptrLine + 1, sectionNameLength );
+   arySectionName[sectionNameLength] = '\0';
+   trimWhitespace( arySectionName );
+
+   if ( strcmp( arySectionName, "behavior" ) == 0 )
+   {
+      return TOML_SECTION_BEHAVIOR;
+   }
+   if ( strcmp( arySectionName, "connection" ) == 0 )
+   {
+      return TOML_SECTION_CONNECTION;
+   }
+   if ( strcmp( arySectionName, "defaults" ) == 0 )
+   {
+      return TOML_SECTION_DEFAULTS;
+   }
+   if ( strcmp( arySectionName, "local_command_keys" ) == 0 )
+   {
+      return TOML_SECTION_LOCAL_COMMAND_KEYS;
+   }
+
+   return TOML_SECTION_UNKNOWN;
+}
+
+/// @brief Apply one TOML key/value pair for the active section.
+///
+/// @param currentSection Current section enum.
+/// @param ptrKeyName Parsed TOML key name.
+/// @param ptrValue Parsed TOML value text.
+/// @param ptrState Running read state.
+///
+/// @return `true` when the key was recognized, otherwise `false`.
+static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
+                                    const char *ptrKeyName,
+                                    const char *ptrValue,
+                                    ConfigReadState *ptrState )
+{
+   bool parsedBooleanValue;
+   int parsedIntegerValue;
+   int parsedKeyValue;
+   char aryParsedText[MAX_VALUE_LENGTH];
+
+   switch ( currentSection )
+   {
+      case TOML_SECTION_BEHAVIOR:
+         if ( strcmp( ptrKeyName, "auto_answer_ansi" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldAutoAnswerAnsiPrompt =
+                  (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "autocomplete_recipients" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldEnableNameAutocomplete =
+                  (unsigned int)parsedBooleanValue;
+               flagsConfiguration.hasNameAutocompleteSetting = 1;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "clickable_url_summaries" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldEnableClickableUrls =
+                  (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "screen_reader_mode" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.isScreenReaderModeEnabled =
+                  (unsigned int)parsedBooleanValue;
+               flagsConfiguration.hasScreenReaderModeSetting = 1;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "suppress_enemy_express" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldSquelchExpress =
+                  (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "suppress_enemy_posts" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldSquelchPost =
+                  (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "tcp_keepalive" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldUseTcpKeepalive =
+                  (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "update_title_bar" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldEnableTitleBar =
+                  (unsigned int)parsedBooleanValue;
+               flagsConfiguration.hasTitleBarSetting = 1;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "use_keychain" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+#ifdef ENABLE_KEYCHAIN
+               flagsConfiguration.shouldUseKeychain =
+                  (unsigned int)parsedBooleanValue;
+#endif
+            }
+            return true;
+         }
+         return false;
+
+      case TOML_SECTION_CONNECTION:
+         if ( strcmp( ptrKeyName, "auto_login_name" ) == 0 )
+         {
+            if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) &&
+                 strncmp( aryParsedText, "Guest", 5 ) != 0 )
+            {
+               snprintf( aryAutoName, sizeof( aryAutoName ), "%s", aryParsedText );
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "editor" ) == 0 )
+         {
+            if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) )
+            {
+               snprintf( aryEditor, sizeof( aryEditor ), "%s", aryParsedText );
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "host" ) == 0 )
+         {
+            if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) &&
+                 *aryParsedText != '\0' )
+            {
+               snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", aryParsedText );
+            }
+            else
+            {
+               stdPrintf( "Invalid string value for '%s' ignored.\n", ptrKeyName );
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "port" ) == 0 )
+         {
+            if ( tryParseIntegerValue( ptrValue, ptrKeyName, 1, 65535, &parsedIntegerValue ) )
+            {
+               bbsPort = (unsigned short)parsedIntegerValue;
+            }
+            return true;
+         }
+         return false;
+
+      case TOML_SECTION_DEFAULTS:
+         if ( strcmp( ptrKeyName, "show_full_profile_by_default" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               applyDefaultUppercasePreference( 'p', parsedBooleanValue );
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "show_long_who_by_default" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               applyDefaultUppercasePreference( 'w', parsedBooleanValue );
+            }
+            return true;
+         }
+         return false;
+
+      case TOML_SECTION_LOCAL_COMMAND_KEYS:
+         if ( strcmp( ptrKeyName, "away" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, false, &parsedKeyValue ) )
+            {
+               awayKey = parsedKeyValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "browser" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, false, &parsedKeyValue ) )
+            {
+               browserKey = parsedKeyValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "capture" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, false, &parsedKeyValue ) )
+            {
+               captureKey = parsedKeyValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "command" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, true, &parsedKeyValue ) )
+            {
+               commandKey = parsedKeyValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "quit" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, false, &parsedKeyValue ) )
+            {
+               quitKey = parsedKeyValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "shell" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, false, &parsedKeyValue ) )
+            {
+               shellKey = parsedKeyValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "suspend" ) == 0 )
+         {
+            if ( tryParseLocalCommandKeyValue( ptrValue, ptrKeyName, false, &parsedKeyValue ) )
+            {
+               suspKey = parsedKeyValue;
+            }
+            return true;
+         }
+         return false;
+
+      case TOML_SECTION_NONE:
+      case TOML_SECTION_UNKNOWN:
+      default:
+         (void)ptrState;
+         return false;
+   }
+}
+
+/// @brief Trim leading and trailing ASCII whitespace in place.
+///
+/// @param ptrText Mutable string buffer to normalize.
+///
+/// @return Pointer to the trimmed view inside `ptrText`.
+static char *trimWhitespace( char *ptrText )
+{
+   char *ptrEnd;
+
+   while ( *ptrText != '\0' && isspace( (unsigned char)*ptrText ) )
+   {
+      ptrText++;
+   }
+   if ( *ptrText == '\0' )
+   {
+      return ptrText;
+   }
+
+   ptrEnd = ptrText + strlen( ptrText ) - 1;
+   while ( ptrEnd > ptrText && isspace( (unsigned char)*ptrEnd ) )
+   {
+      *ptrEnd-- = '\0';
+   }
+
+   return ptrText;
+}
+
+/// @brief Warn about conflicting local-command key definitions.
 ///
 /// @return This helper does not return a value.
 static void warnAboutBbsRcConflicts( void )
 {
-   if ( quitKey >= 0 && quitKey == suspKey )
+   if ( captureKey >= 0 && captureKey == shellKey )
    {
-      stdPrintf( "Warning: duplicate definition of 'quit' and 'susp'\n" );
+      stdPrintf( "Warning: duplicate definition of 'capture' and 'shell'\n" );
    }
    if ( quitKey >= 0 && quitKey == captureKey )
    {
@@ -1176,53 +892,80 @@ static void warnAboutBbsRcConflicts( void )
    }
    if ( quitKey >= 0 && quitKey == shellKey )
    {
-      stdPrintf( "Warning: duplicate definition of 'quit' and 'shellkey'\n" );
+      stdPrintf( "Warning: duplicate definition of 'quit' and 'shell'\n" );
+   }
+   if ( quitKey >= 0 && quitKey == suspKey )
+   {
+      stdPrintf( "Warning: duplicate definition of 'quit' and 'suspend'\n" );
    }
    if ( suspKey >= 0 && suspKey == captureKey )
    {
-      stdPrintf( "Warning: duplicate definition of 'susp' and 'capture'\n" );
+      stdPrintf( "Warning: duplicate definition of 'suspend' and 'capture'\n" );
    }
    if ( suspKey >= 0 && suspKey == shellKey )
    {
-      stdPrintf( "Warning: duplicate definition of 'susp' and 'shellkey'\n" );
-   }
-   if ( captureKey >= 0 && captureKey == shellKey )
-   {
-      stdPrintf( "Warning: duplicate definition of 'capture' and 'shellkey'\n" );
+      stdPrintf( "Warning: duplicate definition of 'suspend' and 'shell'\n" );
    }
 }
 
-/// @brief Decode a `.bbsrc` escaped text field into its destination buffer.
+/// @brief Read config.toml and apply the configured client settings.
 ///
-/// @param ptrToken Encoded config token to decode.
-/// @param ptrWriteBuffer Destination buffer for decoded text.
-/// @param aryAwayBuffers Optional away-message buffer array for multi-line decoding.
-///
-/// @return This helper does not return a value.
-static void writeDecodedBbsRcText( const char *ptrToken, char *ptrWriteBuffer,
-                                   char ( *aryAwayBuffers )[80] )
+/// @return This function does not return a value.
+void readBbsRc( void )
 {
-   int parseIndex;
-   int messageLineIndex;
+   char aryLine[MAX_LINE_LENGTH + 1];
+   char aryKeyName[MAX_SECTION_NAME_LENGTH];
+   char arySectionName[MAX_SECTION_NAME_LENGTH];
+   char aryValue[MAX_VALUE_LENGTH];
+   ConfigReadState state = { 0 };
+   TomlSectionId currentSection;
 
-   messageLineIndex = 0;
-   while ( ( parseIndex = *ptrToken++ ) )
+   initializeBbsRcLists();
+   initializeBbsRcDefaults();
+
+   currentSection = TOML_SECTION_NONE;
+   while ( readNormalizedLine( ptrBbsRc, aryLine, sizeof( aryLine ),
+                               &state.lineNumber, &state.reads, "config.toml" ) )
    {
-      if ( parseIndex == '^' && *ptrToken != '^' )
+      const char *ptrTrimmedLine;
+
+      ptrTrimmedLine = trimWhitespace( aryLine );
+      if ( *ptrTrimmedLine == '\0' || *ptrTrimmedLine == '#' )
       {
-         parseIndex = ctrl( ptrToken++ - 1 );
+         continue;
       }
-      if ( parseIndex == '\r' )
+      if ( ptrTrimmedLine[0] == '[' )
       {
-         parseIndex = '\n';
+         currentSection = parseTomlSectionLine( ptrTrimmedLine, arySectionName,
+                                                sizeof( arySectionName ) );
+         if ( currentSection == TOML_SECTION_NONE )
+         {
+            stdPrintf( "Invalid TOML section header on line %d.\n", state.lineNumber );
+         }
+         else if ( currentSection == TOML_SECTION_UNKNOWN )
+         {
+            stdPrintf( "Unknown TOML section '%s' ignored.\n", arySectionName );
+         }
+         continue;
       }
-      if ( parseIndex == '\n' && aryAwayBuffers != NULL )
+      if ( !tryParseTomlKeyValueLine( ptrTrimmedLine, aryKeyName, sizeof( aryKeyName ),
+                                      aryValue, sizeof( aryValue ) ) )
       {
-         ptrWriteBuffer = aryAwayBuffers[++messageLineIndex];
+         stdPrintf( "Invalid TOML syntax on line %d.\n", state.lineNumber );
+         continue;
       }
-      else if ( !iscntrl( parseIndex ) )
+      if ( !tryProcessTomlKeyValue( currentSection, aryKeyName, aryValue, &state ) )
       {
-         *ptrWriteBuffer++ = (char)parseIndex;
+         if ( currentSection == TOML_SECTION_NONE )
+         {
+            stdPrintf( "TOML key '%s' must appear inside a section.\n", aryKeyName );
+         }
+         else if ( currentSection != TOML_SECTION_UNKNOWN )
+         {
+            stdPrintf( "Unknown config key '%s' ignored.\n", aryKeyName );
+         }
       }
    }
+
+   (void)tryFinalizeBbsRcRead( &state );
 }

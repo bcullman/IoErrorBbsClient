@@ -16,7 +16,7 @@
 #include "defs.h"
 #include "filter_globals.h"
 #include "utility.h"
-static const char *CONFIG_MAIN_MENU_KEYS = "cefhikmoqx \n";
+static const char *CONFIG_MAIN_MENU_KEYS = "cefhikoqx \n";
 
 #define GREETING \
    "\r\nWelcome to IO ERROR's ISCA BBS Client!  Please take a moment to familiarize\r\nyourself with some of our new features.\r\n\n"
@@ -34,7 +34,6 @@ static const char *CONFIG_MAIN_MENU_KEYS = "cefhikmoqx \n";
    "Advanced users may wish to use the configuration menu now to change options\r\nbefore logging in."
 
 static const char *describeKeyForHelp( int inputChar );
-
 
 /// @brief Run the top-level client configuration menu.
 ///
@@ -57,7 +56,7 @@ void configBbsRc( void )
    {
       int inputChar;
 
-      printThemedMnemonicText( "\r\n<C>olor  <E>nemy list  <F>riend list  <H>otkeys\r\n<I>nfo  <M>acros  <O>ptions  <X>press  <Q>uit", color.number );
+      printThemedMnemonicText( "\r\n<C>olor  <E>nemy list  <F>riend list  <H>otkeys\r\n<I>nfo  <O>ptions  <X>press  <Q>uit", color.number );
       printThemedMnemonicText( "\r\nClient config -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
       inputChar = readValidatedMenuKey( CONFIG_MAIN_MENU_KEYS );
@@ -93,10 +92,6 @@ void configBbsRc( void )
             editUsers( enemyList, strCompareVoid, "enemy" );
             break;
 
-         case 'm':
-            configureMacros();
-            break;
-
          case 'q':
          case ' ':
          case '\n':
@@ -115,7 +110,6 @@ void configBbsRc( void )
       }
    }
 }
-
 
 /// @brief Describe a configured key in a user-facing format.
 ///
@@ -144,7 +138,6 @@ static const char *describeKeyForHelp( int inputChar )
          return strCtrl( inputChar );
    }
 }
-
 
 /// @brief Perform version-gated setup prompts and initialize new defaults.
 ///

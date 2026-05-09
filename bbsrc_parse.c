@@ -41,7 +41,6 @@ typedef enum
    BBRC_CMD_FRIEND,
    BBRC_CMD_KEYCHAIN,
    BBRC_CMD_KEYMAP,
-   BBRC_CMD_MACRO,
    BBRC_CMD_NEW_AWAY,
    BBRC_CMD_OLD_AWAY,
    BBRC_CMD_QUIT,
@@ -102,9 +101,8 @@ static bool processBbsRcHotkeyCommand( BbsRcCommandId commandId,
                                        const char *ptrLine );
 static bool processBbsRcListCommand( BbsRcCommandId commandId,
                                      const char *ptrLine );
-static bool processBbsRcMacroCommand( BbsRcCommandId commandId,
-                                      const char *ptrLine,
-                                      const BbsRcReadState *ptrState );
+static bool processBbsRcMigrationCommand( BbsRcCommandId commandId,
+                                          const char *ptrLine );
 static bool processBbsRcSettingCommand( BbsRcCommandId commandId,
                                         const char *ptrLine,
                                         BbsRcReadState *ptrState );
@@ -271,14 +269,12 @@ static BbsRcCommandId detectBbsRcCommand( const char *ptrLine )
          { "friend ", FRIEND_COMMAND_PREFIX_LEN, BBRC_CMD_FRIEND },
          { "enemy ", 6, BBRC_CMD_ENEMY },
          { "commandkey ", 11, BBRC_CMD_COMMANDKEY },
-         { "macrokey ", 9, BBRC_CMD_COMMANDKEY },
          { "awaykey ", 8, BBRC_CMD_AWAYKEY },
          { "quit ", 5, BBRC_CMD_QUIT },
          { "susp ", 5, BBRC_CMD_SUSP },
          { "capture ", 8, BBRC_CMD_CAPTURE },
          { "aryKeyMap ", sizeof( "aryKeyMap " ) - 1, BBRC_CMD_KEYMAP },
          { "url ", 4, BBRC_CMD_URL },
-         { "aryMacro ", sizeof( "aryMacro " ) - 1, BBRC_CMD_MACRO },
          { "aryAwayMessageLines ", sizeof( "aryAwayMessageLines " ) - 1, BBRC_CMD_OLD_AWAY },
          { "shellkey ", 9, BBRC_CMD_SHELL },
          { "aryShell ", sizeof( "aryShell " ) - 1, BBRC_CMD_SHELL } };
@@ -420,7 +416,6 @@ static void initializeBbsRcDefaults( void )
    for ( parseIndex = 0; parseIndex <= 127; parseIndex++ )
    {
       aryKeyMap[parseIndex] = (char)parseIndex;
-      *aryMacro[parseIndex] = 0;
    }
 
    isXland = 1;
@@ -670,7 +665,7 @@ static bool processBbsRcCommandLine( const char *ptrLine, BbsRcReadState *ptrSta
    {
       return true;
    }
-   if ( processBbsRcMacroCommand( commandId, ptrLine, ptrState ) )
+   if ( processBbsRcMigrationCommand( commandId, ptrLine ) )
    {
       return true;
    }
@@ -808,14 +803,7 @@ static bool processBbsRcHotkeyCommand( BbsRcCommandId commandId,
          }
          else
          {
-            if ( !strncmp( ptrLine, "macrokey ", 9 ) )
-            {
-               commandKey = ctrl( ptrLine + 9 );
-            }
-            else
-            {
-               commandKey = ctrl( ptrLine + 11 );
-            }
+            commandKey = ctrl( ptrLine + 11 );
             if ( findChar( "\0x01\0x03\0x04\0x05\b\n\r\0x11\0x13\0x15\0x17\0x18\0x19\0x1a\0x7f",
                            commandKey ) ||
                  commandKey >= ' ' )
@@ -960,49 +948,18 @@ static bool processBbsRcListCommand( BbsRcCommandId commandId,
    }
 }
 
-/// @brief Handle macro and away-message `.bbsrc` commands.
+/// @brief Handle obsolete and migration-only `.bbsrc` commands.
 ///
 /// @param commandId Parsed command identifier.
 /// @param ptrLine Raw config line.
 /// @param ptrState Running `.bbsrc` read state.
 ///
 /// @return `true` if the command was handled, otherwise `false`.
-static bool processBbsRcMacroCommand( BbsRcCommandId commandId,
-                                      const char *ptrLine,
-                                      const BbsRcReadState *ptrState )
+static bool processBbsRcMigrationCommand( BbsRcCommandId commandId,
+                                          const char *ptrLine )
 {
    switch ( commandId )
    {
-      case BBRC_CMD_MACRO:
-         {
-            int macroIndex;
-            const char *ptrToken;
-
-            macroIndex = ctrl( ptrLine + ( sizeof( "aryMacro " ) - 1 ) );
-            ptrToken = ptrLine + sizeof( "aryMacro " ) +
-                       ( ptrLine[sizeof( "aryMacro " ) - 1] == '^' );
-            if ( *ptrToken++ != ' ' )
-            {
-               stdPrintf( "Syntax error in 'aryMacro', ignored.\n" );
-               return true;
-            }
-            if ( *aryMacro[macroIndex] )
-            {
-               stdPrintf( "Additional definition of same 'aryMacro' value ignored.\n" );
-               return true;
-            }
-            if ( macroIndex == 'i' && !awayKey && ptrState->tmpVersion < 220 )
-            {
-               awayKey = 'i';
-               writeDecodedBbsRcText( ptrToken, aryAwayMessageLines[0],
-                                      aryAwayMessageLines );
-               return true;
-            }
-
-            writeDecodedBbsRcText( ptrToken, aryMacro[macroIndex], NULL );
-            return true;
-         }
-
       case BBRC_CMD_OLD_AWAY:
          writeDecodedBbsRcText( ptrLine + ( sizeof( "aryAwayMessageLines " ) - 1 ),
                                 aryAwayMessageLines[0], aryAwayMessageLines );
@@ -1204,27 +1161,11 @@ static bool readLegacyBbsFriends( char *ptrLine, BbsRcReadState *ptrState )
    return true;
 }
 
-/// @brief Warn about conflicting `.bbsrc` hotkey and macro definitions.
+/// @brief Warn about conflicting `.bbsrc` hotkey definitions.
 ///
 /// @return This helper does not return a value.
 static void warnAboutBbsRcConflicts( void )
 {
-   if ( quitKey >= 0 && *aryMacro[quitKey] )
-   {
-      stdPrintf( "Warning: duplicate definition of 'aryMacro' and 'quit'\n" );
-   }
-   if ( suspKey >= 0 && *aryMacro[suspKey] )
-   {
-      stdPrintf( "Warning: duplicate definition of 'aryMacro' and 'susp'\n" );
-   }
-   if ( captureKey >= 0 && *aryMacro[captureKey] )
-   {
-      stdPrintf( "Warning: duplicate definition of 'aryMacro' and 'capture'\n" );
-   }
-   if ( shellKey >= 0 && *aryMacro[captureKey] )
-   {
-      stdPrintf( "Warning: duplicate definition of 'aryMacro' and 'shellkey'\n" );
-   }
    if ( quitKey >= 0 && quitKey == suspKey )
    {
       stdPrintf( "Warning: duplicate definition of 'quit' and 'susp'\n" );

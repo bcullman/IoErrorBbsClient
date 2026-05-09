@@ -11,7 +11,6 @@
 
 void configBbsRc( void );
 void configureHotkeys( void );
-void configureMacros( void );
 void configureOptionsMenu( void );
 void defaultNameAutocompleteIfUnset( void );
 void editUsers( slist *list, int ( *findfn )( const void *, const void * ),
@@ -19,7 +18,6 @@ void editUsers( slist *list, int ( *findfn )( const void *, const void * ),
 void expressConfig( void );
 void newAwayMessage( void );
 int newKey( int oldkey );
-void newMacro( int which );
 void promptForScreenReaderModeIfUnset( void );
 void setup( int newVersion );
 char *strCtrl( int inputChar );

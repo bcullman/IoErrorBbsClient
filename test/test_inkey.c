@@ -58,11 +58,6 @@ static void resetState( void )
    shellKey = '!';
    browserKey = 'w';
    captureKey = 'c';
-
-   for ( keyIndex = 0; keyIndex < 128; ++keyIndex )
-   {
-      aryMacro[keyIndex][0] = '\0';
-   }
    for ( keyIndex = 0; keyIndex < 1000; ++keyIndex )
    {
       arySavedByteCanReplay[keyIndex] = false;
@@ -165,38 +160,6 @@ int waitNextEvent( void )
 int yesNo( void )
 {
    return 0;
-}
-
-/// @brief Verify that command macros return their configured text.
-///
-/// @param state CMocka test state.
-///
-/// @return This test does not return a value.
-static void getKey_WhenCommandMacroTriggered_ReturnsMacroText( void **state )
-{
-   const int aryInput[] = { ';', 'm' };
-   int firstResult;
-   int secondResult;
-
-   (void)state;
-
-   resetState();
-   commandKey = ';';
-   snprintf( aryMacro['m'], sizeof( aryMacro['m'] ), "%s", "Hi" );
-   setPtyInput( aryInput, sizeof( aryInput ) / sizeof( aryInput[0] ) );
-
-   firstResult = inKey();
-   secondResult = inKey();
-
-   if ( firstResult != 'H' || secondResult != 'i' )
-   {
-      fail_msg( "macro expansion should return 'H' then 'i'; got %d then %d", firstResult, secondResult );
-   }
-   if ( fatalPerrorCallCount != 0 || myExitCallCount != 0 )
-   {
-      fail_msg( "macro expansion should not hit fatal paths; fatalPerror=%d fatalExit=%d myExit=%d",
-                fatalPerrorCallCount, fatalExitCallCount, myExitCallCount );
-   }
 }
 
 /// @brief Verify that local input interrupts buffered network draining.
@@ -360,7 +323,6 @@ static void inKey_WhenDeleteAndCtrlU_AppliesKeyTranslations( void **state )
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
-      cmocka_unit_test( getKey_WhenCommandMacroTriggered_ReturnsMacroText ),
       cmocka_unit_test( getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput ),
       cmocka_unit_test( getKey_WhenTargetByteActive_ReturnsSavedByteAndAdvancesPosition ),
       cmocka_unit_test( getKey_WhenTargetByteIncludesNonReplayableBytes_SkipsToReplayableByte ),

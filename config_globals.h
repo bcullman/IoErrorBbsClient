@@ -24,13 +24,12 @@ extern unsigned short cmdLinePort;  // port to connect to from command line
 
 extern char aryAwayMessageLines[6][80]; // Away from keyboard message
 extern char aryKeyMap[128];             // key remapping array
-extern char aryMacro[128][72];          // array for macros
 extern char aryShell[PATH_MAX];         // Shell command launched by the client
 extern int awayKey;                     // Hotkey for isAway from keyboard
 extern int browserKey;                  // Hotkey to launch web browser
 extern int capture;                     // Capture status
 extern int captureKey;                  // Toggle text capture key (" captureKey)
-extern int commandKey;                  // hotkey for signalling a aryMacro follows
+extern int commandKey;                  // Hotkey for local command sequences
 extern int quitKey;                     // hotkey to quit (commandKey quitKey)
 extern int shellKey;                    // hotkey for shelling out (" shellKey)
 extern int suspKey;                     // hotkey for suspending (" suspKey)

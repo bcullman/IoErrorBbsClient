@@ -20,7 +20,6 @@ static void writeColorSettings( void );
 static void writeConnectionSettings( void );
 static void writeFriendAndEnemyLists( void );
 static void writeKeyMapOverrides( void );
-static void writeMacros( void );
 static void writeMiscSettings( void );
 static void writeOptionSettings( void );
 
@@ -53,7 +52,6 @@ void writeBbsRc( void )
    writeAwayMessages();
    writeMiscSettings();
    writeFriendAndEnemyLists();
-   writeMacros();
    writeKeyMapOverrides();
 
    fflush( ptrBbsRc );
@@ -127,27 +125,6 @@ static void writeKeyMapOverrides( void )
       if ( aryKeyMap[itemIndex] != itemIndex )
       {
          fprintf( ptrBbsRc, "aryKeyMap %c %c\n", itemIndex, aryKeyMap[itemIndex] );
-      }
-   }
-}
-
-/// @brief Write the configured keyboard macros.
-///
-/// @return This function does not return a value.
-static void writeMacros( void )
-{
-   int itemIndex, innerIndex;
-
-   for ( itemIndex = 0; itemIndex < 128; itemIndex++ )
-   {
-      if ( *aryMacro[itemIndex] )
-      {
-         fprintf( ptrBbsRc, "aryMacro %s ", strCtrl( itemIndex ) );
-         for ( innerIndex = 0; aryMacro[itemIndex][innerIndex]; innerIndex++ )
-         {
-            fprintf( ptrBbsRc, "%s", strCtrl( aryMacro[itemIndex][innerIndex] ) );
-         }
-         fprintf( ptrBbsRc, "\n" );
       }
    }
 }

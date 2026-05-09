@@ -447,6 +447,66 @@ static void openBbsRc_WhenPathMissing_CreatesWritableConfigurationFile( void **s
    unlink( aryPath );
 }
 
+static void openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree( void **state )
+{
+   // Arrange
+   char aryConfigPath[PATH_MAX];
+   char aryDirectoryTemplate[] = "/tmp/iobbs_config_test_XXXXXX";
+   char *ptrTempDirectory;
+   FILE *ptrFile;
+   struct stat fileStats;
+   struct stat innerDirectoryStats;
+   struct stat outerDirectoryStats;
+
+   (void)state;
+
+   resetTracking();
+   isBbsRcReadOnly = 0;
+   ptrTempDirectory = mkdtemp( aryDirectoryTemplate );
+   if ( ptrTempDirectory == NULL )
+   {
+      fail_msg( "Arrange failed: unable to create temporary directory for openBbsRc config-tree test" );
+      return;
+   }
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs/config.toml",
+             ptrTempDirectory );
+   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryConfigPath );
+
+   // Act
+   ptrFile = openBbsRc();
+
+   // Assert
+   if ( ptrFile == NULL )
+   {
+      fail_msg( "openBbsRc should create and open the config file when parent directories are missing" );
+   }
+   if ( stat( aryConfigPath, &fileStats ) != 0 )
+   {
+      fail_msg( "openBbsRc should create the config file on disk" );
+   }
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
+   if ( stat( aryConfigPath, &outerDirectoryStats ) != 0 || !S_ISDIR( outerDirectoryStats.st_mode ) )
+   {
+      fail_msg( "openBbsRc should create the outer config directory" );
+   }
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs", ptrTempDirectory );
+   if ( stat( aryConfigPath, &innerDirectoryStats ) != 0 || !S_ISDIR( innerDirectoryStats.st_mode ) )
+   {
+      fail_msg( "openBbsRc should create the app-specific config directory" );
+   }
+
+   // Cleanup
+   fclose( ptrFile );
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs/config.toml",
+             ptrTempDirectory );
+   unlink( aryConfigPath );
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs", ptrTempDirectory );
+   rmdir( aryConfigPath );
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
+   rmdir( aryConfigPath );
+   rmdir( ptrTempDirectory );
+}
+
 static void openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
 {
    // Arrange
@@ -1697,6 +1757,7 @@ int main( void )
 {
    const struct CMUnitTest aryTests[] = {
       cmocka_unit_test( openBbsRc_WhenPathMissing_CreatesWritableConfigurationFile ),
+      cmocka_unit_test( openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree ),
       cmocka_unit_test( openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
       cmocka_unit_test( readBbsRc_WhenConfigIsEmpty_AppliesDefaults ),
       cmocka_unit_test( readBbsRc_WhenConfigHasEntries_ParsesValuesAndIgnoresDuplicateEnemy ),

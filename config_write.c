@@ -43,7 +43,6 @@ static void writeAwayMessages( void )
 /// @return This function does not return a value.
 void writeBbsRc( void )
 {
-   deleteFile( aryBbsFriendsName );
    rewind( ptrBbsRc );
 
    writeConnectionSettings();

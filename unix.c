@@ -24,6 +24,7 @@
 static struct passwd *pw;
 
 static void execCommandWithOptionalArg( const char *ptrCommand, const char *ptrArg );
+static const char *resolveConfigHomeDirectory( void );
 
 /// @brief Exit the client cleanly from a signal handler.
 ///
@@ -86,74 +87,72 @@ static void execCommandWithOptionalArg( const char *ptrCommand, const char *ptrA
    _exit( 1 );
 }
 
-/// @brief Resolve and open the legacy friends file path.
+/// @brief Legacy friends-file lookup is disabled.
 ///
-/// @return A stream for the resolved friends file.
+/// @return `NULL` because the client no longer consults a separate friends file.
 FILE *findBbsFriends( void )
 {
-   if ( isLoginShell )
-   {
-      snprintf( aryBbsFriendsName, sizeof( aryBbsFriendsName ), "/tmp/bbsfriends.%d", getpid() );
-   }
-   else
-   {
-      if ( getenv( "BBSFRIENDS" ) )
-      {
-         snprintf( aryBbsFriendsName, sizeof( aryBbsFriendsName ), "%s", getenv( "BBSFRIENDS" ) );
-      }
-      else if ( pw )
-      {
-         snprintf( aryBbsFriendsName, sizeof( aryBbsFriendsName ), "%s/.bbsfriends", pw->pw_dir );
-      }
-      else if ( getenv( "HOME" ) )
-      {
-         snprintf( aryBbsFriendsName, sizeof( aryBbsFriendsName ), "%s/.bbsfriends", getenv( "HOME" ) );
-      }
-      else
-      {
-         fatalExit( "findBbsFriends: You don't exist, go away.", "Local error" );
-      }
-   }
-   chmod( aryBbsFriendsName, 0600 );
-   return ( openBbsFriends() );
+   aryBbsFriendsName[0] = '\0';
+   return NULL;
 }
 
-/// @brief Resolve and open the main `.bbsrc` path.
+/// @brief Resolve the base config directory for the current user.
 ///
-/// Environment overrides and login-shell temp paths are handled before the file
-/// is opened through `openBbsRc()`.
+/// The XDG override is preferred when present. Otherwise the path falls back
+/// to the user's home directory under `.config`.
+///
+/// @return Base directory for client config files, or `NULL` if no home
+/// directory can be determined.
+static const char *resolveConfigHomeDirectory( void )
+{
+   const char *ptrXdgConfigHome;
+
+   ptrXdgConfigHome = getenv( "XDG_CONFIG_HOME" );
+   if ( ptrXdgConfigHome != NULL && *ptrXdgConfigHome != '\0' )
+   {
+      return ptrXdgConfigHome;
+   }
+   if ( pw != NULL && *pw->pw_dir != '\0' )
+   {
+      return pw->pw_dir;
+   }
+   if ( getenv( "HOME" ) != NULL && *getenv( "HOME" ) != '\0' )
+   {
+      return getenv( "HOME" );
+   }
+
+   return NULL;
+}
+
+/// @brief Resolve and open the main config TOML path.
+///
+/// The path uses the XDG config directory when available and otherwise falls
+/// back to `~/.config/bbs/config.toml`.
 ///
 /// @return A stream for the resolved configuration file.
 FILE *findBbsRc( void )
 {
    FILE *ptrFileHandle;
+   const char *ptrConfigHome;
 
-   if ( isLoginShell )
+   ptrConfigHome = resolveConfigHomeDirectory();
+   if ( ptrConfigHome == NULL )
    {
-      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "/tmp/bbsrc.%d", getpid() );
+      fatalExit( "findBbsRc: unable to resolve a home directory.", "Local error" );
+   }
+   if ( getenv( "XDG_CONFIG_HOME" ) != NULL && *getenv( "XDG_CONFIG_HOME" ) != '\0' )
+   {
+      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/bbs/config.toml",
+                ptrConfigHome );
    }
    else
    {
-      if ( getenv( "BBSRC" ) )
-      {
-         snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", getenv( "BBSRC" ) );
-      }
-      else if ( pw )
-      {
-         snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/.bbsrc", pw->pw_dir );
-      }
-      else if ( getenv( "HOME" ) )
-      {
-         snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/.bbsrc", getenv( "HOME" ) );
-      }
-      else
-      {
-         fatalExit( "findbbsrc: You don't exist, go away.", "Local error" );
-      }
+      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/.config/bbs/config.toml",
+                ptrConfigHome );
    }
    if ( ( ptrFileHandle = fopen( aryBbsRcName, "r" ) ) && chmod( aryBbsRcName, 0600 ) < 0 )
    {
-      sPerror( "Can't set access on bbsrc file", "Warning" );
+      sPerror( "Can't set access on config file", "Warning" );
    }
    if ( ptrFileHandle )
    {
@@ -433,8 +432,6 @@ void deinitialize( void )
    if ( isLoginShell )
    {
       unlink( aryTempFileName );
-      unlink( aryBbsRcName );
-      unlink( aryBbsFriendsName );
    }
 }
 

@@ -23,13 +23,14 @@
 
 typedef enum
 {
-   TOML_SECTION_AWAY = 0,
+   TOML_SECTION_NONE = 0,
+   TOML_SECTION_AWAY,
    TOML_SECTION_BEHAVIOR,
+   TOML_SECTION_COLORS,
    TOML_SECTION_CONNECTION,
    TOML_SECTION_CONTACTS,
    TOML_SECTION_DEFAULTS,
    TOML_SECTION_LOCAL_COMMAND_KEYS,
-   TOML_SECTION_NONE,
    TOML_SECTION_UNKNOWN
 } TomlSectionId;
 
@@ -57,6 +58,9 @@ static bool tryParseBooleanValue( const char *ptrValue,
                                   bool *ptrOutValue );
 static bool tryParseContactEnemiesValue( const char *ptrValue );
 static bool tryParseContactFriendsValue( const char *ptrValue );
+static bool tryParseColorValue( const char *ptrValue,
+                                const char *ptrKeyName,
+                                int *ptrOutValue );
 static bool tryParseIntegerValue( const char *ptrValue,
                                   const char *ptrKeyName,
                                   int minimumValue,
@@ -737,6 +741,44 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
    return false;
 }
 
+/// @brief Parse one TOML color value from a name or integer palette entry.
+///
+/// @param ptrValue Raw TOML value text to decode.
+/// @param ptrKeyName Key name used in warnings.
+/// @param ptrOutValue Destination for the decoded color value.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseColorValue( const char *ptrValue,
+                                const char *ptrKeyName,
+                                int *ptrOutValue )
+{
+   int parsedColorValue;
+
+   if ( ptrValue != NULL && *ptrValue == '"' )
+   {
+      char aryParsedText[MAX_VALUE_LENGTH];
+
+      if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) )
+      {
+         parsedColorValue = colorValueFromName( aryParsedText );
+         if ( parsedColorValue >= 0 )
+         {
+            *ptrOutValue = parsedColorValue;
+            return true;
+         }
+      }
+   }
+   else if ( tryParseIntegerValue( ptrValue, ptrKeyName, 0, COLOR_VALUE_DEFAULT,
+                                   &parsedColorValue ) )
+   {
+      *ptrOutValue = parsedColorValue;
+      return true;
+   }
+
+   stdPrintf( "Invalid color value for '%s' ignored.\n", ptrKeyName );
+   return false;
+}
+
 /// @brief Parse a TOML integer value within a fixed range.
 ///
 /// @param ptrValue Raw value text to decode.
@@ -1052,6 +1094,10 @@ static TomlSectionId parseTomlSectionLine( const char *ptrLine,
    {
       return TOML_SECTION_BEHAVIOR;
    }
+   if ( strcmp( arySectionName, "colors" ) == 0 )
+   {
+      return TOML_SECTION_COLORS;
+   }
    if ( strcmp( arySectionName, "away" ) == 0 )
    {
       return TOML_SECTION_AWAY;
@@ -1191,6 +1237,21 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
             return true;
          }
          return false;
+
+      case TOML_SECTION_COLORS:
+         {
+            int colorFieldIndex;
+
+            if ( tryFindColorFieldIndexByTomlKeyName( ptrKeyName, &colorFieldIndex ) )
+            {
+               if ( tryParseColorValue( ptrValue, ptrKeyName, &parsedIntegerValue ) )
+               {
+                  setColorFieldValue( colorFieldIndex, parsedIntegerValue );
+               }
+               return true;
+            }
+            return false;
+         }
 
       case TOML_SECTION_CONNECTION:
          if ( strcmp( ptrKeyName, "auto_login_name" ) == 0 )

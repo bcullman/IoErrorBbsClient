@@ -18,6 +18,7 @@ void brilliantColors( void );
 void colorblindColors( void );
 void colorConfig( void );
 int colorFieldValue( int colorIndex );
+const char *colorFieldTomlKeyName( int colorIndex );
 int colorize( const char *str );
 const char *colorNameFromValue( int colorValue );
 void colorOptions( void );
@@ -31,8 +32,8 @@ char expressColorMenu( void );
 void expressFriendColorConfig( void );
 void expressUserColorConfig( void );
 int formatTransformedAnsiForegroundSequence( char *ptrBuffer, size_t bufferSize,
-                                            int inputChar, int isPostContext,
-                                            int isFriend );
+                                             int inputChar, int isPostContext,
+                                             int isFriend );
 void generalColorConfig( void );
 char generalColorMenu( void );
 void hotDogColors( void );
@@ -47,6 +48,8 @@ void printAnsiForegroundColorValue( int colorValue );
 void printAnsiResetValue( void );
 void printThemedMnemonicText( const char *ptrText, int defaultColor );
 void setColorFieldValue( int colorIndex, int colorValue );
+bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
+                                          int *ptrOutColorIndex );
 char userOrFriend( void );
 
 #endif // COLOR_H_INCLUDED

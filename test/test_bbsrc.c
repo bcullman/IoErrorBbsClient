@@ -100,6 +100,32 @@ void defaultColors( int setall )
    (void)setall;
 }
 
+int colorValueFromName( const char *ptrColorName )
+{
+   if ( ptrColorName == NULL )
+   {
+      return -1;
+   }
+   if ( strcmp( ptrColorName, "brightblue" ) == 0 )
+   {
+      return 12;
+   }
+   if ( strcmp( ptrColorName, "brightgreen" ) == 0 )
+   {
+      return 10;
+   }
+   if ( strcmp( ptrColorName, "default" ) == 0 )
+   {
+      return COLOR_VALUE_DEFAULT;
+   }
+   if ( strcmp( ptrColorName, "yellow" ) == 0 )
+   {
+      return 220;
+   }
+
+   return -1;
+}
+
 noreturn void fatalExit( const char *message, const char *heading )
 {
    fail_msg( "fatalExit invoked unexpectedly: %s (%s)", message, heading );
@@ -114,6 +140,89 @@ FILE *findBbsFriends( void )
 FILE *findBbsRc( void )
 {
    return openBbsRc();
+}
+
+void setColorFieldValue( int colorIndex, int colorValue )
+{
+   int *const aryTestColorFields[COLOR_FIELD_COUNT] =
+      {
+         &color.text,
+         &color.forum,
+         &color.number,
+         &color.errorTextColor,
+         &color.ansiBlackTextColor,
+         &color.ansiBlueTextColor,
+         &color.ansiMagentaTextColor,
+         &color.postDate,
+         &color.postName,
+         &color.postText,
+         &color.postFriendDate,
+         &color.postFriendName,
+         &color.postFriendText,
+         &color.anonymous,
+         &color.morePrompt,
+         &color.ansiWhiteTextColor,
+         &color.reserved5,
+         &color.background,
+         &color.inputText,
+         &color.inputHighlight,
+         &color.expressText,
+         &color.expressName,
+         &color.expressFriendText,
+         &color.expressFriendName };
+
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+   *aryTestColorFields[colorIndex] = colorValue;
+}
+
+bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
+                                          int *ptrOutColorIndex )
+{
+   static const char *const aryTestColorTomlKeys[COLOR_FIELD_COUNT] =
+      {
+         "text",
+         "forum_prompt",
+         "number_prompt",
+         "error_text",
+         "incoming_ansi_black",
+         "incoming_ansi_blue",
+         "incoming_ansi_magenta",
+         "post_date",
+         "post_name",
+         "post_text",
+         "post_friend_date",
+         "post_friend_name",
+         "post_friend_text",
+         "anonymous_post",
+         "more_prompt",
+         "incoming_ansi_white",
+         NULL,
+         "background",
+         "input_text",
+         "input_highlight",
+         "express_text",
+         "express_name",
+         "express_friend_text",
+         "express_friend_name" };
+   int itemIndex;
+
+   if ( ptrKeyName == NULL || ptrOutColorIndex == NULL )
+   {
+      return false;
+   }
+
+   for ( itemIndex = 0; itemIndex < COLOR_FIELD_COUNT; itemIndex++ )
+   {
+      if ( aryTestColorTomlKeys[itemIndex] != NULL &&
+           strcmp( ptrKeyName, aryTestColorTomlKeys[itemIndex] ) == 0 )
+      {
+         *ptrOutColorIndex = itemIndex;
+         return true;
+      }
+   }
+
+   return false;
 }
 
 int fSortCompareVoid( const void *ptrLeft, const void *ptrRight )
@@ -491,7 +600,13 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "\n"
            "[contacts]\n"
            "enemies = [\"Mallory\", \"Eve\"]\n"
-           "friends = [{ name = \"Bob\", info = \"A buddy\" }, { name = \"Carol\" }]\n" ) )
+           "friends = [{ name = \"Bob\", info = \"A buddy\" }, { name = \"Carol\" }]\n"
+           "\n"
+           "[colors]\n"
+           "text = \"brightgreen\"\n"
+           "background = \"default\"\n"
+           "post_name = 201\n"
+           "incoming_ansi_white = \"yellow\"\n" ) )
    {
       unlink( aryPath );
       fail_msg( "Arrange failed: unable to write core TOML configuration content" );
@@ -577,6 +692,13 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
                    ptrSecondFriend->name, ptrSecondFriend->info );
       }
    }
+   if ( color.text != 10 || color.background != COLOR_VALUE_DEFAULT ||
+        color.postName != 201 || color.ansiWhiteTextColor != 220 )
+   {
+      fail_msg( "expected parsed colors text=10 background=%d postName=201 incomingWhite=220; got text=%d background=%d postName=%d incomingWhite=%d",
+                COLOR_VALUE_DEFAULT, color.text, color.background,
+                color.postName, color.ansiWhiteTextColor );
+   }
 #ifdef ENABLE_KEYCHAIN
    if ( !flagsConfiguration.shouldUseKeychain )
    {
@@ -588,6 +710,52 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
       fail_msg( "use_keychain should be ignored when keychain support is not compiled in" );
    }
 #endif
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+static void readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault( void **state )
+{
+   // Arrange
+   char aryPath[PATH_MAX];
+
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   color.text = 2;
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for invalid-color test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[colors]\n"
+           "text = \"banana\"\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write invalid-color configuration content" );
+      return;
+   }
+   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isBbsRcReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readBbsRc();
+
+   // Assert
+   if ( strstr( aryStdPrintfLog, "Invalid color value for 'text' ignored." ) == NULL )
+   {
+      fail_msg( "invalid color should emit warning; log was: %s", aryStdPrintfLog );
+   }
+   if ( color.text != 2 )
+   {
+      fail_msg( "invalid color should keep the prior/default text color; got %d", color.text );
+   }
 
    cleanupReadState();
    unlink( aryPath );
@@ -1096,6 +1264,7 @@ int main( void )
          cmocka_unit_test( openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsCoreToml_ParsesValues ),
          cmocka_unit_test( readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
+         cmocka_unit_test( readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault ),

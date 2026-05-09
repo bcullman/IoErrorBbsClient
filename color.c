@@ -42,6 +42,33 @@ static int *const aryColorFields[COLOR_FIELD_COUNT] =
       &color.expressFriendText,
       &color.expressFriendName };
 
+static const char *const aryColorTomlKeys[COLOR_FIELD_COUNT] =
+   {
+      "text",
+      "forum_prompt",
+      "number_prompt",
+      "error_text",
+      "incoming_ansi_black",
+      "incoming_ansi_blue",
+      "incoming_ansi_magenta",
+      "post_date",
+      "post_name",
+      "post_text",
+      "post_friend_date",
+      "post_friend_name",
+      "post_friend_text",
+      "anonymous_post",
+      "more_prompt",
+      "incoming_ansi_white",
+      NULL,
+      "background",
+      "input_text",
+      "input_highlight",
+      "express_text",
+      "express_name",
+      "express_friend_text",
+      "express_friend_name" };
+
 static const NamedColorSpec aryNamedColors[] =
    {
       { "brightblack", 8 },
@@ -68,7 +95,6 @@ static bool isColorNameMatch( const char *ptrLeft, const char *ptrRight );
 static int transformIncomingAnsiColor( int inputChar );
 static int transformPostHeaderColor( int inputChar, int isFriend );
 
-
 /// @brief Translate a general incoming ANSI color digit to the active theme.
 ///
 /// @param inputChar Incoming ANSI color digit.
@@ -82,7 +108,6 @@ int ansiTransform( int inputChar )
 
    return transformedColor;
 }
-
 
 /// @brief Recolor an express message line using the active theme.
 ///
@@ -149,7 +174,6 @@ void ansiTransformExpress( char *ptrText, size_t size )
    snprintf( ptrText, size, "%s", aryTempText );
 }
 
-
 /// @brief Translate a post ANSI color digit to the active post theme color.
 ///
 /// @param inputChar Incoming ANSI color digit.
@@ -184,7 +208,6 @@ int ansiTransformPost( int inputChar, int isFriend )
    }
    return transformedColor;
 }
-
 
 /// @brief Recolor a rendered post header using the active theme.
 ///
@@ -225,7 +248,6 @@ void ansiTransformPostHeader( char *ptrText, size_t bufferSize, int isFriend )
    snprintf( ptrText, bufferSize, "%s", aryTransformedHeader );
 }
 
-
 /// @brief Return one color field from the legacy `.bbsrc` serialization order.
 ///
 /// @param colorIndex Field index in the `.bbsrc` color line.
@@ -239,6 +261,18 @@ int colorFieldValue( int colorIndex )
    return *aryColorFields[colorIndex];
 }
 
+/// @brief Return the canonical TOML key name for one persisted color field.
+///
+/// @param colorIndex Field index in the internal color array.
+///
+/// @return TOML key name, or `NULL` when that internal field is not persisted.
+const char *colorFieldTomlKeyName( int colorIndex )
+{
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+
+   return aryColorTomlKeys[colorIndex];
+}
 
 /// @brief Look up the canonical name for a color value.
 ///
@@ -260,7 +294,6 @@ const char *colorNameFromValue( int colorValue )
    return NULL;
 }
 
-
 /// @brief Convert a legacy digit color code into its numeric value.
 ///
 /// @param inputChar Legacy color digit or raw value.
@@ -275,7 +308,6 @@ int colorValueFromLegacyDigit( int inputChar )
 
    return inputChar;
 }
-
 
 /// @brief Resolve a configured color name to its color value.
 ///
@@ -302,7 +334,6 @@ int colorValueFromName( const char *ptrColorName )
    return -1;
 }
 
-
 /// @brief Convert a color value back to its legacy digit form.
 ///
 /// @param colorValue Color value to encode.
@@ -312,7 +343,6 @@ int colorValueToLegacyDigit( int colorValue )
 {
    return colorValue + '0';
 }
-
 
 /// @brief Format a themed ANSI foreground sequence for an incoming color digit.
 ///
@@ -342,7 +372,6 @@ int formatTransformedAnsiForegroundSequence( char *ptrBuffer, size_t bufferSize,
    return formatAnsiForegroundSequence( ptrBuffer, bufferSize, transformedColor );
 }
 
-
 /// @brief Compare two color names case-insensitively.
 ///
 /// @param ptrLeft Left-hand color name.
@@ -364,7 +393,6 @@ static bool isColorNameMatch( const char *ptrLeft, const char *ptrRight )
    return *ptrLeft == '\0' && *ptrRight == '\0';
 }
 
-
 /// @brief Set one color field in the legacy `.bbsrc` serialization order.
 ///
 /// @param colorIndex Field index in the `.bbsrc` color line.
@@ -379,6 +407,34 @@ void setColorFieldValue( int colorIndex, int colorValue )
    *aryColorFields[colorIndex] = colorValue;
 }
 
+/// @brief Resolve one TOML color key to its internal field index.
+///
+/// @param ptrKeyName TOML key name to look up.
+/// @param ptrOutColorIndex Destination for the matching field index.
+///
+/// @return `true` on success, otherwise `false`.
+bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
+                                          int *ptrOutColorIndex )
+{
+   int itemIndex;
+
+   if ( ptrKeyName == NULL || ptrOutColorIndex == NULL )
+   {
+      return false;
+   }
+
+   for ( itemIndex = 0; itemIndex < COLOR_FIELD_COUNT; itemIndex++ )
+   {
+      if ( aryColorTomlKeys[itemIndex] != NULL &&
+           strcmp( ptrKeyName, aryColorTomlKeys[itemIndex] ) == 0 )
+      {
+         *ptrOutColorIndex = itemIndex;
+         return true;
+      }
+   }
+
+   return false;
+}
 
 /// @brief Translate a general incoming ANSI color digit to the configured palette.
 ///
@@ -409,7 +465,6 @@ static int transformIncomingAnsiColor( int inputChar )
          return colorValueFromLegacyDigit( inputChar );
    }
 }
-
 
 /// @brief Translate a post header color digit to the configured post header color.
 ///

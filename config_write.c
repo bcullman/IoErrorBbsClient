@@ -9,6 +9,7 @@
  */
 #include "bbsrc.h"
 #include "client_globals.h"
+#include "color.h"
 #include "config_globals.h"
 #include "defs.h"
 #include "filter_globals.h"
@@ -19,6 +20,7 @@ static const char *localCommandKeyName( int inputChar );
 static void printTomlEscapedString( const char *ptrText );
 static void writeAwaySettings( void );
 static void writeBehaviorSettings( void );
+static void writeColorSettings( void );
 static void writeConnectionSettings( void );
 static void writeContactSettings( void );
 static void writeDefaultSettings( void );
@@ -176,6 +178,42 @@ static void writeBehaviorSettings( void )
    fprintf( ptrBbsRc, "\n" );
 }
 
+/// @brief Write the themed color settings using stable TOML keys.
+///
+/// @return This helper does not return a value.
+static void writeColorSettings( void )
+{
+   int colorFieldIndex;
+
+   fprintf( ptrBbsRc, "[colors]\n" );
+   for ( colorFieldIndex = 0; colorFieldIndex < COLOR_FIELD_COUNT; colorFieldIndex++ )
+   {
+      const char *ptrColorKeyName;
+      const char *ptrColorName;
+      int colorValue;
+
+      ptrColorKeyName = colorFieldTomlKeyName( colorFieldIndex );
+      if ( ptrColorKeyName == NULL )
+      {
+         continue;
+      }
+
+      colorValue = colorFieldValue( colorFieldIndex );
+      fprintf( ptrBbsRc, "%s = ", ptrColorKeyName );
+      ptrColorName = colorNameFromValue( colorValue );
+      if ( ptrColorName != NULL )
+      {
+         printTomlEscapedString( ptrColorName );
+      }
+      else
+      {
+         fprintf( ptrBbsRc, "%d", colorValue );
+      }
+      fprintf( ptrBbsRc, "\n" );
+   }
+   fprintf( ptrBbsRc, "\n" );
+}
+
 /// @brief Write the configured site, port, editor, and auto-login settings.
 ///
 /// @return This helper does not return a value.
@@ -291,6 +329,7 @@ void writeBbsRc( void )
    writeBehaviorSettings();
    writeAwaySettings();
    writeContactSettings();
+   writeColorSettings();
 
    fflush( ptrBbsRc );
    truncateBbsRc( ftell( ptrBbsRc ) );

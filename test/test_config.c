@@ -197,6 +197,41 @@ int colorFieldValue( int colorIndex )
    return *aryTestColorFields[colorIndex];
 }
 
+const char *colorFieldTomlKeyName( int colorIndex )
+{
+   static const char *const aryTestColorTomlKeys[COLOR_FIELD_COUNT] =
+      {
+         "text",
+         "forum_prompt",
+         "number_prompt",
+         "error_text",
+         "incoming_ansi_black",
+         "incoming_ansi_blue",
+         "incoming_ansi_magenta",
+         "post_date",
+         "post_name",
+         "post_text",
+         "post_friend_date",
+         "post_friend_name",
+         "post_friend_text",
+         "anonymous_post",
+         "more_prompt",
+         "incoming_ansi_white",
+         NULL,
+         "background",
+         "input_text",
+         "input_highlight",
+         "express_text",
+         "express_name",
+         "express_friend_text",
+         "express_friend_name" };
+
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+
+   return aryTestColorTomlKeys[colorIndex];
+}
+
 const char *colorNameFromValue( int colorValue )
 {
    switch ( colorValue )
@@ -1101,6 +1136,30 @@ static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **stat
    aryKeyMap['P'] = 'p';
    aryKeyMap['w'] = 'W';
    aryKeyMap['W'] = 'w';
+   color.text = 10;
+   color.forum = 11;
+   color.number = 220;
+   color.errorTextColor = 9;
+   color.ansiBlackTextColor = 16;
+   color.ansiBlueTextColor = 26;
+   color.ansiMagentaTextColor = 91;
+   color.postDate = 34;
+   color.postName = 201;
+   color.postText = 231;
+   color.postFriendDate = 14;
+   color.postFriendName = 12;
+   color.postFriendText = 15;
+   color.anonymous = 8;
+   color.morePrompt = 13;
+   color.ansiWhiteTextColor = 220;
+   color.reserved5 = 999;
+   color.background = COLOR_VALUE_DEFAULT;
+   color.inputText = 44;
+   color.inputHighlight = 166;
+   color.expressText = 7;
+   color.expressName = 12;
+   color.expressFriendText = 214;
+   color.expressFriendName = 231;
    snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Gone to lunch." );
    snprintf( aryAwayMessageLines[1], sizeof( aryAwayMessageLines[1] ), "%s", "Back by 2pm." );
    aryAwayMessageLines[2][0] = '\0';
@@ -1237,6 +1296,19 @@ static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **stat
       fail_msg( "writeBbsRc should emit TOML contacts; output was:\n%s", aryOutput );
       return;
    }
+   if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
+        strstr( aryOutput, "text = \"brightgreen\"\n" ) == NULL ||
+        strstr( aryOutput, "forum_prompt = \"brightyellow\"\n" ) == NULL ||
+        strstr( aryOutput, "post_name = 201\n" ) == NULL ||
+        strstr( aryOutput, "background = \"default\"\n" ) == NULL ||
+        strstr( aryOutput, "input_text = \"cyan\"\n" ) == NULL ||
+        strstr( aryOutput, "express_friend_name = \"white\"\n" ) == NULL ||
+        strstr( aryOutput, "reserved5" ) != NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "writeBbsRc should emit TOML colors with stable keys and omit reserved5; output was:\n%s", aryOutput );
+      return;
+   }
 
    cleanupWriteBbsRcFixture();
 }
@@ -1277,6 +1349,30 @@ static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **st
    aryKeyMap['P'] = 'P';
    aryKeyMap['w'] = 'w';
    aryKeyMap['W'] = 'W';
+   color.text = 2;
+   color.forum = 3;
+   color.number = 6;
+   color.errorTextColor = 1;
+   color.ansiBlackTextColor = 2;
+   color.ansiBlueTextColor = 4;
+   color.ansiMagentaTextColor = 5;
+   color.postDate = 6;
+   color.postName = 3;
+   color.postText = 2;
+   color.postFriendDate = 6;
+   color.postFriendName = 3;
+   color.postFriendText = 2;
+   color.anonymous = 3;
+   color.morePrompt = 3;
+   color.ansiWhiteTextColor = 7;
+   color.reserved5 = 1234;
+   color.background = 0;
+   color.inputText = 2;
+   color.inputHighlight = 6;
+   color.expressText = 2;
+   color.expressName = 3;
+   color.expressFriendText = 2;
+   color.expressFriendName = 3;
    snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Heads down coding." );
    aryAwayMessageLines[1][0] = '\0';
    flagsConfiguration.shouldUseTcpKeepalive = false;
@@ -1379,6 +1475,16 @@ static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **st
    {
       cleanupWriteBbsRcFixture();
       fail_msg( "writeBbsRc should emit TOML contacts for the disabled-state fixture; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
+        strstr( aryOutput, "text = 2\n" ) == NULL ||
+        strstr( aryOutput, "incoming_ansi_blue = 4\n" ) == NULL ||
+        strstr( aryOutput, "background = 0\n" ) == NULL ||
+        strstr( aryOutput, "reserved5" ) != NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "writeBbsRc should emit numeric TOML colors when no named form exists and omit reserved5; output was:\n%s", aryOutput );
       return;
    }
 

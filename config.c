@@ -5,7 +5,7 @@
  */
 
 /*
- * This file handles configuration of the bbsrc file.
+ * This file handles client configuration.
  */
 #include "bbsrc.h"
 #include "client.h"
@@ -38,7 +38,7 @@ static const char *describeKeyForHelp( int inputChar );
 /// @brief Run the top-level client configuration menu.
 ///
 /// The selected submenus update the in-memory configuration, and quitting the
-/// menu writes the changes back to `.bbsrc` when the file is writable.
+/// menu writes the changes back to `config.toml` when the file is writable.
 ///
 /// @return This function does not return a value.
 void configBbsRc( void )

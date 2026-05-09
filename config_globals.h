@@ -9,13 +9,11 @@
 
 #include "defs.h"
 
-extern char aryBbsFriendsName[PATH_MAX]; // added friends file name
-extern char aryBbsRcName[PATH_MAX];      // bbsrc filename (usually ~/.bbsrc)
-extern char aryTempFileName[PATH_MAX];   // bbstmp filename (usually ~/.bbstmp)
-extern FILE *bbsFriends;                 // added friends file
-extern bool isBbsRcReadOnly;             // set if .bbsrc file is read-only
-extern FILE *ptrBbsRc;                   // file descriptor of .bbsrc file
-extern FILE *tempFile;                   // file pointer to above
+extern char aryBbsRcName[PATH_MAX];    // config.toml filename
+extern char aryTempFileName[PATH_MAX]; // bbstmp filename (usually ~/.bbstmp)
+extern bool isBbsRcReadOnly;           // set if config.toml is read-only
+extern FILE *ptrBbsRc;                 // file descriptor of config.toml
+extern FILE *tempFile;                 // file pointer to above
 
 extern char aryBbsHost[64];         // name of bbs host (bbs.iscabbs.com)
 extern char aryCommandLineHost[64]; // name of bbs host from command line

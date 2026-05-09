@@ -248,9 +248,9 @@ void ansiTransformPostHeader( char *ptrText, size_t bufferSize, int isFriend )
    snprintf( ptrText, bufferSize, "%s", aryTransformedHeader );
 }
 
-/// @brief Return one color field from the legacy `.bbsrc` serialization order.
+/// @brief Return one color field from the internal color-field order.
 ///
-/// @param colorIndex Field index in the `.bbsrc` color line.
+/// @param colorIndex Field index in the internal color array.
 ///
 /// @return Configured color value at the requested index.
 int colorFieldValue( int colorIndex )
@@ -393,9 +393,9 @@ static bool isColorNameMatch( const char *ptrLeft, const char *ptrRight )
    return *ptrLeft == '\0' && *ptrRight == '\0';
 }
 
-/// @brief Set one color field in the legacy `.bbsrc` serialization order.
+/// @brief Set one color field in the internal color-field order.
 ///
-/// @param colorIndex Field index in the `.bbsrc` color line.
+/// @param colorIndex Field index in the internal color array.
 /// @param colorValue New color value.
 ///
 /// @return This function does not return a value.

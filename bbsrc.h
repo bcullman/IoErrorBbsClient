@@ -9,9 +9,7 @@
 
 #include "defs.h"
 
-FILE *findBbsFriends( void );
 FILE *findBbsRc( void );
-FILE *openBbsFriends( void );
 FILE *openBbsRc( void );
 
 void readBbsRc( void );

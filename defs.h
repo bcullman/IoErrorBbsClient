@@ -228,10 +228,10 @@ typedef struct
 #define NAWS_ROWS_MAX 110
 typedef struct
 {
-   unsigned int hasNameAutocompleteSetting : 1;   // true if name autocomplete was set in .bbsrc
-   unsigned int hasScreenReaderModeSetting : 1;   // true if screen reader mode was set in .bbsrc
-   unsigned int hasTitleBarSetting : 1;           // true if title bar setting was set in .bbsrc
-   unsigned int isConfigMode : 1;                 // true in bbsrc config functions
+   unsigned int hasNameAutocompleteSetting : 1;   // true if name autocomplete was set in config
+   unsigned int hasScreenReaderModeSetting : 1;   // true if screen reader mode was set in config
+   unsigned int hasTitleBarSetting : 1;           // true if title-bar setting was set in config
+   unsigned int isConfigMode : 1;                 // true in client config functions
    unsigned int isLastSave : 1;                   // true if last time aryUser edited they saved
    unsigned int isMorePromptActive : 1;           // true inside a MORE prompt
    unsigned int isPosting : 1;                    // true if aryUser is currently posting

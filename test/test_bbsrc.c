@@ -41,11 +41,6 @@ static void cleanupReadState( void )
       fclose( ptrBbsRc );
       ptrBbsRc = NULL;
    }
-   if ( bbsFriends != NULL )
-   {
-      fclose( bbsFriends );
-      bbsFriends = NULL;
-   }
    if ( friendList != NULL )
    {
       slistDestroyItems( friendList );
@@ -132,13 +127,32 @@ noreturn void fatalExit( const char *message, const char *heading )
    abort();
 }
 
-FILE *findBbsFriends( void )
-{
-   return NULL;
-}
-
 FILE *findBbsRc( void )
 {
+   const char *ptrHomeDirectory;
+   const char *ptrXdgConfigHome;
+
+   if ( aryBbsRcName[0] != '\0' )
+   {
+      return openBbsRc();
+   }
+
+   ptrXdgConfigHome = getenv( "XDG_CONFIG_HOME" );
+   if ( ptrXdgConfigHome != NULL && *ptrXdgConfigHome != '\0' )
+   {
+      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/bbs/config.toml",
+                ptrXdgConfigHome );
+      return openBbsRc();
+   }
+
+   ptrHomeDirectory = getenv( "HOME" );
+   if ( ptrHomeDirectory == NULL || *ptrHomeDirectory == '\0' )
+   {
+      return NULL;
+   }
+
+   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/.config/bbs/config.toml",
+             ptrHomeDirectory );
    return openBbsRc();
 }
 
@@ -482,6 +496,201 @@ static void openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree( v
    rmdir( aryConfigPath );
    snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
    rmdir( aryConfigPath );
+   rmdir( ptrTempDirectory );
+}
+
+static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( void **state )
+{
+   // Arrange
+   char aryConfigPath[PATH_MAX];
+   char aryExpectedConfigPath[PATH_MAX];
+   char aryFriendsPath[PATH_MAX];
+   char aryLegacyConfigPath[PATH_MAX];
+   char aryOriginalHome[PATH_MAX];
+   char aryOriginalXdgConfigHome[PATH_MAX];
+   const char *ptrOriginalHome;
+   const char *ptrOriginalXdgConfigHome;
+   FILE *ptrFile;
+   char *ptrTempDirectory;
+   struct stat fileStats;
+   char aryDirectoryTemplate[] = "/tmp/iobbsrc_home_XXXXXX";
+
+   (void)state;
+
+   resetTracking();
+   ptrOriginalHome = getenv( "HOME" );
+   ptrOriginalXdgConfigHome = getenv( "XDG_CONFIG_HOME" );
+   if ( ptrOriginalHome != NULL )
+   {
+      snprintf( aryOriginalHome, sizeof( aryOriginalHome ), "%s", ptrOriginalHome );
+   }
+   else
+   {
+      aryOriginalHome[0] = '\0';
+   }
+   if ( ptrOriginalXdgConfigHome != NULL )
+   {
+      snprintf( aryOriginalXdgConfigHome, sizeof( aryOriginalXdgConfigHome ), "%s",
+                ptrOriginalXdgConfigHome );
+   }
+   else
+   {
+      aryOriginalXdgConfigHome[0] = '\0';
+   }
+   ptrTempDirectory = mkdtemp( aryDirectoryTemplate );
+   if ( ptrTempDirectory == NULL )
+   {
+      fail_msg( "Arrange failed: unable to create temporary HOME directory for legacy-ignore test" );
+      return;
+   }
+   if ( setenv( "HOME", ptrTempDirectory, 1 ) != 0 )
+   {
+      rmdir( ptrTempDirectory );
+      fail_msg( "Arrange failed: unable to set temporary HOME for legacy-ignore test" );
+      return;
+   }
+   unsetenv( "XDG_CONFIG_HOME" );
+   snprintf( aryLegacyConfigPath, sizeof( aryLegacyConfigPath ), "%s/.bbsrc", ptrTempDirectory );
+   snprintf( aryFriendsPath, sizeof( aryFriendsPath ), "%s/.bbsfriends", ptrTempDirectory );
+   if ( !tryWriteFileContents( aryLegacyConfigPath, "legacy = true\n" ) ||
+        !tryWriteFileContents( aryFriendsPath, "someone\n" ) )
+   {
+      unlink( aryLegacyConfigPath );
+      unlink( aryFriendsPath );
+      if ( aryOriginalHome[0] != '\0' )
+      {
+         setenv( "HOME", aryOriginalHome, 1 );
+      }
+      else
+      {
+         unsetenv( "HOME" );
+      }
+      if ( aryOriginalXdgConfigHome[0] != '\0' )
+      {
+         setenv( "XDG_CONFIG_HOME", aryOriginalXdgConfigHome, 1 );
+      }
+      else
+      {
+         unsetenv( "XDG_CONFIG_HOME" );
+      }
+      rmdir( ptrTempDirectory );
+      fail_msg( "Arrange failed: unable to write legacy config files for legacy-ignore test" );
+      return;
+   }
+   aryBbsRcName[0] = '\0';
+   isBbsRcReadOnly = 0;
+
+   // Act
+   ptrFile = findBbsRc();
+
+   // Assert
+   snprintf( aryExpectedConfigPath, sizeof( aryExpectedConfigPath ), "%s/.config/bbs/config.toml",
+             ptrTempDirectory );
+   if ( ptrFile == NULL )
+   {
+      if ( aryOriginalHome[0] != '\0' )
+      {
+         setenv( "HOME", aryOriginalHome, 1 );
+      }
+      else
+      {
+         unsetenv( "HOME" );
+      }
+      if ( aryOriginalXdgConfigHome[0] != '\0' )
+      {
+         setenv( "XDG_CONFIG_HOME", aryOriginalXdgConfigHome, 1 );
+      }
+      else
+      {
+         unsetenv( "XDG_CONFIG_HOME" );
+      }
+      unlink( aryLegacyConfigPath );
+      unlink( aryFriendsPath );
+      rmdir( ptrTempDirectory );
+      fail_msg( "findBbsRc should open the XDG-style config path even when legacy files exist" );
+      return;
+   }
+   if ( strcmp( aryBbsRcName, aryExpectedConfigPath ) != 0 )
+   {
+      fclose( ptrFile );
+      unlink( aryExpectedConfigPath );
+      unlink( aryLegacyConfigPath );
+      unlink( aryFriendsPath );
+      snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs", ptrTempDirectory );
+      rmdir( aryConfigPath );
+      snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
+      rmdir( aryConfigPath );
+      if ( aryOriginalHome[0] != '\0' )
+      {
+         setenv( "HOME", aryOriginalHome, 1 );
+      }
+      else
+      {
+         unsetenv( "HOME" );
+      }
+      if ( aryOriginalXdgConfigHome[0] != '\0' )
+      {
+         setenv( "XDG_CONFIG_HOME", aryOriginalXdgConfigHome, 1 );
+      }
+      else
+      {
+         unsetenv( "XDG_CONFIG_HOME" );
+      }
+      rmdir( ptrTempDirectory );
+      fail_msg( "findBbsRc should resolve %s; got %s", aryExpectedConfigPath, aryBbsRcName );
+      return;
+   }
+   if ( stat( aryExpectedConfigPath, &fileStats ) != 0 )
+   {
+      fclose( ptrFile );
+      unlink( aryLegacyConfigPath );
+      unlink( aryFriendsPath );
+      if ( aryOriginalHome[0] != '\0' )
+      {
+         setenv( "HOME", aryOriginalHome, 1 );
+      }
+      else
+      {
+         unsetenv( "HOME" );
+      }
+      if ( aryOriginalXdgConfigHome[0] != '\0' )
+      {
+         setenv( "XDG_CONFIG_HOME", aryOriginalXdgConfigHome, 1 );
+      }
+      else
+      {
+         unsetenv( "XDG_CONFIG_HOME" );
+      }
+      rmdir( ptrTempDirectory );
+      fail_msg( "findBbsRc should create %s instead of consulting legacy files", aryExpectedConfigPath );
+      return;
+   }
+
+   // Cleanup
+   fclose( ptrFile );
+   unlink( aryExpectedConfigPath );
+   unlink( aryLegacyConfigPath );
+   unlink( aryFriendsPath );
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs", ptrTempDirectory );
+   rmdir( aryConfigPath );
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
+   rmdir( aryConfigPath );
+   if ( aryOriginalHome[0] != '\0' )
+   {
+      setenv( "HOME", aryOriginalHome, 1 );
+   }
+   else
+   {
+      unsetenv( "HOME" );
+   }
+   if ( aryOriginalXdgConfigHome[0] != '\0' )
+   {
+      setenv( "XDG_CONFIG_HOME", aryOriginalXdgConfigHome, 1 );
+   }
+   else
+   {
+      unsetenv( "XDG_CONFIG_HOME" );
+   }
    rmdir( ptrTempDirectory );
 }
 
@@ -1262,6 +1471,7 @@ int main( void )
          cmocka_unit_test( openBbsRc_WhenPathMissing_CreatesWritableConfigurationFile ),
          cmocka_unit_test( openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree ),
          cmocka_unit_test( openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
+         cmocka_unit_test( findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsCoreToml_ParsesValues ),
          cmocka_unit_test( readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
          cmocka_unit_test( readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),

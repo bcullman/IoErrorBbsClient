@@ -14,17 +14,6 @@
 #include <sys/stat.h>
 #include "utility.h"
 static int ensureConfigDirectoryExists( const char *ptrPath );
-/// @brief Open the legacy friends file if it exists.
-///
-/// @return A readable stream for `aryBbsFriendsName`, or `NULL` if the file
-/// could not be opened.
-FILE *openBbsFriends( void )
-{
-   FILE *ptrFileHandle;
-
-   ptrFileHandle = fopen( aryBbsFriendsName, "r" );
-   return ( ptrFileHandle );
-}
 
 /// @brief Create the parent config directory tree for a config file path.
 ///

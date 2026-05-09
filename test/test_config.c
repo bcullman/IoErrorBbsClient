@@ -157,9 +157,9 @@ void printThemedMnemonicText( const char *ptrText, int defaultColor )
    (void)defaultColor;
 }
 
-/// @brief Return one test color field in the legacy `.bbsrc` serialization order.
+/// @brief Return one test color field from the internal color-field order.
 ///
-/// @param colorIndex Field index in the `.bbsrc` color line.
+/// @param colorIndex Field index in the internal color array.
 ///
 /// @return Configured test color value at the requested index.
 int colorFieldValue( int colorIndex )

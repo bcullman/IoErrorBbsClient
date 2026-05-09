@@ -87,15 +87,6 @@ static void execCommandWithOptionalArg( const char *ptrCommand, const char *ptrA
    _exit( 1 );
 }
 
-/// @brief Legacy friends-file lookup is disabled.
-///
-/// @return `NULL` because the client no longer consults a separate friends file.
-FILE *findBbsFriends( void )
-{
-   aryBbsFriendsName[0] = '\0';
-   return NULL;
-}
-
 /// @brief Resolve the base config directory for the current user.
 ///
 /// The XDG override is preferred when present. Otherwise the path falls back
@@ -509,59 +500,6 @@ void sError( const char *message, const char *heading )
    fprintf( stderr, "%s\r\n", aryErrorBuffer );
 }
 
-/// @brief Move a file to a new path if the old file exists and the new file is missing or empty.
-///
-/// @param oldpath Existing source path.
-/// @param newpath Destination path.
-///
-/// @return This function does not return a value.
-void moveIfNeeded( const char *oldpath, const char *newpath )
-{
-   FILE *ptrOldFile;
-   FILE *ptrNewFile;
-   struct stat targetFileStatus;
-   bool shouldCopy;
-
-   ptrOldFile = fopen( oldpath, "r" );
-   if ( !ptrOldFile )
-   {
-      return;
-   }
-
-   shouldCopy = ( stat( newpath, &targetFileStatus ) != 0 || targetFileStatus.st_size == 0 );
-   if ( !shouldCopy )
-   {
-      fclose( ptrOldFile );
-      unlink( oldpath );
-      return;
-   }
-
-   ptrNewFile = fopen( newpath, "a" );
-   if ( !ptrNewFile )
-   {
-      fclose( ptrOldFile );
-      return;
-   }
-
-   {
-      char aryCopyBuffer[BUFSIZ];
-      size_t bytesRead;
-
-      while ( ( bytesRead = fread( aryCopyBuffer, 1, sizeof( aryCopyBuffer ), ptrOldFile ) ) > 0 )
-      {
-         if ( fwrite( aryCopyBuffer, 1, bytesRead, ptrNewFile ) != bytesRead )
-         {
-            break;
-         }
-      }
-   }
-
-   fclose( ptrOldFile );
-   fclose( ptrNewFile );
-   unlink( oldpath );
-   return;
-}
-
 /// @brief Install the signal handlers used during normal client runtime.
 ///
 /// @return This function does not return a value.
@@ -598,7 +536,7 @@ void sigOff( void )
    signal( SIGTERM, SIG_IGN );
 }
 
-/// @brief Truncate the `.bbsrc` file to a given length.
+/// @brief Truncate the config file to a given length.
 ///
 /// @param userNameLength New file length.
 ///

@@ -264,7 +264,6 @@ static void initializeBbsRcDefaults( void )
    *aryEditor = 0;
    bbsPort = 0;
    ptrBbsRc = findBbsRc();
-   bbsFriends = findBbsFriends();
 
    flagsConfiguration.hasNameAutocompleteSetting = 0;
    flagsConfiguration.hasScreenReaderModeSetting = 0;

@@ -17,8 +17,10 @@
 static bool isUppercaseDefaultEnabled( int lowerKey );
 static const char *localCommandKeyName( int inputChar );
 static void printTomlEscapedString( const char *ptrText );
+static void writeAwaySettings( void );
 static void writeBehaviorSettings( void );
 static void writeConnectionSettings( void );
+static void writeContactSettings( void );
 static void writeDefaultSettings( void );
 static void writeLocalCommandKeySettings( void );
 
@@ -122,6 +124,29 @@ static void printTomlEscapedString( const char *ptrText )
    fputc( '"', ptrBbsRc );
 }
 
+/// @brief Write the configured away-message array.
+///
+/// @return This helper does not return a value.
+static void writeAwaySettings( void )
+{
+   int itemIndex;
+   bool shouldWriteComma;
+
+   fprintf( ptrBbsRc, "[away]\n" );
+   fprintf( ptrBbsRc, "messages = [" );
+   shouldWriteComma = false;
+   for ( itemIndex = 0; itemIndex < 5 && *aryAwayMessageLines[itemIndex] != '\0'; itemIndex++ )
+   {
+      if ( shouldWriteComma )
+      {
+         fprintf( ptrBbsRc, ", " );
+      }
+      printTomlEscapedString( aryAwayMessageLines[itemIndex] );
+      shouldWriteComma = true;
+   }
+   fprintf( ptrBbsRc, "]\n\n" );
+}
+
 /// @brief Write the scalar behavior settings.
 ///
 /// @return This helper does not return a value.
@@ -171,6 +196,44 @@ static void writeConnectionSettings( void )
       fprintf( ptrBbsRc, "\n" );
    }
    fprintf( ptrBbsRc, "\n" );
+}
+
+/// @brief Write the configured friend and enemy contacts.
+///
+/// @return This helper does not return a value.
+static void writeContactSettings( void )
+{
+   unsigned int itemIndex;
+
+   fprintf( ptrBbsRc, "[contacts]\n" );
+   fprintf( ptrBbsRc, "enemies = [" );
+   for ( itemIndex = 0; itemIndex < enemyList->nitems; itemIndex++ )
+   {
+      if ( itemIndex != 0 )
+      {
+         fprintf( ptrBbsRc, ", " );
+      }
+      printTomlEscapedString( (const char *)enemyList->items[itemIndex] );
+   }
+   fprintf( ptrBbsRc, "]\n" );
+
+   fprintf( ptrBbsRc, "friends = [" );
+   for ( itemIndex = 0; itemIndex < friendList->nitems; itemIndex++ )
+   {
+      const friend *ptrFriend;
+
+      ptrFriend = friendList->items[itemIndex];
+      if ( itemIndex != 0 )
+      {
+         fprintf( ptrBbsRc, ", " );
+      }
+      fprintf( ptrBbsRc, "{ name = " );
+      printTomlEscapedString( ptrFriend->name );
+      fprintf( ptrBbsRc, ", info = " );
+      printTomlEscapedString( ptrFriend->info );
+      fprintf( ptrBbsRc, " }" );
+   }
+   fprintf( ptrBbsRc, "]\n\n" );
 }
 
 /// @brief Write the semantic uppercase-default toggles.
@@ -226,6 +289,8 @@ void writeBbsRc( void )
    writeLocalCommandKeySettings();
    writeDefaultSettings();
    writeBehaviorSettings();
+   writeAwaySettings();
+   writeContactSettings();
 
    fflush( ptrBbsRc );
    truncateBbsRc( ftell( ptrBbsRc ) );

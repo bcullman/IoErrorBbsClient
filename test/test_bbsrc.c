@@ -126,6 +126,11 @@ int fSortCompareVoid( const void *ptrLeft, const void *ptrRight )
    return strcmp( ( *ptrLeftFriend )->name, ( *ptrRightFriend )->name );
 }
 
+int fStrCompareVoid( const void *ptrName, const void *ptrFriend )
+{
+   return strcmp( (const char *)ptrName, ( (const friend *)ptrFriend )->name );
+}
+
 char *findChar( const char *ptrString, int targetChar )
 {
    const char *ptrSearch;
@@ -479,7 +484,14 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "suppress_enemy_posts = true\n"
            "tcp_keepalive = false\n"
            "update_title_bar = false\n"
-           "use_keychain = true\n" ) )
+           "use_keychain = true\n"
+           "\n"
+           "[away]\n"
+           "messages = [\"Gone to lunch.\", \"Back by 2pm.\"]\n"
+           "\n"
+           "[contacts]\n"
+           "enemies = [\"Mallory\", \"Eve\"]\n"
+           "friends = [{ name = \"Bob\", info = \"A buddy\" }, { name = \"Carol\" }]\n" ) )
    {
       unlink( aryPath );
       fail_msg( "Arrange failed: unable to write core TOML configuration content" );
@@ -529,6 +541,42 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
    {
       fail_msg( "expected parsed behavior settings were not applied correctly" );
    }
+   if ( strcmp( aryAwayMessageLines[0], "Gone to lunch." ) != 0 ||
+        strcmp( aryAwayMessageLines[1], "Back by 2pm." ) != 0 ||
+        aryAwayMessageLines[2][0] != '\0' )
+   {
+      fail_msg( "expected away-message lines ['Gone to lunch.', 'Back by 2pm.']; got ['%s', '%s', '%s']",
+                aryAwayMessageLines[0], aryAwayMessageLines[1], aryAwayMessageLines[2] );
+   }
+   if ( enemyList == NULL || enemyList->nitems != 2 )
+   {
+      fail_msg( "expected two parsed enemy entries" );
+   }
+   if ( friendList == NULL || friendList->nitems != 2 )
+   {
+      fail_msg( "expected two parsed friend entries" );
+   }
+   if ( strcmp( (const char *)enemyList->items[0], "Eve" ) != 0 ||
+        strcmp( (const char *)enemyList->items[1], "Mallory" ) != 0 )
+   {
+      fail_msg( "expected sorted enemy list ['Eve', 'Mallory']" );
+   }
+   {
+      const friend *ptrFirstFriend;
+      const friend *ptrSecondFriend;
+
+      ptrFirstFriend = friendList->items[0];
+      ptrSecondFriend = friendList->items[1];
+      if ( strcmp( ptrFirstFriend->name, "Bob" ) != 0 ||
+           strcmp( ptrFirstFriend->info, "A buddy" ) != 0 ||
+           strcmp( ptrSecondFriend->name, "Carol" ) != 0 ||
+           strcmp( ptrSecondFriend->info, "(None)" ) != 0 )
+      {
+         fail_msg( "unexpected parsed friend entries '%s/%s' and '%s/%s'",
+                   ptrFirstFriend->name, ptrFirstFriend->info,
+                   ptrSecondFriend->name, ptrSecondFriend->info );
+      }
+   }
 #ifdef ENABLE_KEYCHAIN
    if ( !flagsConfiguration.shouldUseKeychain )
    {
@@ -540,6 +588,99 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
       fail_msg( "use_keychain should be ignored when keychain support is not compiled in" );
    }
 #endif
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+static void readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **state )
+{
+   // Arrange
+   char aryPath[PATH_MAX];
+
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for away-message overflow test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[away]\n"
+           "messages = [\"one\", \"two\", \"three\", \"four\", \"five\", \"six\"]\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write away-message overflow configuration content" );
+      return;
+   }
+   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isBbsRcReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readBbsRc();
+
+   // Assert
+   if ( strcmp( aryAwayMessageLines[0], "one" ) != 0 ||
+        strcmp( aryAwayMessageLines[4], "five" ) != 0 ||
+        strstr( aryStdPrintfLog,
+                "Extra away-message lines ignored after the first five entries." ) == NULL )
+   {
+      fail_msg( "away-message overflow should keep the first five lines and warn; log was: %s",
+                aryStdPrintfLog );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+static void readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void **state )
+{
+   // Arrange
+   char aryPath[PATH_MAX];
+
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for duplicate-contacts test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[contacts]\n"
+           "enemies = [\"Mallory\", \"Mallory\"]\n"
+           "friends = [{ name = \"Bob\", info = \"First\" }, { name = \"Bob\", info = \"Second\" }]\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write duplicate-contacts configuration content" );
+      return;
+   }
+   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isBbsRcReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readBbsRc();
+
+   // Assert
+   if ( enemyList == NULL || enemyList->nitems != 1 ||
+        friendList == NULL || friendList->nitems != 1 )
+   {
+      fail_msg( "duplicate contacts should be ignored after the first entry" );
+   }
+   if ( strstr( aryStdPrintfLog, "Duplicate enemy name ignored." ) == NULL ||
+        strstr( aryStdPrintfLog, "Duplicate friend name ignored." ) == NULL )
+   {
+      fail_msg( "duplicate contacts should emit warnings; log was: %s", aryStdPrintfLog );
+   }
 
    cleanupReadState();
    unlink( aryPath );
@@ -936,6 +1077,11 @@ static void readBbsRc_WhenConfigFileMissing_CreatesFileAndUsesDefaults( void **s
    {
       fail_msg( "missing config should still apply default host/port" );
    }
+   if ( strcmp( aryAwayMessageLines[0], "I'm away from my keyboard right now." ) != 0 )
+   {
+      fail_msg( "missing config should restore the default away message; got '%s'",
+                aryAwayMessageLines[0] );
+   }
 
    cleanupReadState();
    unlink( aryPath );
@@ -949,6 +1095,8 @@ int main( void )
          cmocka_unit_test( openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree ),
          cmocka_unit_test( openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsCoreToml_ParsesValues ),
+         cmocka_unit_test( readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
+         cmocka_unit_test( readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault ),

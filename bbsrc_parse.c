@@ -23,11 +23,13 @@
 
 typedef enum
 {
-   TOML_SECTION_NONE = 0,
+   TOML_SECTION_AWAY = 0,
    TOML_SECTION_BEHAVIOR,
    TOML_SECTION_CONNECTION,
+   TOML_SECTION_CONTACTS,
    TOML_SECTION_DEFAULTS,
    TOML_SECTION_LOCAL_COMMAND_KEYS,
+   TOML_SECTION_NONE,
    TOML_SECTION_UNKNOWN
 } TomlSectionId;
 
@@ -41,13 +43,20 @@ typedef struct
 static void applyBbsRcKeyDefaults( void );
 static void applyDefaultUppercasePreference( int lowerKey,
                                              bool shouldUseUppercaseByDefault );
+static void ensureDefaultAwayMessage( void );
 static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState );
 static void initializeBbsRcDefaults( void );
 static void initializeBbsRcLists( void );
 static bool isIllegalCommandKeyValue( int inputChar );
+static bool tryAddEnemyName( const char *ptrEnemyName );
+static bool tryAddFriendEntry( const char *ptrFriendName,
+                               const char *ptrFriendInfo );
+static bool tryParseAwayMessagesValue( const char *ptrValue );
 static bool tryParseBooleanValue( const char *ptrValue,
                                   const char *ptrKeyName,
                                   bool *ptrOutValue );
+static bool tryParseContactEnemiesValue( const char *ptrValue );
+static bool tryParseContactFriendsValue( const char *ptrValue );
 static bool tryParseIntegerValue( const char *ptrValue,
                                   const char *ptrKeyName,
                                   int minimumValue,
@@ -62,6 +71,10 @@ static bool tryParseTomlKeyValueLine( const char *ptrLine,
                                       size_t keyNameSize,
                                       char *aryValue,
                                       size_t valueSize );
+static bool tryParseTomlStringToken( const char *ptrText,
+                                     size_t *ptrConsumedLength,
+                                     char *aryOutput,
+                                     size_t outputSize );
 static bool tryParseTomlQuotedString( const char *ptrValue,
                                       char *aryOutput,
                                       size_t outputSize );
@@ -135,6 +148,21 @@ static void applyDefaultUppercasePreference( int lowerKey,
    }
 }
 
+/// @brief Ensure there is at least one away-message line configured.
+///
+/// @return This helper does not return a value.
+static void ensureDefaultAwayMessage( void )
+{
+   if ( !**aryAwayMessageLines )
+   {
+      snprintf( aryAwayMessageLines[0],
+                sizeof( aryAwayMessageLines[0] ),
+                "%s",
+                "I'm away from my keyboard right now." );
+      *aryAwayMessageLines[1] = '\0';
+   }
+}
+
 /// @brief Finalize config state after parsing completes.
 ///
 /// @param ptrState Running read state to finalize.
@@ -143,6 +171,7 @@ static void applyDefaultUppercasePreference( int lowerKey,
 static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState )
 {
    applyBbsRcKeyDefaults();
+   ensureDefaultAwayMessage();
    defaultColors( 0 );
    warnAboutBbsRcConflicts();
 
@@ -306,6 +335,167 @@ static bool isIllegalCommandKeyValue( int inputChar )
    return inputChar >= ' ';
 }
 
+/// @brief Add one enemy name to the configured list.
+///
+/// @param ptrEnemyName Enemy name to add.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryAddEnemyName( const char *ptrEnemyName )
+{
+   char *ptrEnemyNameCopy;
+
+   if ( ptrEnemyName == NULL || *ptrEnemyName == '\0' )
+   {
+      stdPrintf( "Empty enemy name ignored.\n" );
+      return true;
+   }
+   if ( slistFind( enemyList, (void *)ptrEnemyName, strCompareVoid ) != -1 )
+   {
+      stdPrintf( "Duplicate enemy name ignored.\n" );
+      return true;
+   }
+
+   ptrEnemyNameCopy = (char *)calloc( strlen( ptrEnemyName ) + 1, sizeof( char ) );
+   if ( ptrEnemyNameCopy == NULL )
+   {
+      fatalExit( "Out of memory adding 'enemy'!\n", "Fatal error" );
+      return false;
+   }
+
+   snprintf( ptrEnemyNameCopy, strlen( ptrEnemyName ) + 1, "%s", ptrEnemyName );
+   if ( !slistAddItem( enemyList, ptrEnemyNameCopy, 1 ) )
+   {
+      fatalExit( "Can't add 'enemy' to list!\n", "Fatal error" );
+      return false;
+   }
+
+   return true;
+}
+
+/// @brief Add one friend entry to the configured list.
+///
+/// @param ptrFriendName Friend name to add.
+/// @param ptrFriendInfo Friend info text, or `NULL` to use the default.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryAddFriendEntry( const char *ptrFriendName,
+                               const char *ptrFriendInfo )
+{
+   friend *ptrFriend;
+
+   if ( ptrFriendName == NULL || *ptrFriendName == '\0' )
+   {
+      stdPrintf( "Empty friend name ignored.\n" );
+      return true;
+   }
+   if ( slistFind( friendList, (void *)ptrFriendName, fStrCompareVoid ) != -1 )
+   {
+      stdPrintf( "Duplicate friend name ignored.\n" );
+      return true;
+   }
+
+   ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
+   if ( ptrFriend == NULL )
+   {
+      fatalExit( "Out of memory adding 'friend'!\n", "Fatal error" );
+      return false;
+   }
+
+   snprintf( ptrFriend->name, sizeof( ptrFriend->name ), "%s", ptrFriendName );
+   snprintf( ptrFriend->info,
+             sizeof( ptrFriend->info ),
+             "%s",
+             ( ptrFriendInfo != NULL && *ptrFriendInfo != '\0' ) ? ptrFriendInfo : "(None)" );
+   ptrFriend->magic = 0x3231;
+   if ( !slistAddItem( friendList, ptrFriend, 1 ) )
+   {
+      fatalExit( "Can't add 'friend' to list!\n", "Fatal error" );
+      return false;
+   }
+
+   return true;
+}
+
+/// @brief Parse an away-message string array.
+///
+/// @param ptrValue TOML value text for `[away].messages`.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseAwayMessagesValue( const char *ptrValue )
+{
+   char aryMessageText[80];
+   const char *ptrCursor;
+   int messageCount;
+
+   if ( ptrValue == NULL || *ptrValue != '[' )
+   {
+      stdPrintf( "Invalid array value for 'messages' ignored.\n" );
+      return false;
+   }
+
+   for ( messageCount = 0; messageCount < 5; messageCount++ )
+   {
+      *aryAwayMessageLines[messageCount] = '\0';
+   }
+
+   ptrCursor = ptrValue + 1;
+   messageCount = 0;
+   while ( true )
+   {
+      size_t consumedLength;
+
+      while ( isspace( (unsigned char)*ptrCursor ) )
+      {
+         ptrCursor++;
+      }
+      if ( *ptrCursor == ']' )
+      {
+         return true;
+      }
+      if ( *ptrCursor == '\0' )
+      {
+         break;
+      }
+      if ( !tryParseTomlStringToken( ptrCursor,
+                                     &consumedLength,
+                                     aryMessageText,
+                                     sizeof( aryMessageText ) ) )
+      {
+         break;
+      }
+      if ( messageCount < 5 )
+      {
+         snprintf( aryAwayMessageLines[messageCount],
+                   sizeof( aryAwayMessageLines[messageCount] ),
+                   "%s",
+                   aryMessageText );
+      }
+      else
+      {
+         stdPrintf( "Extra away-message lines ignored after the first five entries.\n" );
+      }
+      messageCount++;
+      ptrCursor += consumedLength;
+      while ( isspace( (unsigned char)*ptrCursor ) )
+      {
+         ptrCursor++;
+      }
+      if ( *ptrCursor == ',' )
+      {
+         ptrCursor++;
+         continue;
+      }
+      if ( *ptrCursor == ']' )
+      {
+         return true;
+      }
+      break;
+   }
+
+   stdPrintf( "Invalid array value for 'messages' ignored.\n" );
+   return false;
+}
+
 /// @brief Parse a TOML boolean value.
 ///
 /// @param ptrValue Raw value text to decode.
@@ -329,6 +519,221 @@ static bool tryParseBooleanValue( const char *ptrValue,
    }
 
    stdPrintf( "Invalid boolean value for '%s' ignored.\n", ptrKeyName );
+   return false;
+}
+
+/// @brief Parse the `[contacts].enemies` string array.
+///
+/// @param ptrValue TOML value text for the enemy array.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseContactEnemiesValue( const char *ptrValue )
+{
+   char aryEnemyName[21];
+   const char *ptrCursor;
+
+   if ( ptrValue == NULL || *ptrValue != '[' )
+   {
+      stdPrintf( "Invalid array value for 'enemies' ignored.\n" );
+      return false;
+   }
+
+   ptrCursor = ptrValue + 1;
+   while ( true )
+   {
+      size_t consumedLength;
+
+      while ( isspace( (unsigned char)*ptrCursor ) )
+      {
+         ptrCursor++;
+      }
+      if ( *ptrCursor == ']' )
+      {
+         return true;
+      }
+      if ( *ptrCursor == '\0' )
+      {
+         break;
+      }
+      if ( !tryParseTomlStringToken( ptrCursor,
+                                     &consumedLength,
+                                     aryEnemyName,
+                                     sizeof( aryEnemyName ) ) )
+      {
+         break;
+      }
+      if ( !tryAddEnemyName( aryEnemyName ) )
+      {
+         return false;
+      }
+      ptrCursor += consumedLength;
+      while ( isspace( (unsigned char)*ptrCursor ) )
+      {
+         ptrCursor++;
+      }
+      if ( *ptrCursor == ',' )
+      {
+         ptrCursor++;
+         continue;
+      }
+      if ( *ptrCursor == ']' )
+      {
+         return true;
+      }
+      break;
+   }
+
+   stdPrintf( "Invalid array value for 'enemies' ignored.\n" );
+   return false;
+}
+
+/// @brief Parse the `[contacts].friends` inline-table array.
+///
+/// @param ptrValue TOML value text for the friend array.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseContactFriendsValue( const char *ptrValue )
+{
+   const char *ptrCursor;
+
+   if ( ptrValue == NULL || *ptrValue != '[' )
+   {
+      stdPrintf( "Invalid array value for 'friends' ignored.\n" );
+      return false;
+   }
+
+   ptrCursor = ptrValue + 1;
+   while ( true )
+   {
+      char aryFriendInfo[54];
+      char aryFriendName[21];
+      bool hasInfoField;
+      bool hasNameField;
+
+      while ( isspace( (unsigned char)*ptrCursor ) )
+      {
+         ptrCursor++;
+      }
+      if ( *ptrCursor == ']' )
+      {
+         return true;
+      }
+      if ( *ptrCursor != '{' )
+      {
+         break;
+      }
+
+      aryFriendInfo[0] = '\0';
+      aryFriendName[0] = '\0';
+      hasInfoField = false;
+      hasNameField = false;
+      ptrCursor++;
+      while ( true )
+      {
+         char aryFieldName[16];
+         char aryFieldValue[80];
+         const char *ptrEquals;
+         size_t fieldNameLength;
+         size_t consumedLength;
+
+         while ( isspace( (unsigned char)*ptrCursor ) )
+         {
+            ptrCursor++;
+         }
+         if ( *ptrCursor == '}' )
+         {
+            ptrCursor++;
+            break;
+         }
+
+         ptrEquals = strchr( ptrCursor, '=' );
+         if ( ptrEquals == NULL )
+         {
+            stdPrintf( "Invalid friend entry ignored.\n" );
+            return false;
+         }
+         fieldNameLength = (size_t)( ptrEquals - ptrCursor );
+         if ( fieldNameLength == 0 || fieldNameLength >= sizeof( aryFieldName ) )
+         {
+            stdPrintf( "Invalid friend entry ignored.\n" );
+            return false;
+         }
+         memcpy( aryFieldName, ptrCursor, fieldNameLength );
+         aryFieldName[fieldNameLength] = '\0';
+         snprintf( aryFieldName, sizeof( aryFieldName ), "%s", trimWhitespace( aryFieldName ) );
+         ptrCursor = ptrEquals + 1;
+         while ( isspace( (unsigned char)*ptrCursor ) )
+         {
+            ptrCursor++;
+         }
+         if ( !tryParseTomlStringToken( ptrCursor,
+                                        &consumedLength,
+                                        aryFieldValue,
+                                        sizeof( aryFieldValue ) ) )
+         {
+            stdPrintf( "Invalid friend entry ignored.\n" );
+            return false;
+         }
+         if ( strcmp( aryFieldName, "info" ) == 0 )
+         {
+            snprintf( aryFriendInfo, sizeof( aryFriendInfo ), "%s", aryFieldValue );
+            hasInfoField = true;
+         }
+         else if ( strcmp( aryFieldName, "name" ) == 0 )
+         {
+            snprintf( aryFriendName, sizeof( aryFriendName ), "%s", aryFieldValue );
+            hasNameField = true;
+         }
+         else
+         {
+            stdPrintf( "Unknown friend field '%s' ignored.\n", aryFieldName );
+         }
+         ptrCursor += consumedLength;
+         while ( isspace( (unsigned char)*ptrCursor ) )
+         {
+            ptrCursor++;
+         }
+         if ( *ptrCursor == ',' )
+         {
+            ptrCursor++;
+            continue;
+         }
+         if ( *ptrCursor == '}' )
+         {
+            ptrCursor++;
+            break;
+         }
+
+         stdPrintf( "Invalid friend entry ignored.\n" );
+         return false;
+      }
+
+      if ( !hasNameField )
+      {
+         stdPrintf( "Friend entry without a name ignored.\n" );
+      }
+      else if ( !tryAddFriendEntry( aryFriendName, hasInfoField ? aryFriendInfo : NULL ) )
+      {
+         return false;
+      }
+
+      while ( isspace( (unsigned char)*ptrCursor ) )
+      {
+         ptrCursor++;
+      }
+      if ( *ptrCursor == ',' )
+      {
+         ptrCursor++;
+         continue;
+      }
+      if ( *ptrCursor == ']' )
+      {
+         return true;
+      }
+      break;
+   }
+
+   stdPrintf( "Invalid array value for 'friends' ignored.\n" );
    return false;
 }
 
@@ -495,6 +900,55 @@ static bool tryParseTomlKeyValueLine( const char *ptrLine,
    return true;
 }
 
+/// @brief Parse one TOML double-quoted string token from the start of a buffer.
+///
+/// @param ptrText Text that begins with a TOML string token.
+/// @param ptrConsumedLength Receives the number of input characters consumed.
+/// @param aryOutput Destination buffer for the decoded string.
+/// @param outputSize Capacity of `aryOutput`.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseTomlStringToken( const char *ptrText,
+                                     size_t *ptrConsumedLength,
+                                     char *aryOutput,
+                                     size_t outputSize )
+{
+   size_t textIndex;
+
+   if ( ptrText == NULL || ptrConsumedLength == NULL || aryOutput == NULL || *ptrText != '"' )
+   {
+      return false;
+   }
+
+   for ( textIndex = 1; ptrText[textIndex] != '\0'; textIndex++ )
+   {
+      if ( ptrText[textIndex] == '\\' && ptrText[textIndex + 1] != '\0' )
+      {
+         textIndex++;
+         continue;
+      }
+      if ( ptrText[textIndex] == '"' )
+      {
+         char aryQuotedValue[MAX_VALUE_LENGTH];
+
+         if ( textIndex + 1 >= sizeof( aryQuotedValue ) )
+         {
+            return false;
+         }
+         memcpy( aryQuotedValue, ptrText, textIndex + 1 );
+         aryQuotedValue[textIndex + 1] = '\0';
+         if ( !tryParseTomlQuotedString( aryQuotedValue, aryOutput, outputSize ) )
+         {
+            return false;
+         }
+         *ptrConsumedLength = textIndex + 1;
+         return true;
+      }
+   }
+
+   return false;
+}
+
 /// @brief Decode a TOML double-quoted string.
 ///
 /// @param ptrValue Raw value text to decode.
@@ -598,9 +1052,17 @@ static TomlSectionId parseTomlSectionLine( const char *ptrLine,
    {
       return TOML_SECTION_BEHAVIOR;
    }
+   if ( strcmp( arySectionName, "away" ) == 0 )
+   {
+      return TOML_SECTION_AWAY;
+   }
    if ( strcmp( arySectionName, "connection" ) == 0 )
    {
       return TOML_SECTION_CONNECTION;
+   }
+   if ( strcmp( arySectionName, "contacts" ) == 0 )
+   {
+      return TOML_SECTION_CONTACTS;
    }
    if ( strcmp( arySectionName, "defaults" ) == 0 )
    {
@@ -634,6 +1096,13 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
 
    switch ( currentSection )
    {
+      case TOML_SECTION_AWAY:
+         if ( strcmp( ptrKeyName, "messages" ) == 0 )
+         {
+            return tryParseAwayMessagesValue( ptrValue );
+         }
+         return false;
+
       case TOML_SECTION_BEHAVIOR:
          if ( strcmp( ptrKeyName, "auto_answer_ansi" ) == 0 )
          {
@@ -780,6 +1249,17 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
                applyDefaultUppercasePreference( 'w', parsedBooleanValue );
             }
             return true;
+         }
+         return false;
+
+      case TOML_SECTION_CONTACTS:
+         if ( strcmp( ptrKeyName, "enemies" ) == 0 )
+         {
+            return tryParseContactEnemiesValue( ptrValue );
+         }
+         if ( strcmp( ptrKeyName, "friends" ) == 0 )
+         {
+            return tryParseContactFriendsValue( ptrValue );
          }
          return false;
 

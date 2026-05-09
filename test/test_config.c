@@ -1069,6 +1069,8 @@ static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **stat
 {
    // Arrange
    char aryOutput[4096];
+   char *ptrEnemyName;
+   friend *ptrFriend;
 
    (void)state;
    resetState();
@@ -1099,6 +1101,9 @@ static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **stat
    aryKeyMap['P'] = 'p';
    aryKeyMap['w'] = 'W';
    aryKeyMap['W'] = 'w';
+   snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Gone to lunch." );
+   snprintf( aryAwayMessageLines[1], sizeof( aryAwayMessageLines[1] ), "%s", "Back by 2pm." );
+   aryAwayMessageLines[2][0] = '\0';
    flagsConfiguration.shouldUseTcpKeepalive = true;
    flagsConfiguration.shouldAutoAnswerAnsiPrompt = true;
    flagsConfiguration.shouldEnableClickableUrls = true;
@@ -1108,6 +1113,27 @@ static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **stat
    flagsConfiguration.shouldSquelchExpress = true;
    flagsConfiguration.shouldSquelchPost = true;
    flagsConfiguration.shouldUseKeychain = false;
+   ptrEnemyName = (char *)calloc( 1, strlen( "Mallory" ) + 1 );
+   ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
+   if ( ptrEnemyName == NULL || ptrFriend == NULL )
+   {
+      free( ptrEnemyName );
+      free( ptrFriend );
+      cleanupWriteBbsRcFixture();
+      fail_msg( "Arrange failed: unable to allocate contact fixtures for writeBbsRc test" );
+      return;
+   }
+   snprintf( ptrEnemyName, strlen( "Mallory" ) + 1, "%s", "Mallory" );
+   snprintf( ptrFriend->name, sizeof( ptrFriend->name ), "%s", "Bob" );
+   snprintf( ptrFriend->info, sizeof( ptrFriend->info ), "%s", "A buddy" );
+   ptrFriend->magic = 0x3231;
+   if ( !slistAddItem( enemyList, ptrEnemyName, 1 ) ||
+        !slistAddItem( friendList, ptrFriend, 1 ) )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "Arrange failed: unable to populate contact fixtures for writeBbsRc test" );
+      return;
+   }
 
    // Act
    writeBbsRc();
@@ -1196,11 +1222,19 @@ static void writeBbsRc_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **stat
       return;
    }
 #endif
-   if ( strstr( aryOutput, "\ncolor " ) != NULL || strstr( aryOutput, "\nfriend " ) != NULL ||
-        strstr( aryOutput, "\nenemy " ) != NULL || strstr( aryOutput, "\na1 " ) != NULL )
+   if ( strstr( aryOutput, "[away]\n" ) == NULL ||
+        strstr( aryOutput, "messages = [\"Gone to lunch.\", \"Back by 2pm.\"]\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should only emit the TOML core-setting sections in this commit; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit TOML away-message lines; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[contacts]\n" ) == NULL ||
+        strstr( aryOutput, "enemies = [\"Mallory\"]\n" ) == NULL ||
+        strstr( aryOutput, "friends = [{ name = \"Bob\", info = \"A buddy\" }]\n" ) == NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "writeBbsRc should emit TOML contacts; output was:\n%s", aryOutput );
       return;
    }
 
@@ -1211,6 +1245,8 @@ static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **st
 {
    // Arrange
    char aryOutput[4096];
+   char *ptrEnemyName;
+   friend *ptrFriend;
 
    (void)state;
    resetState();
@@ -1241,6 +1277,8 @@ static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **st
    aryKeyMap['P'] = 'P';
    aryKeyMap['w'] = 'w';
    aryKeyMap['W'] = 'W';
+   snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Heads down coding." );
+   aryAwayMessageLines[1][0] = '\0';
    flagsConfiguration.shouldUseTcpKeepalive = false;
    flagsConfiguration.shouldAutoAnswerAnsiPrompt = false;
    flagsConfiguration.shouldEnableClickableUrls = false;
@@ -1253,6 +1291,27 @@ static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **st
 #ifdef ENABLE_KEYCHAIN
    flagsConfiguration.shouldUseKeychain = true;
 #endif
+   ptrEnemyName = (char *)calloc( 1, strlen( "Eve" ) + 1 );
+   ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
+   if ( ptrEnemyName == NULL || ptrFriend == NULL )
+   {
+      free( ptrEnemyName );
+      free( ptrFriend );
+      cleanupWriteBbsRcFixture();
+      fail_msg( "Arrange failed: unable to allocate contact fixtures for disabled writeBbsRc test" );
+      return;
+   }
+   snprintf( ptrEnemyName, strlen( "Eve" ) + 1, "%s", "Eve" );
+   snprintf( ptrFriend->name, sizeof( ptrFriend->name ), "%s", "Carol" );
+   snprintf( ptrFriend->info, sizeof( ptrFriend->info ), "%s", "(None)" );
+   ptrFriend->magic = 0x3231;
+   if ( !slistAddItem( enemyList, ptrEnemyName, 1 ) ||
+        !slistAddItem( friendList, ptrFriend, 1 ) )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "Arrange failed: unable to populate contact fixtures for disabled writeBbsRc test" );
+      return;
+   }
 
    // Act
    writeBbsRc();
@@ -1307,11 +1366,19 @@ static void writeBbsRc_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **st
       return;
    }
 #endif
-   if ( strstr( aryOutput, "\ncolor " ) != NULL || strstr( aryOutput, "\nfriend " ) != NULL ||
-        strstr( aryOutput, "\nenemy " ) != NULL || strstr( aryOutput, "\na1 " ) != NULL )
+   if ( strstr( aryOutput, "[away]\n" ) == NULL ||
+        strstr( aryOutput, "messages = [\"Heads down coding.\"]\n" ) == NULL )
    {
       cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit deferred non-core config domains in this commit; output was:\n%s", aryOutput );
+      fail_msg( "writeBbsRc should emit TOML away-message lines when a single line is configured; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[contacts]\n" ) == NULL ||
+        strstr( aryOutput, "enemies = [\"Eve\"]\n" ) == NULL ||
+        strstr( aryOutput, "friends = [{ name = \"Carol\", info = \"(None)\" }]\n" ) == NULL )
+   {
+      cleanupWriteBbsRcFixture();
+      fail_msg( "writeBbsRc should emit TOML contacts for the disabled-state fixture; output was:\n%s", aryOutput );
       return;
    }
 

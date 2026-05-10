@@ -23,8 +23,13 @@
 static int fatalPerrorCallCount;
 static int fatalExitCallCount;
 static int myExitCallCount;
+static int openBrowserCallCount;
 static bool shouldInjectPtyInputDuringNetworkDrain;
+static int aryWaitEventResults[32];
+static int aryWaitPtyInput[32];
 static int telReceiveCallCount;
+static size_t waitEventResultCount;
+static size_t waitEventResultIndex;
 static int waitNextEventCallCount;
 
 static void resetState( void )
@@ -34,8 +39,11 @@ static void resetState( void )
    fatalPerrorCallCount = 0;
    fatalExitCallCount = 0;
    myExitCallCount = 0;
+   openBrowserCallCount = 0;
    shouldInjectPtyInputDuringNetworkDrain = false;
    telReceiveCallCount = 0;
+   waitEventResultCount = 0;
+   waitEventResultIndex = 0;
    waitNextEventCallCount = 0;
 
    targetByte = 0;
@@ -68,6 +76,25 @@ static void resetState( void )
    ptrPtyInput = aryPtyInputBuffer;
    netInputLength = 0;
    ptrNetInput = aryNetInputBuffer;
+}
+
+static void setWaitEventSequence( const int *aryEventResults,
+                                  const int *aryInputChars,
+                                  size_t eventCount )
+{
+   size_t eventIndex;
+
+   assert_true( eventCount <= ( sizeof( aryWaitEventResults ) / sizeof( aryWaitEventResults[0] ) ) );
+   assert_true( eventCount <= ( sizeof( aryWaitPtyInput ) / sizeof( aryWaitPtyInput[0] ) ) );
+
+   waitEventResultCount = eventCount;
+   waitEventResultIndex = 0;
+
+   for ( eventIndex = 0; eventIndex < eventCount; eventIndex++ )
+   {
+      aryWaitEventResults[eventIndex] = aryEventResults[eventIndex];
+      aryWaitPtyInput[eventIndex] = aryInputChars[eventIndex];
+   }
 }
 
 static void setPtyInput( const int *aryInput, size_t inputCount )
@@ -113,7 +140,7 @@ noreturn void myExit( void )
 
 void openBrowser( void )
 {
-   // Test stub: browser launching is not relevant in this test.
+   openBrowserCallCount++;
 }
 
 void run( const char *ptrCommand, const char *ptrArg )
@@ -153,7 +180,25 @@ int telReceive( int inputChar )
 
 int waitNextEvent( void )
 {
+   const int aryNoInput[] = { 0 };
+
    waitNextEventCallCount++;
+   if ( waitEventResultIndex < waitEventResultCount )
+   {
+      int eventResult = aryWaitEventResults[waitEventResultIndex];
+
+      if ( eventResult & 1 )
+      {
+         setPtyInput( &aryWaitPtyInput[waitEventResultIndex], 1 );
+      }
+      else
+      {
+         setPtyInput( aryNoInput, 0 );
+      }
+      waitEventResultIndex++;
+      return eventResult;
+   }
+
    return 0;
 }
 
@@ -320,10 +365,52 @@ static void inKey_WhenDeleteAndCtrlU_AppliesKeyTranslations( void **state )
    }
 }
 
+/// @brief Verify that local command sequences still run when input arrives via waitNextEvent.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void getKey_WhenCommandSequenceArrivesViaWaitEvent_HandlesLocalCommand( void **state )
+{
+   const int aryEventResults[] = { 1, 1, 1 };
+   const int aryInputChars[] = { ESC, 'w', 'Z' };
+   int result;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   commandKey = ESC;
+   browserKey = 'w';
+   setWaitEventSequence( aryEventResults,
+                         aryInputChars,
+                         sizeof( aryEventResults ) / sizeof( aryEventResults[0] ) );
+
+   // Act
+   result = getKey();
+
+   // Assert
+   if ( result != 'Z' )
+   {
+      fail_msg( "getKey should resume normal input after handling wait-path command sequence; got %d", result );
+   }
+   if ( openBrowserCallCount != 1 )
+   {
+      fail_msg( "getKey should invoke the browser command when command-key input arrives via waitNextEvent; got %d browser launches",
+                openBrowserCallCount );
+   }
+   if ( waitNextEventCallCount != 3 )
+   {
+      fail_msg( "getKey should consume three wait events in this regression scenario; got %d",
+                waitNextEventCallCount );
+   }
+}
+
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
       cmocka_unit_test( getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput ),
+      cmocka_unit_test( getKey_WhenCommandSequenceArrivesViaWaitEvent_HandlesLocalCommand ),
       cmocka_unit_test( getKey_WhenTargetByteActive_ReturnsSavedByteAndAdvancesPosition ),
       cmocka_unit_test( getKey_WhenTargetByteIncludesNonReplayableBytes_SkipsToReplayableByte ),
       cmocka_unit_test( inKey_WhenCarriageReturnThenLineFeed_SkipsSecondNewline ),

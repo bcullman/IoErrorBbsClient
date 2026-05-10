@@ -374,7 +374,6 @@ static GetKeyResult handleCommandKeyInput( int inputChar,
 static GetKeyResult handleWaitEvent( void )
 {
    int eventResult;
-   int inputChar;
    GetKeyResult result;
 
    result.kind = GETKEY_RESULT_NONE;
@@ -383,18 +382,13 @@ static GetKeyResult handleWaitEvent( void )
    eventResult = waitNextEvent();
    if ( eventResult & 1 )
    {
-      inputChar = ptyget();
-      if ( inputChar < 0 )
-      {
-         stdPrintf( "\r\n" );
-         fatalPerror( "read", "Local error" );
-      }
-      result.kind = GETKEY_RESULT_RETURN;
-      result.inputChar = inputChar & 0x7f;
+      result.kind = GETKEY_RESULT_CONTINUE;
       return result;
    }
    if ( eventResult & 2 )
    {
+      int inputChar;
+
       errno = 0;
       inputChar = netget();
       if ( inputChar < 0 )

@@ -414,20 +414,23 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile bbs.1])
 AC_OUTPUT
 
+summaryLabelWidth=22
+
 cat <<CFG
 
 Configuration summary:
-Compiler : $compilerSummary
-              Host : $host
-                        Build mode : $buildMode
-                                        Optimization mode : $optimizationMode
-                                                               Platform : $platformDisplayName
-                                                                             Platform support : $platformSupportMode
-                                                                                                   Universal binary : $universalMode
-                                                                                                                         Keychain support : $keychainMode
-                                                                                                                                               CMocka : $cmockaMode
-                                                                                                                                                           Sanitizers : $sanitizerMode
-                                                                                                                                                                           Native optimizations : $nativeOptimizationMode
-                                                                                                                                                                                                     Stack protector : $stackProtectorMode
+CFG
 
-                                                                                                                                                                                                                       CFG
+printf "%-*s : %s\n" "$summaryLabelWidth" "Compiler" "$compilerSummary"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Host" "$host"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Build mode" "$buildMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Optimization mode" "$optimizationMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Platform" "$platformDisplayName"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Platform support" "$platformSupportMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Universal binary" "$universalMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Keychain support" "$keychainMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "CMocka" "$cmockaMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Sanitizers" "$sanitizerMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Native optimizations" "$nativeOptimizationMode"
+printf "%-*s : %s\n" "$summaryLabelWidth" "Stack protector" "$stackProtectorMode"
+printf "\n"

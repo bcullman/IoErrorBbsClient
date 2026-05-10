@@ -1297,6 +1297,63 @@ static void readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDef
    unlink( aryPath );
 }
 
+/// @brief Verify that inline TOML comments are ignored after valid values.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void readConfig_WhenValuesHaveInlineComments_ParsesThemNormally( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for inline-comment test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[behavior]\n"
+           "tcp_keepalive = true # keep sockets alive\n"
+           "[contacts]\n"
+           "enemies = [\"Mallory\"] # single entry\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write inline-comment configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isConfigFileReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( !flagsConfiguration.shouldUseTcpKeepalive )
+   {
+      fail_msg( "inline-comment boolean should still parse as true" );
+   }
+   if ( enemyList == NULL || enemyList->nitems != 1 ||
+        strcmp( (const char *)enemyList->items[0], "Mallory" ) != 0 )
+   {
+      fail_msg( "inline-comment array should still parse the enemy entry" );
+   }
+   if ( strstr( aryStdPrintfLog, "Invalid" ) != NULL )
+   {
+      fail_msg( "inline-comment values should not emit invalid-value warnings; log was: %s", aryStdPrintfLog );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
 static void readConfig_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault( void **state )
 {
    // Arrange
@@ -1668,6 +1725,7 @@ int main( void )
          cmocka_unit_test( readConfig_WhenContactArraysAreMalformed_KeepListsEmpty ),
          cmocka_unit_test( readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
          cmocka_unit_test( readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenValuesHaveInlineComments_ParsesThemNormally ),
          cmocka_unit_test( readConfig_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readConfig_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readConfig_WhenConfigContainsKeyOutsideSection_PrintsWarning ),

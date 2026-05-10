@@ -95,6 +95,7 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
                                     const char *ptrKeyName,
                                     const char *ptrValue,
                                     ConfigReadState *ptrState );
+static void stripInlineTomlComment( char *ptrText );
 static char *trimWhitespace( char *ptrText );
 static void warnAboutConfigConflicts( void );
 
@@ -1031,6 +1032,7 @@ static bool tryParseTomlKeyValueLine( const char *ptrLine,
    memcpy( aryValueBuffer, ptrEquals + 1, valueLength + 1 );
 
    ptrTrimmedKey = trimWhitespace( aryKeyBuffer );
+   stripInlineTomlComment( aryValueBuffer );
    ptrTrimmedValue = trimWhitespace( aryValueBuffer );
    if ( *ptrTrimmedKey == '\0' || *ptrTrimmedValue == '\0' ||
         strlen( ptrTrimmedKey ) >= keyNameSize || strlen( ptrTrimmedValue ) >= valueSize )
@@ -1041,6 +1043,56 @@ static bool tryParseTomlKeyValueLine( const char *ptrLine,
    snprintf( aryKeyName, keyNameSize, "%s", ptrTrimmedKey );
    snprintf( aryValue, valueSize, "%s", ptrTrimmedValue );
    return true;
+}
+
+/// @brief Remove a TOML inline comment from a value buffer.
+///
+/// `#` starts a comment only when it appears outside a quoted string.
+///
+/// @param ptrText Mutable TOML value text.
+///
+/// @return This helper does not return a value.
+static void stripInlineTomlComment( char *ptrText )
+{
+   bool isEscaped;
+   bool isInsideString;
+
+   if ( ptrText == NULL )
+   {
+      return;
+   }
+
+   isEscaped = false;
+   isInsideString = false;
+   while ( *ptrText != '\0' )
+   {
+      if ( isInsideString )
+      {
+         if ( isEscaped )
+         {
+            isEscaped = false;
+         }
+         else if ( *ptrText == '\\' )
+         {
+            isEscaped = true;
+         }
+         else if ( *ptrText == '"' )
+         {
+            isInsideString = false;
+         }
+      }
+      else if ( *ptrText == '"' )
+      {
+         isInsideString = true;
+      }
+      else if ( *ptrText == '#' )
+      {
+         *ptrText = '\0';
+         return;
+      }
+
+      ptrText++;
+   }
 }
 
 /// @brief Parse one TOML double-quoted string token from the start of a buffer.

@@ -94,7 +94,36 @@ make cppcheck
 ```
 
 Keychain-enabled builds can store passwords in macOS Keychain. The runtime
-setting is written as `keychain 0` or `keychain 1` in `~/.bbsrc`.
+setting is written as `use_keychain = true` or `use_keychain = false` in
+`~/.config/bbs/config.toml`, or in `$XDG_CONFIG_HOME/bbs/config.toml` when
+`XDG_CONFIG_HOME` is set.
+
+## Configuration File
+
+The client stores settings in a TOML file at:
+
+- `~/.config/bbs/config.toml`
+- `$XDG_CONFIG_HOME/bbs/config.toml` when `XDG_CONFIG_HOME` is set and non-empty
+
+The legacy `~/.bbsrc` and `~/.bbsfriends` files are no longer read or written.
+
+Examples:
+
+```toml
+[connection]
+host = "bbs.iscabbs.com"
+port = 23
+
+[behavior]
+screen_reader_mode = false
+update_title_bar = true
+
+[local_command_keys]
+command = "esc"
+quit = "ctrl-d"
+```
+
+Boolean settings use explicit TOML values: `true` and `false`.
 
 ## Shell And Editor Commands
 

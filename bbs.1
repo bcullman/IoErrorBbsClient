@@ -45,8 +45,13 @@ Just press ENTER at the Password prompt, and type in your new handle. The
 client will then remember your new handle.
 .sp
 The
-.I ~/.bbsrc
-file stores client settings. 
+.I ~/.config/bbs/config.toml
+file stores client settings by default.
+If
+.B XDG_CONFIG_HOME
+is set, the client uses
+.I $XDG_CONFIG_HOME/bbs/config.toml
+instead.
 On macOS, builds configured with
 .B --enable-keychain
 can store passwords in Keychain.
@@ -106,11 +111,13 @@ executable command line rather than shell syntax.
 
 .SH FILES
 .TP
-.I ~/.bbsrc
+.I ~/.config/bbs/config.toml
 Client configuration file.
 .TP
-.I ~/.bbsfriends
-Friend list.
+.I $XDG_CONFIG_HOME/bbs/config.toml
+Client configuration file when
+.B XDG_CONFIG_HOME
+is set.
 
 .SH SEE ALSO
 .BR telnet (1)

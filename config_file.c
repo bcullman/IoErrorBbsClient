@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include "utility.h"
 static int ensureConfigDirectoryExists( const char *ptrPath );
+static void warnIfConfigPermissionsCannotBeRestricted( FILE *ptrFileHandle );
 
 /// @brief Create the parent config directory tree for a config file path.
 ///
@@ -64,6 +65,19 @@ static int ensureConfigDirectoryExists( const char *ptrPath )
    return 0;
 }
 
+/// @brief Restrict a writable config file stream to owner-only permissions.
+///
+/// @param ptrFileHandle Open writable config stream.
+///
+/// @return This helper does not return a value.
+static void warnIfConfigPermissionsCannotBeRestricted( FILE *ptrFileHandle )
+{
+   if ( ptrFileHandle != NULL && fchmod( fileno( ptrFileHandle ), 0600 ) < 0 )
+   {
+      sPerror( "Can't set access on config file", "Warning" );
+   }
+}
+
 /// @brief Open the main client configuration file.
 ///
 /// The function first tries read-write access, then creates the file if needed,
@@ -77,6 +91,7 @@ FILE *openConfigFile( void )
    int savedErrno;
 
    ptrFileHandle = fopen( aryConfigFileName, "r+" );
+   warnIfConfigPermissionsCannotBeRestricted( ptrFileHandle );
    if ( !ptrFileHandle )
    {
       savedErrno = errno;
@@ -85,6 +100,7 @@ FILE *openConfigFile( void )
          savedErrno = errno;
       }
       ptrFileHandle = fopen( aryConfigFileName, "w+" );
+      warnIfConfigPermissionsCannotBeRestricted( ptrFileHandle );
    }
    if ( !ptrFileHandle )
    {

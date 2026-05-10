@@ -400,6 +400,7 @@ static void openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile( voi
    char aryPath[PATH_MAX];
    struct stat fileStats;
    FILE *ptrFile;
+   mode_t oldUmask;
 
    (void)state;
 
@@ -411,9 +412,11 @@ static void openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile( voi
       return;
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   oldUmask = umask( 0022 );
 
    // Act
    ptrFile = openConfigFile();
+   umask( oldUmask );
 
    // Assert
    if ( ptrFile == NULL )
@@ -431,6 +434,11 @@ static void openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile( voi
    if ( stat( aryPath, &fileStats ) != 0 )
    {
       fail_msg( "openConfigFile should create the configuration file on disk" );
+   }
+   if ( ( fileStats.st_mode & 0777 ) != 0600 )
+   {
+      fail_msg( "openConfigFile should create the configuration file with mode 0600; got %03o",
+                fileStats.st_mode & 0777 );
    }
 
    fclose( ptrFile );

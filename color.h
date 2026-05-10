@@ -15,6 +15,8 @@ int ansiTransformPost( int inputChar, int isFriend );
 void ansiTransformPostHeader( char *ptrText, size_t bufferSize, int isFriend );
 int backgroundPicker( void );
 void brilliantColors( void );
+void catppuccinLatteColors( void );
+void catppuccinMacchiatoColors( void );
 void colorblindColors( void );
 void colorConfig( void );
 int colorFieldValue( int colorIndex );

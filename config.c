@@ -18,14 +18,10 @@
 #include "utility.h"
 static const char *CONFIG_MAIN_MENU_KEYS = "cefhikoqx \n";
 
-#define GREETING \
-   "\r\nWelcome to IO ERROR's ISCA BBS Client!  Please take a moment to familiarize\r\nyourself with some of our new features.\r\n\n"
 #define UPGRADE \
    "Thank you for upgrading to the latest version of IO ERROR's ISCA BBS Client!\r\nPlease take a moment to familiarize yourself with our new features."
 #define DOWNGRADE \
    "You appear to have downgraded your version of IO ERROR's ISCA BBS Client.\r\nIf you continue running this client, you may lose some of your preferences and\r\nfeatures you are accustomed to.  Please visit the above website to upgrade\r\nto the latest version of IO ERROR's ISCA BBS Client."
-#define CONFIG_FILE_INFO \
-   "IO ERROR's ISCA BBS Client now stores its settings in a single TOML file at\r\n~/.config/bbs/config.toml, or in $XDG_CONFIG_HOME/bbs/config.toml when the\r\nenvironment override is set.  Older legacy configuration files are no longer\r\nused by this client."
 #define COLOR_INFO \
    "IO ERROR's ISCA BBS Client allows you to choose what colors posts and express\r\nmessages are displayed with.  Use the <C>olor menu in the client configuration\r\nmenu to create your customized color scheme."
 #define ENEMY_INFO \
@@ -151,31 +147,16 @@ static const char *describeKeyForHelp( int inputChar )
 void setup( int newVersion )
 {
    setTerm();
-   if ( newVersion < 1 )
+   if ( newVersion > INT_VERSION )
    {
-      stdPrintf( GREETING );
+      sInfo( DOWNGRADE, "Downgrade" );
    }
-   else if ( newVersion > INT_VERSION )
-   {
-      if ( !sPrompt( DOWNGRADE, "Continue running this client?", 0 ) )
-      {
-         myExit();
-      }
-   }
-   else
+   else if ( newVersion >= 1 )
    {
       sInfo( UPGRADE, "Upgrade" );
    }
    fflush( stdout );
 
-   // Configuration file
-   if ( newVersion < 5 )
-   {
-      if ( !sPrompt( CONFIG_FILE_INFO, "Continue running this client?", 1 ) )
-      {
-         myExit();
-      }
-   }
    if ( newVersion < 220 )
    {
       if ( sPrompt( ENEMY_INFO, "Notify when posts and express messages from enemies are killed?", 1 ) )

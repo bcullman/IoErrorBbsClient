@@ -554,6 +554,98 @@ static void brilliantColors_WhenApplied_SetsBrightDefaultPalette( void **state )
    }
 }
 
+static void catppuccinLatteColors_WhenApplied_SetsLightPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   catppuccinLatteColors();
+
+   // Assert
+   if ( color.text != 240 || color.forum != 27 || color.number != 37 ||
+        color.errorTextColor != 161 )
+   {
+      fail_msg( "catppuccinLatteColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 255 )
+   {
+      fail_msg( "catppuccinLatteColors should use a light background; got %d", color.background );
+   }
+   if ( color.postDate != 37 || color.postFriendDate != 30 ||
+        color.postName != 69 || color.postFriendName != 70 ||
+        color.postText != 240 || color.postFriendText != 240 ||
+        color.anonymous != 172 || color.morePrompt != 172 ||
+        color.inputText != 240 || color.inputHighlight != 27 ||
+        color.expressText != 240 || color.expressName != 27 ||
+        color.expressFriendName != 70 || color.expressFriendText != 240 )
+   {
+      fail_msg( "catppuccinLatteColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 27 ||
+        color.ansiMagentaTextColor != 99 || color.ansiWhiteTextColor != 60 )
+   {
+      fail_msg( "catppuccinLatteColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   catppuccinMacchiatoColors();
+
+   // Assert
+   if ( color.text != 189 || color.forum != 111 || color.number != 116 ||
+        color.errorTextColor != 210 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 236 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should keep a dark background; got %d", color.background );
+   }
+   if ( color.postDate != 116 || color.postFriendDate != 116 ||
+        color.postName != 147 || color.postFriendName != 150 ||
+        color.postText != 189 || color.postFriendText != 189 ||
+        color.anonymous != 223 || color.morePrompt != 223 ||
+        color.inputText != 189 || color.inputHighlight != 111 ||
+        color.expressText != 189 || color.expressName != 147 ||
+        color.expressFriendName != 150 || color.expressFriendText != 189 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 103 || color.ansiBlueTextColor != 111 ||
+        color.ansiMagentaTextColor != 183 || color.ansiWhiteTextColor != 189 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
 static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
 {
    // Arrange
@@ -832,6 +924,8 @@ int main( void )
       cmocka_unit_test( formatAnsiForegroundSequence_WhenExtendedColorRequested_Uses256ColorCode ),
       cmocka_unit_test( formatAnsiDisplayStateSequence_WhenDefaultBackgroundRequested_UsesCombinedSelectors ),
       cmocka_unit_test( brilliantColors_WhenApplied_SetsBrightDefaultPalette ),
+      cmocka_unit_test( catppuccinLatteColors_WhenApplied_SetsLightPalette ),
+      cmocka_unit_test( catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette ),
       cmocka_unit_test( colorblindColors_WhenApplied_SetsAccessiblePalette ),
       cmocka_unit_test( hotDogColors_WhenApplied_SetsClassicHotDogPalette ),
       cmocka_unit_test( ansiTransform_WhenHotDogPaletteApplied_UsesThemeColorsForAllAnsiDigits ),

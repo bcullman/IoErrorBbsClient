@@ -13,7 +13,7 @@ static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
-static const char *COLOR_RESET_MENU_KEYS = "dbchq \n";
+static const char *COLOR_RESET_MENU_KEYS = "dblmchq \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -77,6 +77,8 @@ static const PresetMenuOption aryPresetMenuOptions[] =
    {
       { 'd', "Default", 2, 3, 0 },
       { 'b', "Brilliant", 10, 11, 0 },
+      { 'l', "Latte (Catppuccin)", 240, 27, 255 },
+      { 'm', "Macchiato (Catppuccin)", 189, 111, 236 },
       { 'c', "Colorblind", 231, 75, 16 },
       { 'h', "Hotdog stand", 220, 196, 16 } };
 
@@ -105,7 +107,6 @@ static const PickerColorOption *readPickerSelection( const char *ptrAllowedKeys,
                                                      size_t itemCount,
                                                      void ( *printMenu )( void ) );
 
-
 /// @brief Prompt for a background color selection.
 ///
 /// @return Selected background color value.
@@ -128,7 +129,6 @@ int backgroundPicker( void )
 
    return ptrOption->colorValue;
 }
-
 
 /// @brief Run the top-level interactive color configuration menu.
 ///
@@ -185,7 +185,6 @@ void colorConfig( void )
    }
 }
 
-
 /// @brief Configure general color-related display options.
 ///
 /// @return This function does not return a value.
@@ -202,7 +201,6 @@ void colorOptions( void )
       printAnsiDisplayStateValue( lastColor, color.background );
    }
 }
-
 
 /// @brief Prompt for a foreground color selection.
 ///
@@ -223,7 +221,6 @@ int colorPicker( void )
    stdPrintf( "%s\r\n\n", ptrOption->ptrDisplayName );
    return ptrOption->colorValue;
 }
-
 
 /// @brief Configure the text and name colors for express messages.
 ///
@@ -256,7 +253,6 @@ static void configureExpressColors( int *ptrTextColor, int *ptrNameColor,
       }
    }
 }
-
 
 /// @brief Configure the date, text, and name colors for posts.
 ///
@@ -295,7 +291,6 @@ static void configurePostColors( int *ptrDateColor, int *ptrTextColor,
    }
 }
 
-
 /// @brief Run the express color configuration flow.
 ///
 /// @return This function does not return a value.
@@ -316,7 +311,6 @@ void expressColorConfig( void )
       }
    }
 }
-
 
 /// @brief Prompt for an express color menu action.
 ///
@@ -352,7 +346,6 @@ char expressColorMenu( void )
    return (char)inputChar;
 }
 
-
 /// @brief Configure express colors for friend messages.
 ///
 /// @return This function does not return a value.
@@ -362,7 +355,6 @@ void expressFriendColorConfig( void )
                            A_FRIEND );
 }
 
-
 /// @brief Configure express colors for non-friend messages.
 ///
 /// @return This function does not return a value.
@@ -370,7 +362,6 @@ void expressUserColorConfig( void )
 {
    configureExpressColors( &color.expressText, &color.expressName, A_USER );
 }
-
 
 /// @brief Find a picker option by its menu key.
 ///
@@ -395,7 +386,6 @@ static const PickerColorOption *findPickerColorOption( const PickerColorOption *
 
    return NULL;
 }
-
 
 /// @brief Configure the general theme colors.
 ///
@@ -445,7 +435,6 @@ void generalColorConfig( void )
    }
 }
 
-
 /// @brief Configure input prompt and completion colors.
 ///
 /// @return This function does not return a value.
@@ -482,7 +471,6 @@ void inputColorConfig( void )
    }
 }
 
-
 /// @brief Run the post color configuration flow.
 ///
 /// @return This function does not return a value.
@@ -503,7 +491,6 @@ void postColorConfig( void )
       }
    }
 }
-
 
 /// @brief Prompt for a post color menu action.
 ///
@@ -542,7 +529,6 @@ char postColorMenu( void )
    return (char)inputChar;
 }
 
-
 /// @brief Print a preview line for a post color combination.
 ///
 /// @param dateColor Preview date color.
@@ -566,7 +552,6 @@ static void postColorPreview( int dateColor, int textColor, int nameColor,
    stdPrintf( "[Lobby> msg #1]\r\n" );
 }
 
-
 /// @brief Configure post colors for friend posts.
 ///
 /// @return This function does not return a value.
@@ -576,7 +561,6 @@ void postFriendColorConfig( void )
                         &color.postFriendName, A_FRIEND );
 }
 
-
 /// @brief Configure post colors for non-friend posts.
 ///
 /// @return This function does not return a value.
@@ -585,7 +569,6 @@ void postUserColorConfig( void )
    configurePostColors( &color.postDate, &color.postText,
                         &color.postName, A_USER );
 }
-
 
 /// @brief Show preset themes and apply the selected preset.
 ///
@@ -616,6 +599,14 @@ static void presetColorConfig( void )
          stdPrintf( "Brilliant\r\n" );
          brilliantColors();
          break;
+      case 'l':
+         stdPrintf( "Catppuccin Latte\r\n" );
+         catppuccinLatteColors();
+         break;
+      case 'm':
+         stdPrintf( "Catppuccin Macchiato\r\n" );
+         catppuccinMacchiatoColors();
+         break;
       case 'c':
          stdPrintf( "Colorblind\r\n" );
          colorblindColors();
@@ -634,7 +625,6 @@ static void presetColorConfig( void )
    }
 }
 
-
 /// @brief Print the background picker menu.
 ///
 /// @return This helper does not return a value.
@@ -648,7 +638,6 @@ static void printBackgroundPickerMenu( void )
    printThemedMnemonicText( "Select background -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
 }
-
 
 /// @brief Print an express message preview using the supplied colors.
 ///
@@ -668,7 +657,6 @@ static void printExpressColorPreview( int textColor, int nameColor,
    stdPrintf( " at 11:01 ***\r\n>Hi there!\r\n" );
 }
 
-
 /// @brief Print the foreground picker menu.
 ///
 /// @return This helper does not return a value.
@@ -681,7 +669,6 @@ static void printForegroundPickerMenu( void )
    printThemedMnemonicText( "Select color -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
 }
-
 
 /// @brief Print a preview of the general theme colors.
 ///
@@ -710,7 +697,6 @@ static void printGeneralColorPreview( void )
    stdPrintf( " new\r\n" );
 }
 
-
 /// @brief Print a preview of the input and completion colors.
 ///
 /// @return This helper does not return a value.
@@ -728,7 +714,6 @@ static void printInputColorPreview( void )
    stdPrintf( "Message received by Example User.\r\n" );
 }
 
-
 /// @brief Print one preset theme menu entry.
 ///
 /// @param ptrOption Preset option to display.
@@ -743,7 +728,6 @@ static void printPresetMenuItem( const PresetMenuOption *ptrOption )
    printAnsiForegroundColorValue( ptrOption->textColor );
    stdPrintf( "%s\r\n", ptrOption->ptrLabel + 1 );
 }
-
 
 /// @brief Read and resolve one picker selection from a color menu.
 ///
@@ -765,7 +749,6 @@ static const PickerColorOption *readPickerSelection( const char *ptrAllowedKeys,
 
    return findPickerColorOption( ptrOptions, itemCount, inputChar );
 }
-
 
 /// @brief Prompt for whether to configure user or friend preview colors.
 ///

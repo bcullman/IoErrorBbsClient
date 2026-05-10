@@ -39,6 +39,67 @@ void brilliantColors( void )
    color.expressFriendText = 10;
 }
 
+/// @brief Apply the Catppuccin Latte palette to the current color settings.
+///
+/// @return This function does not return a value.
+void catppuccinLatteColors( void )
+{
+   color.text = 240;
+   color.forum = 27;
+   color.number = 37;
+   color.errorTextColor = 161;
+   color.ansiBlackTextColor = 246;
+   color.ansiBlueTextColor = 27;
+   color.ansiMagentaTextColor = 99;
+   color.postDate = 37;
+   color.postName = 69;
+   color.postText = 240;
+   color.postFriendDate = 30;
+   color.postFriendName = 70;
+   color.postFriendText = 240;
+   color.anonymous = 172;
+   color.morePrompt = 172;
+   color.ansiWhiteTextColor = 60;
+   color.reserved5 = 240;
+   color.background = 255;
+   color.inputText = 240;
+   color.inputHighlight = 27;
+   color.expressText = 240;
+   color.expressName = 27;
+   color.expressFriendName = 70;
+   color.expressFriendText = 240;
+}
+
+/// @brief Apply the Catppuccin Macchiato palette to the current colors.
+///
+/// @return This function does not return a value.
+void catppuccinMacchiatoColors( void )
+{
+   color.text = 189;
+   color.forum = 111;
+   color.number = 116;
+   color.errorTextColor = 210;
+   color.ansiBlackTextColor = 103;
+   color.ansiBlueTextColor = 111;
+   color.ansiMagentaTextColor = 183;
+   color.postDate = 116;
+   color.postName = 147;
+   color.postText = 189;
+   color.postFriendDate = 116;
+   color.postFriendName = 150;
+   color.postFriendText = 189;
+   color.anonymous = 223;
+   color.morePrompt = 223;
+   color.ansiWhiteTextColor = 189;
+   color.reserved5 = 189;
+   color.background = 236;
+   color.inputText = 189;
+   color.inputHighlight = 111;
+   color.expressText = 189;
+   color.expressName = 147;
+   color.expressFriendName = 150;
+   color.expressFriendText = 189;
+}
 
 /// @brief Apply the colorblind-friendly theme palette to the current colors.
 ///
@@ -107,7 +168,6 @@ void defaultColors( int clearall )
    ifzero( color.expressFriendName ) color.expressFriendName = 2;
    ifzero( color.expressFriendText ) color.expressFriendText = 2;
 }
-
 
 /// @brief Apply the hot dog theme palette to the current color settings.
 ///

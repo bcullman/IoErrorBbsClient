@@ -13,7 +13,7 @@ static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
-static const char *COLOR_RESET_MENU_KEYS = "dbefglmuchq \n";
+static const char *COLOR_RESET_MENU_KEYS = "0123456789qQ \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -27,11 +27,10 @@ typedef struct
 
 typedef struct
 {
+   int keyChar;
    const char *ptrLabel;
    int textColor;
-   int accentColor;
    int backgroundColor;
-   size_t mnemonicIndex;
 } PresetMenuOption;
 
 static const PickerColorOption aryForegroundPickerOptions[] =
@@ -75,16 +74,16 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { "Default", 2, 3, 0, 0 },
-      { "Brilliant", 10, 11, 0, 0 },
-      { "Everforest Dark", 187, 144, 0, 0 },
-      { "Everforest Light", 242, 106, 230, 6 },
-      { "Gruvbox Dark", 223, 142, 0, 0 },
-      { "Gruvbox Light", 239, 100, 230, 0 },
-      { "Latte (Catppuccin)", 240, 27, 255, 0 },
-      { "Macchiato (Catppuccin)", 189, 111, 0, 0 },
-      { "Colorblind", 231, 75, 0, 0 },
-      { "Hotdog stand", 220, 196, 0, 0 } };
+      { '0', "Default", 2, 0 },
+      { '1', "Brilliant", 10, 0 },
+      { '2', "Everforest Dark", 187, 0 },
+      { '3', "Everforest Light", 242, 230 },
+      { '4', "Gruvbox Dark", 223, 0 },
+      { '5', "Gruvbox Light", 239, 230 },
+      { '6', "Latte (Catppuccin)", 240, 255 },
+      { '7', "Macchiato (Catppuccin)", 189, 0 },
+      { '8', "Colorblind", 231, 0 },
+      { '9', "Hotdog stand", 220, 0 } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";
@@ -591,53 +590,54 @@ static void presetColorConfig( void )
       printPresetMenuItem( &aryPresetMenuOptions[optionIndex] );
    }
    printAnsiDisplayStateValue( color.text, color.background );
-   printThemedMnemonicText( " Quit\r\n", color.number );
-   printThemedMnemonicText( "Select preset -> ", color.forum );
+   printThemedMnemonicText( " Q.) Quit\r\n", color.number );
+   printThemedMnemonicText( "Select preset (0-9 or Q) -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
 
    switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )
    {
-      case 'd':
+      case '0':
          stdPrintf( "Default\r\n" );
          defaultColors( 1 );
          break;
-      case 'b':
+      case '1':
          stdPrintf( "Brilliant\r\n" );
          brilliantColors();
          break;
-      case 'e':
+      case '2':
          stdPrintf( "Everforest Dark\r\n" );
          everforestDarkColors();
          break;
-      case 'f':
+      case '3':
          stdPrintf( "Everforest Light\r\n" );
          everforestLightColors();
          break;
-      case 'g':
+      case '4':
          stdPrintf( "Gruvbox Dark\r\n" );
          gruvboxDarkColors();
          break;
-      case 'u':
+      case '5':
          stdPrintf( "Gruvbox Light\r\n" );
          gruvboxLightColors();
          break;
-      case 'l':
+      case '6':
          stdPrintf( "Catppuccin Latte\r\n" );
          catppuccinLatteColors();
          break;
-      case 'm':
+      case '7':
          stdPrintf( "Catppuccin Macchiato\r\n" );
          catppuccinMacchiatoColors();
          break;
-      case 'c':
+      case '8':
          stdPrintf( "Colorblind\r\n" );
          colorblindColors();
          break;
-      case 'h':
+      case '9':
          stdPrintf( "Hotdog Stand\r\n" );
          hotDogColors();
          break;
       case 'q':
+      case 'Q':
       case ' ':
       case '\n':
          stdPrintf( "Quit\r\n" );
@@ -743,24 +743,10 @@ static void printInputColorPreview( void )
 /// @return This helper does not return a value.
 static void printPresetMenuItem( const PresetMenuOption *ptrOption )
 {
-   size_t labelIndex;
-   size_t labelLength;
-
-   stdPrintf( " " );
+   stdPrintf( " %c.) ", ptrOption->keyChar );
    printAnsiDisplayStateValue( ptrOption->textColor, ptrOption->backgroundColor );
-   labelLength = strlen( ptrOption->ptrLabel );
-   for ( labelIndex = 0; labelIndex < labelLength; labelIndex++ )
-   {
-      if ( labelIndex == ptrOption->mnemonicIndex )
-      {
-         printAnsiForegroundColorValue( ptrOption->accentColor );
-      }
-      else
-      {
-         printAnsiForegroundColorValue( ptrOption->textColor );
-      }
-      stdPutChar( ptrOption->ptrLabel[labelIndex] );
-   }
+   printAnsiForegroundColorValue( ptrOption->textColor );
+   stdPrintf( "%s", ptrOption->ptrLabel );
    stdPrintf( "\r\n" );
 }
 

@@ -241,7 +241,7 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
 
 static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately( void **state )
 {
-   const int aryKeys[] = { 'p', 'l', 'q' };
+   const int aryKeys[] = { 'p', '6', 'q' };
 
    // Arrange
    (void)state;

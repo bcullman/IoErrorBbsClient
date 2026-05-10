@@ -30,12 +30,14 @@ typedef enum
    TOML_SECTION_CONNECTION,
    TOML_SECTION_CONTACTS,
    TOML_SECTION_DEFAULTS,
+   TOML_SECTION_METADATA,
    TOML_SECTION_LOCAL_COMMAND_KEYS,
    TOML_SECTION_UNKNOWN
 } TomlSectionId;
 
 typedef struct
 {
+   bool hasVersionSetting;
    int lineNumber;
    int reads;
    bool shouldRewriteConfig;
@@ -197,7 +199,21 @@ static bool tryFinalizeConfigRead( ConfigReadState *ptrState )
    }
    if ( ptrState->reads == 0 )
    {
+      version = INT_VERSION;
       setup( -1 );
+   }
+   else if ( !ptrState->hasVersionSetting )
+   {
+      version = INT_VERSION;
+      ptrState->shouldRewriteConfig = true;
+   }
+   else if ( version != INT_VERSION )
+   {
+      int previousVersion;
+
+      previousVersion = version;
+      version = INT_VERSION;
+      setup( previousVersion );
    }
    if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
@@ -1113,6 +1129,10 @@ static TomlSectionId parseTomlSectionLine( const char *ptrLine,
    {
       return TOML_SECTION_DEFAULTS;
    }
+   if ( strcmp( arySectionName, "metadata" ) == 0 )
+   {
+      return TOML_SECTION_METADATA;
+   }
    if ( strcmp( arySectionName, "local_command_keys" ) == 0 )
    {
       return TOML_SECTION_LOCAL_COMMAND_KEYS;
@@ -1307,6 +1327,18 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
             if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
             {
                applyDefaultUppercasePreference( 'w', parsedBooleanValue );
+            }
+            return true;
+         }
+         return false;
+
+      case TOML_SECTION_METADATA:
+         if ( strcmp( ptrKeyName, "version" ) == 0 )
+         {
+            if ( tryParseIntegerValue( ptrValue, ptrKeyName, 0, INT_MAX, &parsedIntegerValue ) )
+            {
+               version = parsedIntegerValue;
+               ptrState->hasVersionSetting = true;
             }
             return true;
          }

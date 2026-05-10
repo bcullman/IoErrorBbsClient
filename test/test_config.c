@@ -1125,6 +1125,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
    snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Alice" );
    bbsPort = 23;
+   version = INT_VERSION;
    commandKey = ESC;
    quitKey = CTRL_D;
    suspKey = CTRL_Z;
@@ -1208,6 +1209,13 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    {
       cleanupWriteConfigFixture();
       fail_msg( "writeConfig should emit a [connection] section; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[metadata]\n" ) == NULL ||
+        strstr( aryOutput, "version = 2310\n" ) == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit a metadata version section; output was:\n%s", aryOutput );
       return;
    }
    if ( strstr( aryOutput, "auto_login_name = \"Alice\"\n" ) == NULL )
@@ -1338,6 +1346,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
    aryAutoName[0] = '\0';
    bbsPort = 23;
+   version = INT_VERSION;
    commandKey = ESC;
    quitKey = CTRL_D;
    suspKey = CTRL_Z;
@@ -1423,6 +1432,14 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    {
       cleanupWriteConfigFixture();
       fail_msg( "writeConfig should omit auto_login_name when no value is configured; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[metadata]\n" ) == NULL ||
+        strstr( aryOutput, "version = 2310\n" ) == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit a metadata version section even in disabled-state fixtures; output was:\n%s",
+                aryOutput );
       return;
    }
    if ( strstr( aryOutput, "show_full_profile_by_default = false\n" ) == NULL ||

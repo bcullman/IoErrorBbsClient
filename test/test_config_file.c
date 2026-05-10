@@ -774,6 +774,9 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
    }
    if ( !tryWriteFileContents(
            aryPath,
+           "[metadata]\n"
+           "version = 42\n"
+           "\n"
            "[connection]\n"
            "auto_login_name = \"Alice\"\n"
            "editor = \"vim\"\n"
@@ -833,6 +836,11 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
    if ( strcmp( aryAutoName, "Alice" ) != 0 )
    {
       fail_msg( "expected auto-login name 'Alice', got '%s'", aryAutoName );
+   }
+   if ( version != INT_VERSION )
+   {
+      fail_msg( "expected setup flow to restore current config version %d, got %d",
+                INT_VERSION, version );
    }
    if ( strcmp( aryBbsHost, "bbs.example.net" ) != 0 || bbsPort != 2323 )
    {
@@ -919,6 +927,71 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
       fail_msg( "use_keychain should be ignored when keychain support is not compiled in" );
    }
 #endif
+   if ( setupCallCount != 1 || setupVersionArg != 42 )
+   {
+      fail_msg( "older config version should trigger setup(42); got count=%d arg=%d",
+                setupCallCount, setupVersionArg );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+/// @brief Verify that nonempty TOML without metadata is rewritten with the current version.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void readConfig_WhenVersionMissing_RewritesConfigWithCurrentVersion( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for missing-version test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[connection]\n"
+           "host = \"bbs.example.net\"\n"
+           "port = 2323\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write missing-version configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isConfigFileReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( setupCallCount != 0 )
+   {
+      fail_msg( "missing metadata version should not trigger setup; got count=%d arg=%d",
+                setupCallCount, setupVersionArg );
+      return;
+   }
+   if ( writeConfigCallCount != 1 )
+   {
+      fail_msg( "missing metadata version should rewrite config.toml once; got %d",
+                writeConfigCallCount );
+      return;
+   }
+   if ( version != INT_VERSION )
+   {
+      fail_msg( "missing metadata version should default to current version %d, got %d",
+                INT_VERSION, version );
+   }
 
    cleanupReadState();
    unlink( aryPath );
@@ -1473,6 +1546,7 @@ int main( void )
          cmocka_unit_test( openConfigFile_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
          cmocka_unit_test( findConfigFile_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath ),
          cmocka_unit_test( readConfig_WhenConfigContainsCoreToml_ParsesValues ),
+         cmocka_unit_test( readConfig_WhenVersionMissing_RewritesConfigWithCurrentVersion ),
          cmocka_unit_test( readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
          cmocka_unit_test( readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),

@@ -25,6 +25,7 @@ static void writeConnectionSettings( void );
 static void writeContactSettings( void );
 static void writeDefaultSettings( void );
 static void writeLocalCommandKeySettings( void );
+static void writeMetadataSettings( void );
 
 /// @brief Check whether a lowercase action key is swapped with its uppercase variant.
 ///
@@ -124,6 +125,15 @@ static void printTomlEscapedString( const char *ptrText )
       ptrText++;
    }
    fputc( '"', ptrConfigFile );
+}
+
+/// @brief Write config metadata used for future schema upgrades.
+///
+/// @return This helper does not return a value.
+static void writeMetadataSettings( void )
+{
+   fprintf( ptrConfigFile, "[metadata]\n" );
+   fprintf( ptrConfigFile, "version = %d\n\n", INT_VERSION );
 }
 
 /// @brief Write the configured away-message array.
@@ -323,6 +333,7 @@ void writeConfig( void )
 {
    rewind( ptrConfigFile );
 
+   writeMetadataSettings();
    writeConnectionSettings();
    writeLocalCommandKeySettings();
    writeDefaultSettings();

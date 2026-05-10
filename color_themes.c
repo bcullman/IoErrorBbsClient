@@ -92,7 +92,7 @@ void catppuccinMacchiatoColors( void )
    color.morePrompt = 223;
    color.ansiWhiteTextColor = 189;
    color.reserved5 = 189;
-   color.background = 236;
+   color.background = 0;
    color.inputText = 189;
    color.inputHighlight = 111;
    color.expressText = 189;
@@ -123,7 +123,7 @@ void colorblindColors( void )
    color.morePrompt = 221;
    color.ansiWhiteTextColor = 221;
    color.reserved5 = 231;
-   color.background = 16;
+   color.background = 0;
    color.inputText = 231;
    color.inputHighlight = 214;
    color.expressText = 231;
@@ -191,7 +191,7 @@ void everforestDarkColors( void )
    color.morePrompt = 180;
    color.ansiWhiteTextColor = 187;
    color.reserved5 = 187;
-   color.background = 236;
+   color.background = 0;
    color.inputText = 187;
    color.inputHighlight = 109;
    color.expressText = 187;
@@ -256,7 +256,7 @@ void gruvboxDarkColors( void )
    color.morePrompt = 214;
    color.ansiWhiteTextColor = 223;
    color.reserved5 = 223;
-   color.background = 234;
+   color.background = 0;
    color.inputText = 223;
    color.inputHighlight = 109;
    color.expressText = 223;
@@ -321,7 +321,7 @@ void hotDogColors( void )
    color.morePrompt = 220;
    color.ansiWhiteTextColor = 220;
    color.reserved5 = 130;
-   color.background = 16;
+   color.background = 0;
    color.inputText = 220;
    color.inputHighlight = 231;
    color.expressText = 214;

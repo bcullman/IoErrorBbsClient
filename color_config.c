@@ -77,14 +77,14 @@ static const PresetMenuOption aryPresetMenuOptions[] =
    {
       { "Default", 2, 3, 0, 0 },
       { "Brilliant", 10, 11, 0, 0 },
-      { "Everforest Dark", 187, 144, 236, 0 },
+      { "Everforest Dark", 187, 144, 0, 0 },
       { "Everforest Light", 242, 106, 230, 6 },
-      { "Gruvbox Dark", 223, 142, 234, 0 },
+      { "Gruvbox Dark", 223, 142, 0, 0 },
       { "Gruvbox Light", 239, 100, 230, 0 },
       { "Latte (Catppuccin)", 240, 27, 255, 0 },
-      { "Macchiato (Catppuccin)", 189, 111, 236, 0 },
-      { "Colorblind", 231, 75, 16, 0 },
-      { "Hotdog stand", 220, 196, 16, 0 } };
+      { "Macchiato (Catppuccin)", 189, 111, 0, 0 },
+      { "Colorblind", 231, 75, 0, 0 },
+      { "Hotdog stand", 220, 196, 0, 0 } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";

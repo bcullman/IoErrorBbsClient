@@ -535,7 +535,7 @@ static void colorblindColors_WhenApplied_SetsAccessiblePalette( void **state )
       fail_msg( "colorblindColors should set general accessible colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 16 )
+   if ( color.background != 0 )
    {
       fail_msg( "colorblindColors should keep a dark background; got %d", color.background );
    }
@@ -668,7 +668,7 @@ static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state 
       fail_msg( "catppuccinMacchiatoColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 236 )
+   if ( color.background != 0 )
    {
       fail_msg( "catppuccinMacchiatoColors should keep a dark background; got %d", color.background );
    }
@@ -714,7 +714,7 @@ static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
       fail_msg( "everforestDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 236 )
+   if ( color.background != 0 )
    {
       fail_msg( "everforestDarkColors should keep a dark background; got %d", color.background );
    }
@@ -806,7 +806,7 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
       fail_msg( "hotDogColors should set general hot dog colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 16 )
+   if ( color.background != 0 )
    {
       fail_msg( "hotDogColors should keep a black background; got %d", color.background );
    }
@@ -856,7 +856,7 @@ static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
       fail_msg( "gruvboxDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 234 )
+   if ( color.background != 0 )
    {
       fail_msg( "gruvboxDarkColors should keep a dark background; got %d", color.background );
    }

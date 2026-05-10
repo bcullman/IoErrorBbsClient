@@ -222,7 +222,7 @@ static bool tryFinalizeConfigRead( ConfigReadState *ptrState )
    }
    if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
-      promptForScreenReaderModeIfUnset();
+      flagsConfiguration.hasScreenReaderModeSetting = 1;
       ptrState->shouldRewriteConfig = true;
    }
    if ( !flagsConfiguration.hasTitleBarSetting )

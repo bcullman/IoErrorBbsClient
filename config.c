@@ -157,7 +157,7 @@ void setup( int newVersion )
    }
    fflush( stdout );
 
-   if ( newVersion < 220 )
+   if ( newVersion >= 1 && newVersion < 220 )
    {
       if ( sPrompt( ENEMY_INFO, "Notify when posts and express messages from enemies are killed?", 1 ) )
       {
@@ -173,7 +173,7 @@ void setup( int newVersion )
       fflush( stdout );
       sInfo( COLOR_INFO, "Colors" );
    }
-   if ( newVersion < 237 )
+   if ( newVersion >= 1 && newVersion < 237 )
    {
       char aryUrlInfo[512];
 
@@ -186,7 +186,8 @@ void setup( int newVersion )
    }
    promptForScreenReaderModeIfUnset();
    defaultNameAutocompleteIfUnset();
-   if ( sPrompt( ADVANCED_OPTIONS, "Configure the client now?", 0 ) )
+   if ( newVersion >= 1 &&
+        sPrompt( ADVANCED_OPTIONS, "Configure the client now?", 0 ) )
    {
       configClient();
    }

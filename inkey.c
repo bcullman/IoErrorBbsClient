@@ -40,6 +40,7 @@ static GetKeyResult handleCommandKeyInput( int inputChar,
                                            int *ptrWasUndefinedCommand );
 static GetKeyResult handleWaitEvent( void );
 static bool isLocalInputDescriptorReady( void );
+static bool tryBufferReadyLocalInput( void );
 static bool tryReplaySavedByte( int *ptrInputChar );
 
 /// @brief Resolve the current host name used for network error reporting.
@@ -382,6 +383,11 @@ static GetKeyResult handleWaitEvent( void )
    eventResult = waitNextEvent();
    if ( eventResult & 1 )
    {
+      if ( !tryBufferReadyLocalInput() )
+      {
+         stdPrintf( "\r\n" );
+         fatalPerror( "read", "Local error" );
+      }
       result.kind = GETKEY_RESULT_CONTINUE;
       return result;
    }
@@ -419,6 +425,26 @@ static GetKeyResult handleWaitEvent( void )
    }
 
    return result;
+}
+
+/// @brief Read one ready local byte into the PTY buffer without consuming it.
+///
+/// When `waitNextEvent()` reports local input, the byte still needs to be read
+/// from standard input before the normal buffered-input path can process it.
+///
+/// @return `true` when a byte was buffered successfully, otherwise `false`.
+static bool tryBufferReadyLocalInput( void )
+{
+   int inputChar;
+
+   inputChar = ptyget();
+   if ( inputChar < 0 )
+   {
+      return false;
+   }
+
+   ptrPtyInput--;
+   return true;
 }
 
 /// @brief Return the next normalized user input key.

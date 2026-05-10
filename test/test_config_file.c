@@ -1672,9 +1672,9 @@ static void readConfig_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( 
    readConfig();
 
    // Assert
-   if ( promptForScreenReaderModeCallCount != 1 )
+   if ( promptForScreenReaderModeCallCount != 0 )
    {
-      fail_msg( "missing screen reader setting should trigger one prompt helper call; got %d",
+      fail_msg( "missing screen reader setting in an existing config should not prompt; got %d prompt helper calls",
                 promptForScreenReaderModeCallCount );
    }
    if ( writeConfigCallCount != 1 )
@@ -1684,7 +1684,7 @@ static void readConfig_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( 
    }
    if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
-      fail_msg( "prompt helper should mark the screen reader setting as present" );
+      fail_msg( "missing screen reader setting in an existing config should be marked present during rewrite" );
    }
    if ( defaultNameAutocompleteIfUnsetCallCount != 1 )
    {

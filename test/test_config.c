@@ -717,6 +717,70 @@ static void setup_WhenScreenReaderModeIsUnset_PromptsAndStoresAnswer( void **sta
    cleanupWriteConfigFixture();
 }
 
+static void setup_WhenFirstRun_SkipsLegacyUpgradePrompts( void **state )
+{
+   // Arrange
+   const int aryPromptAnswers[] = { 1 };
+
+   (void)state;
+   resetState();
+
+   flagsConfiguration.hasNameAutocompleteSetting = 0;
+   flagsConfiguration.hasScreenReaderModeSetting = 0;
+   flagsConfiguration.isScreenReaderModeEnabled = 0;
+   setPromptSequence( aryPromptAnswers, sizeof( aryPromptAnswers ) / sizeof( aryPromptAnswers[0] ) );
+
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
+   friendList = slistCreate( 0, fSortCompareVoid );
+   enemyList = slistCreate( 0, sortCompareVoid );
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize first-run setup fixture" );
+      return;
+   }
+
+   snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   bbsPort = 23;
+   commandKey = ESC;
+   quitKey = CTRL_D;
+   suspKey = CTRL_Z;
+   shellKey = '!';
+   captureKey = 'c';
+   awayKey = 'a';
+   browserKey = 'w';
+
+   // Act
+   setup( -1 );
+
+   // Assert
+   if ( sPromptCallCount != 1 )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "first-run setup should only prompt for screen reader mode; got %d prompts",
+                sPromptCallCount );
+      return;
+   }
+   if ( !flagsConfiguration.hasScreenReaderModeSetting ||
+        !flagsConfiguration.isScreenReaderModeEnabled )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "first-run setup should still store the screen reader selection" );
+      return;
+   }
+   if ( !flagsConfiguration.hasNameAutocompleteSetting ||
+        flagsConfiguration.shouldEnableNameAutocomplete )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "first-run setup should still derive autocomplete defaults from screen reader mode" );
+      return;
+   }
+
+   cleanupWriteConfigFixture();
+}
+
 static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **state )
 {
    // Arrange
@@ -1518,6 +1582,7 @@ int main( void )
       cmocka_unit_test( newAwayMessage_WhenUserDeclinesChange_PreservesExistingMessage ),
       cmocka_unit_test( newAwayMessage_WhenUserAcceptsChange_ReplacesWithEnteredLines ),
       cmocka_unit_test( setup_WhenScreenReaderModeIsUnset_PromptsAndStoresAnswer ),
+      cmocka_unit_test( setup_WhenFirstRun_SkipsLegacyUpgradePrompts ),
       cmocka_unit_test( configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags ),
 #ifdef ENABLE_KEYCHAIN
       cmocka_unit_test( configClient_WhenKeychainEnabled_ShowsNextLoginMessage ),

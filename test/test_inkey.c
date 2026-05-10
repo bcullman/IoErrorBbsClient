@@ -19,12 +19,14 @@
 #include <stddef.h>
 #include "telnet.h"
 #include "test_helpers.h"
+#include <unistd.h>
 #include "utility.h"
 static int fatalPerrorCallCount;
 static int fatalExitCallCount;
 static int myExitCallCount;
 static int openBrowserCallCount;
 static bool shouldInjectPtyInputDuringNetworkDrain;
+static bool shouldPreloadPtyInputForWaitEvents;
 static int aryWaitEventResults[32];
 static int aryWaitPtyInput[32];
 static int telReceiveCallCount;
@@ -41,6 +43,7 @@ static void resetState( void )
    myExitCallCount = 0;
    openBrowserCallCount = 0;
    shouldInjectPtyInputDuringNetworkDrain = false;
+   shouldPreloadPtyInputForWaitEvents = true;
    telReceiveCallCount = 0;
    waitEventResultCount = 0;
    waitEventResultIndex = 0;
@@ -187,7 +190,7 @@ int waitNextEvent( void )
    {
       int eventResult = aryWaitEventResults[waitEventResultIndex];
 
-      if ( eventResult & 1 )
+      if ( shouldPreloadPtyInputForWaitEvents && ( eventResult & 1 ) )
       {
          setPtyInput( &aryWaitPtyInput[waitEventResultIndex], 1 );
       }
@@ -200,6 +203,73 @@ int waitNextEvent( void )
    }
 
    return 0;
+}
+
+static int withTemporaryStandardInput( const int *aryInput, size_t inputCount,
+                                       int ( *ptrCallback )( void ) )
+{
+   int fdPipe[2];
+   int result;
+   int fdSavedStdin;
+   size_t inputIndex;
+   ssize_t writeResult;
+
+   if ( pipe( fdPipe ) != 0 )
+   {
+      fail_msg( "Arrange failed: unable to create stdin pipe" );
+      return 0;
+   }
+
+   fdSavedStdin = dup( 0 );
+   if ( fdSavedStdin < 0 )
+   {
+      close( fdPipe[0] );
+      close( fdPipe[1] );
+      fail_msg( "Arrange failed: unable to duplicate stdin" );
+      return 0;
+   }
+
+   for ( inputIndex = 0; inputIndex < inputCount; inputIndex++ )
+   {
+      unsigned char inputByte;
+
+      inputByte = (unsigned char)aryInput[inputIndex];
+      writeResult = write( fdPipe[1], &inputByte, 1 );
+      if ( writeResult != 1 )
+      {
+         close( fdPipe[0] );
+         close( fdPipe[1] );
+         close( fdSavedStdin );
+         fail_msg( "Arrange failed: unable to seed stdin pipe" );
+         return 0;
+      }
+   }
+   close( fdPipe[1] );
+
+   if ( dup2( fdPipe[0], 0 ) < 0 )
+   {
+      close( fdPipe[0] );
+      close( fdSavedStdin );
+      fail_msg( "Arrange failed: unable to replace stdin" );
+      return 0;
+   }
+   close( fdPipe[0] );
+
+   result = ptrCallback();
+
+   if ( dup2( fdSavedStdin, 0 ) < 0 )
+   {
+      close( fdSavedStdin );
+      fail_msg( "Cleanup failed: unable to restore stdin" );
+      return 0;
+   }
+   close( fdSavedStdin );
+   return result;
+}
+
+static int callInKey( void )
+{
+   return inKey();
 }
 
 int yesNo( void )
@@ -406,6 +476,45 @@ static void getKey_WhenCommandSequenceArrivesViaWaitEvent_HandlesLocalCommand( v
    }
 }
 
+/// @brief Verify that `inKey()` reads prompt input when the key arrives only via waitNextEvent.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void inKey_WhenInputArrivesViaWaitEvent_ReadsFromStandardInput( void **state )
+{
+   const int aryEventResults[] = { 1 };
+   const int aryInputChars[] = { '\n' };
+   const int aryPipeInput[] = { '\n' };
+   int result;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   shouldPreloadPtyInputForWaitEvents = false;
+   setWaitEventSequence( aryEventResults,
+                         aryInputChars,
+                         sizeof( aryEventResults ) / sizeof( aryEventResults[0] ) );
+
+   // Act
+   result = withTemporaryStandardInput( aryPipeInput,
+                                        sizeof( aryPipeInput ) / sizeof( aryPipeInput[0] ),
+                                        callInKey );
+
+   // Assert
+   if ( result != '\n' )
+   {
+      fail_msg( "inKey should return newline when Enter arrives via waitNextEvent; got %d",
+                result );
+   }
+   if ( waitNextEventCallCount != 1 )
+   {
+      fail_msg( "inKey should consume exactly one wait event in this regression scenario; got %d",
+                waitNextEventCallCount );
+   }
+}
+
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
@@ -415,6 +524,7 @@ int main( void )
       cmocka_unit_test( getKey_WhenTargetByteIncludesNonReplayableBytes_SkipsToReplayableByte ),
       cmocka_unit_test( inKey_WhenCarriageReturnThenLineFeed_SkipsSecondNewline ),
       cmocka_unit_test( inKey_WhenDeleteAndCtrlU_AppliesKeyTranslations ),
+      cmocka_unit_test( inKey_WhenInputArrivesViaWaitEvent_ReadsFromStandardInput ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

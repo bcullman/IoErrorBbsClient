@@ -52,6 +52,7 @@ void configClient( void )
    {
       int inputChar;
 
+      printAnsiDisplayStateValue( color.text, color.background );
       printThemedMnemonicText( "\r\n<C>olor  <E>nemy list  <F>riend list  <H>otkeys\r\n<I>nfo  <O>ptions  <X>press  <Q>uit", color.number );
       printThemedMnemonicText( "\r\nClient config -> ", color.forum );
       printAnsiForegroundColorValue( color.text );

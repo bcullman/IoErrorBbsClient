@@ -25,6 +25,9 @@ static size_t inputCount;
 static size_t inputIndex;
 static unsigned int flushCount;
 static unsigned int lastFlushValue;
+static int lastDisplayStateBackground;
+static int lastDisplayStateForeground;
+static unsigned int printAnsiDisplayStateCallCount;
 
 static void resetState( void )
 {
@@ -32,6 +35,9 @@ static void resetState( void )
    inputIndex = 0;
    flushCount = 0;
    lastFlushValue = 0;
+   lastDisplayStateBackground = -2;
+   lastDisplayStateForeground = -2;
+   printAnsiDisplayStateCallCount = 0;
 
    flagsConfiguration.shouldUseAnsi = 0;
    lastColor = 0;
@@ -100,8 +106,9 @@ void printAnsiBackgroundColorValue( int colorValue )
 
 void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
 {
-   (void)foregroundColor;
-   (void)backgroundColor;
+   lastDisplayStateForeground = foregroundColor;
+   lastDisplayStateBackground = backgroundColor;
+   printAnsiDisplayStateCallCount++;
 }
 
 void printThemedMnemonicText( const char *ptrText, int defaultColor )
@@ -224,6 +231,44 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
       fail_msg( "defaultColors(1) did not set full ANSI fallback colors as expected; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
                 color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately( void **state )
+{
+   const int aryKeys[] = { 'p', 'l', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = 1;
+   color.background = 0;
+   color.text = 2;
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( color.background != 255 )
+   {
+      fail_msg( "Latte preset should change the configured background to white; got %d",
+                color.background );
+   }
+   if ( printAnsiDisplayStateCallCount == 0 )
+   {
+      fail_msg( "colorConfig should refresh the full display state after a preset change" );
+   }
+   if ( lastDisplayStateBackground != 255 )
+   {
+      fail_msg( "colorConfig should refresh the terminal background immediately after a preset change; got %d",
+                lastDisplayStateBackground );
+   }
+   if ( lastDisplayStateForeground != color.text )
+   {
+      fail_msg( "colorConfig should refresh the terminal using the active text color; got %d expected %d",
+                lastDisplayStateForeground, color.text );
    }
 }
 
@@ -910,6 +955,7 @@ static void backgroundPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue(
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
+      cmocka_unit_test( colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( colorValueFromName_WhenCanonicalNameProvided_ReturnsNamedPaletteValue ),

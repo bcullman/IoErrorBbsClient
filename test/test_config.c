@@ -129,6 +129,12 @@ int capPrintf( const char *format, ... )
    return 1;
 }
 
+void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
+{
+   (void)foregroundColor;
+   (void)backgroundColor;
+}
+
 int colorize( const char *ptrText )
 {
    (void)ptrText;

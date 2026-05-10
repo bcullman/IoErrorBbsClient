@@ -144,6 +144,8 @@ void colorConfig( void )
    }
    while ( true )
    {
+      printAnsiDisplayStateValue( color.text, color.background );
+
       snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<P>resets  <G>eneral  <I>nput  po<S>ts  <O>ptions  <X>press  <Q>uit" );
       printThemedMnemonicText( aryPromptText, color.number );
       printThemedMnemonicText( "\r\nColor config -> ", color.forum );

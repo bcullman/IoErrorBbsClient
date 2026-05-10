@@ -11,7 +11,7 @@
  * This file covers Unix/macOS builds.
  */
 #define _IN_UNIX_C
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "config_globals.h"
@@ -121,7 +121,7 @@ static const char *resolveConfigHomeDirectory( void )
 /// back to `~/.config/bbs/config.toml`.
 ///
 /// @return A stream for the resolved configuration file.
-FILE *findBbsRc( void )
+FILE *findConfigFile( void )
 {
    FILE *ptrFileHandle;
    const char *ptrConfigHome;
@@ -129,19 +129,19 @@ FILE *findBbsRc( void )
    ptrConfigHome = resolveConfigHomeDirectory();
    if ( ptrConfigHome == NULL )
    {
-      fatalExit( "findBbsRc: unable to resolve a home directory.", "Local error" );
+      fatalExit( "findConfigFile: unable to resolve a home directory.", "Local error" );
    }
    if ( getenv( "XDG_CONFIG_HOME" ) != NULL && *getenv( "XDG_CONFIG_HOME" ) != '\0' )
    {
-      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/bbs/config.toml",
+      snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s/bbs/config.toml",
                 ptrConfigHome );
    }
    else
    {
-      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/.config/bbs/config.toml",
+      snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s/.config/bbs/config.toml",
                 ptrConfigHome );
    }
-   if ( ( ptrFileHandle = fopen( aryBbsRcName, "r" ) ) && chmod( aryBbsRcName, 0600 ) < 0 )
+   if ( ( ptrFileHandle = fopen( aryConfigFileName, "r" ) ) && chmod( aryConfigFileName, 0600 ) < 0 )
    {
       sPerror( "Can't set access on config file", "Warning" );
    }
@@ -149,7 +149,7 @@ FILE *findBbsRc( void )
    {
       fclose( ptrFileHandle );
    }
-   return ( openBbsRc() );
+   return ( openConfigFile() );
 }
 
 /// @brief Discover the current username and mark login-shell sessions.
@@ -541,9 +541,9 @@ void sigOff( void )
 /// @param userNameLength New file length.
 ///
 /// @return This function does not return a value.
-void truncateBbsRc( long userNameLength )
+void truncateConfigFile( long userNameLength )
 {
-   if ( ftruncate( fileno( ptrBbsRc ), userNameLength ) < 0 )
+   if ( ftruncate( fileno( ptrConfigFile ), userNameLength ) < 0 )
    {
       fatalExit( "ftruncate", "Local error" );
    }

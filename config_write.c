@@ -7,7 +7,7 @@
 /*
  * This file writes the client configuration back to config.toml.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client_globals.h"
 #include "color.h"
 #include "config_globals.h"
@@ -92,38 +92,38 @@ static const char *localCommandKeyName( int inputChar )
 /// @return This helper does not return a value.
 static void printTomlEscapedString( const char *ptrText )
 {
-   fputc( '"', ptrBbsRc );
+   fputc( '"', ptrConfigFile );
    while ( *ptrText != '\0' )
    {
       switch ( *ptrText )
       {
          case '"':
-            fputs( "\\\"", ptrBbsRc );
+            fputs( "\\\"", ptrConfigFile );
             break;
 
          case '\\':
-            fputs( "\\\\", ptrBbsRc );
+            fputs( "\\\\", ptrConfigFile );
             break;
 
          case '\n':
-            fputs( "\\n", ptrBbsRc );
+            fputs( "\\n", ptrConfigFile );
             break;
 
          case '\r':
-            fputs( "\\r", ptrBbsRc );
+            fputs( "\\r", ptrConfigFile );
             break;
 
          case '\t':
-            fputs( "\\t", ptrBbsRc );
+            fputs( "\\t", ptrConfigFile );
             break;
 
          default:
-            fputc( *ptrText, ptrBbsRc );
+            fputc( *ptrText, ptrConfigFile );
             break;
       }
       ptrText++;
    }
-   fputc( '"', ptrBbsRc );
+   fputc( '"', ptrConfigFile );
 }
 
 /// @brief Write the configured away-message array.
@@ -134,19 +134,19 @@ static void writeAwaySettings( void )
    int itemIndex;
    bool shouldWriteComma;
 
-   fprintf( ptrBbsRc, "[away]\n" );
-   fprintf( ptrBbsRc, "messages = [" );
+   fprintf( ptrConfigFile, "[away]\n" );
+   fprintf( ptrConfigFile, "messages = [" );
    shouldWriteComma = false;
    for ( itemIndex = 0; itemIndex < 5 && *aryAwayMessageLines[itemIndex] != '\0'; itemIndex++ )
    {
       if ( shouldWriteComma )
       {
-         fprintf( ptrBbsRc, ", " );
+         fprintf( ptrConfigFile, ", " );
       }
       printTomlEscapedString( aryAwayMessageLines[itemIndex] );
       shouldWriteComma = true;
    }
-   fprintf( ptrBbsRc, "]\n\n" );
+   fprintf( ptrConfigFile, "]\n\n" );
 }
 
 /// @brief Write the scalar behavior settings.
@@ -154,28 +154,28 @@ static void writeAwaySettings( void )
 /// @return This helper does not return a value.
 static void writeBehaviorSettings( void )
 {
-   fprintf( ptrBbsRc, "[behavior]\n" );
-   fprintf( ptrBbsRc, "auto_answer_ansi = %s\n",
+   fprintf( ptrConfigFile, "[behavior]\n" );
+   fprintf( ptrConfigFile, "auto_answer_ansi = %s\n",
             flagsConfiguration.shouldAutoAnswerAnsiPrompt ? "true" : "false" );
-   fprintf( ptrBbsRc, "autocomplete_recipients = %s\n",
+   fprintf( ptrConfigFile, "autocomplete_recipients = %s\n",
             flagsConfiguration.shouldEnableNameAutocomplete ? "true" : "false" );
-   fprintf( ptrBbsRc, "clickable_url_summaries = %s\n",
+   fprintf( ptrConfigFile, "clickable_url_summaries = %s\n",
             flagsConfiguration.shouldEnableClickableUrls ? "true" : "false" );
-   fprintf( ptrBbsRc, "screen_reader_mode = %s\n",
+   fprintf( ptrConfigFile, "screen_reader_mode = %s\n",
             flagsConfiguration.isScreenReaderModeEnabled ? "true" : "false" );
-   fprintf( ptrBbsRc, "suppress_enemy_express = %s\n",
+   fprintf( ptrConfigFile, "suppress_enemy_express = %s\n",
             flagsConfiguration.shouldSquelchExpress ? "true" : "false" );
-   fprintf( ptrBbsRc, "suppress_enemy_posts = %s\n",
+   fprintf( ptrConfigFile, "suppress_enemy_posts = %s\n",
             flagsConfiguration.shouldSquelchPost ? "true" : "false" );
-   fprintf( ptrBbsRc, "tcp_keepalive = %s\n",
+   fprintf( ptrConfigFile, "tcp_keepalive = %s\n",
             flagsConfiguration.shouldUseTcpKeepalive ? "true" : "false" );
-   fprintf( ptrBbsRc, "update_title_bar = %s\n",
+   fprintf( ptrConfigFile, "update_title_bar = %s\n",
             flagsConfiguration.shouldEnableTitleBar ? "true" : "false" );
 #ifdef ENABLE_KEYCHAIN
-   fprintf( ptrBbsRc, "use_keychain = %s\n",
+   fprintf( ptrConfigFile, "use_keychain = %s\n",
             flagsConfiguration.shouldUseKeychain ? "true" : "false" );
 #endif
-   fprintf( ptrBbsRc, "\n" );
+   fprintf( ptrConfigFile, "\n" );
 }
 
 /// @brief Write the themed color settings using stable TOML keys.
@@ -185,7 +185,7 @@ static void writeColorSettings( void )
 {
    int colorFieldIndex;
 
-   fprintf( ptrBbsRc, "[colors]\n" );
+   fprintf( ptrConfigFile, "[colors]\n" );
    for ( colorFieldIndex = 0; colorFieldIndex < COLOR_FIELD_COUNT; colorFieldIndex++ )
    {
       const char *ptrColorKeyName;
@@ -199,7 +199,7 @@ static void writeColorSettings( void )
       }
 
       colorValue = colorFieldValue( colorFieldIndex );
-      fprintf( ptrBbsRc, "%s = ", ptrColorKeyName );
+      fprintf( ptrConfigFile, "%s = ", ptrColorKeyName );
       ptrColorName = colorNameFromValue( colorValue );
       if ( ptrColorName != NULL )
       {
@@ -207,11 +207,11 @@ static void writeColorSettings( void )
       }
       else
       {
-         fprintf( ptrBbsRc, "%d", colorValue );
+         fprintf( ptrConfigFile, "%d", colorValue );
       }
-      fprintf( ptrBbsRc, "\n" );
+      fprintf( ptrConfigFile, "\n" );
    }
-   fprintf( ptrBbsRc, "\n" );
+   fprintf( ptrConfigFile, "\n" );
 }
 
 /// @brief Write the configured site, port, editor, and auto-login settings.
@@ -219,21 +219,21 @@ static void writeColorSettings( void )
 /// @return This helper does not return a value.
 static void writeConnectionSettings( void )
 {
-   fprintf( ptrBbsRc, "[connection]\n" );
-   fprintf( ptrBbsRc, "editor = " );
+   fprintf( ptrConfigFile, "[connection]\n" );
+   fprintf( ptrConfigFile, "editor = " );
    printTomlEscapedString( aryEditor );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "host = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "host = " );
    printTomlEscapedString( aryBbsHost );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "port = %d\n", bbsPort );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "port = %d\n", bbsPort );
    if ( *aryAutoName != '\0' )
    {
-      fprintf( ptrBbsRc, "auto_login_name = " );
+      fprintf( ptrConfigFile, "auto_login_name = " );
       printTomlEscapedString( aryAutoName );
-      fprintf( ptrBbsRc, "\n" );
+      fprintf( ptrConfigFile, "\n" );
    }
-   fprintf( ptrBbsRc, "\n" );
+   fprintf( ptrConfigFile, "\n" );
 }
 
 /// @brief Write the configured friend and enemy contacts.
@@ -243,19 +243,19 @@ static void writeContactSettings( void )
 {
    unsigned int itemIndex;
 
-   fprintf( ptrBbsRc, "[contacts]\n" );
-   fprintf( ptrBbsRc, "enemies = [" );
+   fprintf( ptrConfigFile, "[contacts]\n" );
+   fprintf( ptrConfigFile, "enemies = [" );
    for ( itemIndex = 0; itemIndex < enemyList->nitems; itemIndex++ )
    {
       if ( itemIndex != 0 )
       {
-         fprintf( ptrBbsRc, ", " );
+         fprintf( ptrConfigFile, ", " );
       }
       printTomlEscapedString( (const char *)enemyList->items[itemIndex] );
    }
-   fprintf( ptrBbsRc, "]\n" );
+   fprintf( ptrConfigFile, "]\n" );
 
-   fprintf( ptrBbsRc, "friends = [" );
+   fprintf( ptrConfigFile, "friends = [" );
    for ( itemIndex = 0; itemIndex < friendList->nitems; itemIndex++ )
    {
       const friend *ptrFriend;
@@ -263,15 +263,15 @@ static void writeContactSettings( void )
       ptrFriend = friendList->items[itemIndex];
       if ( itemIndex != 0 )
       {
-         fprintf( ptrBbsRc, ", " );
+         fprintf( ptrConfigFile, ", " );
       }
-      fprintf( ptrBbsRc, "{ name = " );
+      fprintf( ptrConfigFile, "{ name = " );
       printTomlEscapedString( ptrFriend->name );
-      fprintf( ptrBbsRc, ", info = " );
+      fprintf( ptrConfigFile, ", info = " );
       printTomlEscapedString( ptrFriend->info );
-      fprintf( ptrBbsRc, " }" );
+      fprintf( ptrConfigFile, " }" );
    }
-   fprintf( ptrBbsRc, "]\n\n" );
+   fprintf( ptrConfigFile, "]\n\n" );
 }
 
 /// @brief Write the semantic uppercase-default toggles.
@@ -279,12 +279,12 @@ static void writeContactSettings( void )
 /// @return This helper does not return a value.
 static void writeDefaultSettings( void )
 {
-   fprintf( ptrBbsRc, "[defaults]\n" );
-   fprintf( ptrBbsRc, "show_full_profile_by_default = %s\n",
+   fprintf( ptrConfigFile, "[defaults]\n" );
+   fprintf( ptrConfigFile, "show_full_profile_by_default = %s\n",
             isUppercaseDefaultEnabled( 'p' ) ? "true" : "false" );
-   fprintf( ptrBbsRc, "show_long_who_by_default = %s\n",
+   fprintf( ptrConfigFile, "show_long_who_by_default = %s\n",
             isUppercaseDefaultEnabled( 'w' ) ? "true" : "false" );
-   fprintf( ptrBbsRc, "\n" );
+   fprintf( ptrConfigFile, "\n" );
 }
 
 /// @brief Write the configured local command-sequence keys.
@@ -292,36 +292,36 @@ static void writeDefaultSettings( void )
 /// @return This helper does not return a value.
 static void writeLocalCommandKeySettings( void )
 {
-   fprintf( ptrBbsRc, "[local_command_keys]\n" );
-   fprintf( ptrBbsRc, "away = " );
+   fprintf( ptrConfigFile, "[local_command_keys]\n" );
+   fprintf( ptrConfigFile, "away = " );
    printTomlEscapedString( localCommandKeyName( awayKey ) );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "browser = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "browser = " );
    printTomlEscapedString( localCommandKeyName( browserKey ) );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "capture = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "capture = " );
    printTomlEscapedString( localCommandKeyName( captureKey ) );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "command = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "command = " );
    printTomlEscapedString( localCommandKeyName( commandKey ) );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "quit = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "quit = " );
    printTomlEscapedString( localCommandKeyName( quitKey ) );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "shell = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "shell = " );
    printTomlEscapedString( localCommandKeyName( shellKey ) );
-   fprintf( ptrBbsRc, "\n" );
-   fprintf( ptrBbsRc, "suspend = " );
+   fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "suspend = " );
    printTomlEscapedString( localCommandKeyName( suspKey ) );
-   fprintf( ptrBbsRc, "\n" );
+   fprintf( ptrConfigFile, "\n" );
 }
 
 /// @brief Rewrite the current in-memory configuration back to config.toml.
 ///
 /// @return This function does not return a value.
-void writeBbsRc( void )
+void writeConfig( void )
 {
-   rewind( ptrBbsRc );
+   rewind( ptrConfigFile );
 
    writeConnectionSettings();
    writeLocalCommandKeySettings();
@@ -331,6 +331,6 @@ void writeBbsRc( void )
    writeContactSettings();
    writeColorSettings();
 
-   fflush( ptrBbsRc );
-   truncateBbsRc( ftell( ptrBbsRc ) );
+   fflush( ptrConfigFile );
+   truncateConfigFile( ftell( ptrConfigFile ) );
 }

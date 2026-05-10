@@ -11,7 +11,7 @@
 #ifndef PROTO_H_INCLUDED
 #define PROTO_H_INCLUDED
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include "color.h"

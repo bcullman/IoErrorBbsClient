@@ -9,7 +9,7 @@
 
 #include "defs.h"
 
-void configBbsRc( void );
+void configClient( void );
 void configureHotkeys( void );
 void configureOptionsMenu( void );
 void defaultNameAutocompleteIfUnset( void );

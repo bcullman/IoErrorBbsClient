@@ -7,7 +7,7 @@
 /*
  * This file opens the client configuration file.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "config_globals.h"
 #include "defs.h"
@@ -69,29 +69,29 @@ static int ensureConfigDirectoryExists( const char *ptrPath )
 /// The function first tries read-write access, then creates the file if needed,
 /// and finally falls back to read-only access with a warning.
 ///
-/// @return A stream for `aryBbsRcName`, or `NULL` if the file could not be
+/// @return A stream for `aryConfigFileName`, or `NULL` if the file could not be
 /// opened at all.
-FILE *openBbsRc( void )
+FILE *openConfigFile( void )
 {
    FILE *ptrFileHandle;
    int savedErrno;
 
-   ptrFileHandle = fopen( aryBbsRcName, "r+" );
+   ptrFileHandle = fopen( aryConfigFileName, "r+" );
    if ( !ptrFileHandle )
    {
       savedErrno = errno;
-      if ( ensureConfigDirectoryExists( aryBbsRcName ) < 0 )
+      if ( ensureConfigDirectoryExists( aryConfigFileName ) < 0 )
       {
          savedErrno = errno;
       }
-      ptrFileHandle = fopen( aryBbsRcName, "w+" );
+      ptrFileHandle = fopen( aryConfigFileName, "w+" );
    }
    if ( !ptrFileHandle )
    {
-      ptrFileHandle = fopen( aryBbsRcName, "r" );
+      ptrFileHandle = fopen( aryConfigFileName, "r" );
       if ( ptrFileHandle )
       {
-         isBbsRcReadOnly = 1;
+         isConfigFileReadOnly = 1;
          errno = savedErrno;
          sPerror( "Configuration is read-only", "Warning" );
       }

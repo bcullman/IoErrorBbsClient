@@ -28,7 +28,6 @@ static int handleTelnetVoidState( int inputByte, int *ptrState );
 static void markPromptTriggerNonReplayable( unsigned char commandType );
 static void markReplayByteNonReplayable( long replayPosition );
 
-
 /// @brief Handle normal telnet data bytes outside IAC command parsing.
 ///
 /// @param inputByte Incoming protocol byte.
@@ -61,7 +60,6 @@ static int handleTelnetDataState( int inputByte, int *ptrState )
 
    return 0;
 }
-
 
 /// @brief Execute a completed telnet GET command from the protocol buffer.
 ///
@@ -113,14 +111,13 @@ static int handleTelnetGetCommand( unsigned char *aryTelnetBuffer )
 
       case CONFIG:
          sendBlock();
-         configBbsRc();
+         configClient();
          sendTrackedNewline();
          break;
    }
 
    return 0;
 }
-
 
 /// @brief Collect and finish a multi-byte telnet GET command.
 ///
@@ -156,7 +153,6 @@ static int handleTelnetGetState( int inputByte, int *ptrState,
    *ptrTelnetBufferPos = 0;
    return handleTelnetGetCommand( aryTelnetBuffer );
 }
-
 
 /// @brief Handle an IAC-prefixed telnet command byte.
 ///
@@ -262,7 +258,6 @@ static int handleTelnetIacState( int inputByte, int *ptrState,
    return 0;
 }
 
-
 /// @brief Reject a telnet option negotiation that is not supported.
 ///
 /// @param inputByte Incoming telnet option byte.
@@ -278,7 +273,6 @@ static int handleTelnetVoidState( int inputByte, int *ptrState )
    return 0;
 }
 
-
 /// @brief Tell the BBS that a client-side input block is about to follow.
 ///
 /// @return This function does not return a value.
@@ -287,7 +281,6 @@ void sendBlock( void )
    netPutChar( IAC );
    netPutChar( BLOCK );
 }
-
 
 /// @brief Send an updated NAWS window-size record to the BBS.
 ///
@@ -315,7 +308,6 @@ void sendNaws( void )
       }
    }
 }
-
 
 /// @brief Mark command bytes that opened a BBS input request as non-replayable.
 ///
@@ -349,7 +341,6 @@ static void markPromptTriggerNonReplayable( unsigned char commandType )
    }
 }
 
-
 /// @brief Mark one saved replay byte position as non-replayable.
 ///
 /// @param replayPosition Saved-byte position to update.
@@ -359,7 +350,6 @@ static void markReplayByteNonReplayable( long replayPosition )
 {
    arySavedByteCanReplay[(size_t)( replayPosition % (long)sizeof arySavedBytes )] = false;
 }
-
 
 /// @brief Send the initial telnet and client-identification sequence to the BBS.
 ///
@@ -381,7 +371,6 @@ void telInit( void )
    netPutChar( SE );
    sendNaws();
 }
-
 
 /// @brief Feed one incoming byte through the telnet protocol state machine.
 ///

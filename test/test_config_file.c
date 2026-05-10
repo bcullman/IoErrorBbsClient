@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -28,7 +28,7 @@ static int perrorCallCount;
 static int promptForScreenReaderModeCallCount;
 static int setupCallCount;
 static int setupVersionArg;
-static int writeBbsRcCallCount;
+static int writeConfigCallCount;
 
 static char aryLastPerrorHeading[64];
 static char aryLastPerrorMessage[128];
@@ -36,10 +36,10 @@ static char aryStdPrintfLog[16384];
 
 static void cleanupReadState( void )
 {
-   if ( ptrBbsRc != NULL )
+   if ( ptrConfigFile != NULL )
    {
-      fclose( ptrBbsRc );
-      ptrBbsRc = NULL;
+      fclose( ptrConfigFile );
+      ptrConfigFile = NULL;
    }
    if ( friendList != NULL )
    {
@@ -78,14 +78,14 @@ static void resetTracking( void )
    promptForScreenReaderModeCallCount = 0;
    setupCallCount = 0;
    setupVersionArg = 0;
-   writeBbsRcCallCount = 0;
+   writeConfigCallCount = 0;
    aryLastPerrorHeading[0] = '\0';
    aryLastPerrorMessage[0] = '\0';
    aryStdPrintfLog[0] = '\0';
 }
 
-// bbsrc.c and bbsrc_parse.c dependencies that are outside this test target's scope.
-void configBbsRc( void )
+// config_file.c and config_parse.c dependencies that are outside this test target's scope.
+void configClient( void )
 {
    // Test stub: interactive config flow is not relevant in this test.
 }
@@ -127,22 +127,22 @@ noreturn void fatalExit( const char *message, const char *heading )
    abort();
 }
 
-FILE *findBbsRc( void )
+FILE *findConfigFile( void )
 {
    const char *ptrHomeDirectory;
    const char *ptrXdgConfigHome;
 
-   if ( aryBbsRcName[0] != '\0' )
+   if ( aryConfigFileName[0] != '\0' )
    {
-      return openBbsRc();
+      return openConfigFile();
    }
 
    ptrXdgConfigHome = getenv( "XDG_CONFIG_HOME" );
    if ( ptrXdgConfigHome != NULL && *ptrXdgConfigHome != '\0' )
    {
-      snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/bbs/config.toml",
+      snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s/bbs/config.toml",
                 ptrXdgConfigHome );
-      return openBbsRc();
+      return openConfigFile();
    }
 
    ptrHomeDirectory = getenv( "HOME" );
@@ -151,9 +151,9 @@ FILE *findBbsRc( void )
       return NULL;
    }
 
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s/.config/bbs/config.toml",
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s/.config/bbs/config.toml",
              ptrHomeDirectory );
-   return openBbsRc();
+   return openConfigFile();
 }
 
 void setColorFieldValue( int colorIndex, int colorValue )
@@ -389,12 +389,12 @@ int strCompareVoid( const void *ptrLeft, const void *ptrRight )
    return strcmp( (const char *)ptrLeft, (const char *)ptrRight );
 }
 
-void writeBbsRc( void )
+void writeConfig( void )
 {
-   writeBbsRcCallCount++;
+   writeConfigCallCount++;
 }
 
-static void openBbsRc_WhenPathMissing_CreatesWritableConfigurationFile( void **state )
+static void openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -404,40 +404,40 @@ static void openBbsRc_WhenPathMissing_CreatesWritableConfigurationFile( void **s
    (void)state;
 
    resetTracking();
-   isBbsRcReadOnly = 0;
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   isConfigFileReadOnly = 0;
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
-      fail_msg( "Arrange failed: unable to create temporary path for openBbsRc missing-path test" );
+      fail_msg( "Arrange failed: unable to create temporary path for openConfigFile missing-path test" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
 
    // Act
-   ptrFile = openBbsRc();
+   ptrFile = openConfigFile();
 
    // Assert
    if ( ptrFile == NULL )
    {
-      fail_msg( "openBbsRc should create and open a missing configuration file" );
+      fail_msg( "openConfigFile should create and open a missing configuration file" );
    }
-   if ( isBbsRcReadOnly != 0 )
+   if ( isConfigFileReadOnly != 0 )
    {
-      fail_msg( "openBbsRc should not mark a newly created file as read-only" );
+      fail_msg( "openConfigFile should not mark a newly created file as read-only" );
    }
    if ( perrorCallCount != 0 )
    {
-      fail_msg( "openBbsRc should not call sPerror on successful create/open; got %d calls", perrorCallCount );
+      fail_msg( "openConfigFile should not call sPerror on successful create/open; got %d calls", perrorCallCount );
    }
    if ( stat( aryPath, &fileStats ) != 0 )
    {
-      fail_msg( "openBbsRc should create the configuration file on disk" );
+      fail_msg( "openConfigFile should create the configuration file on disk" );
    }
 
    fclose( ptrFile );
    unlink( aryPath );
 }
 
-static void openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree( void **state )
+static void openConfigFile_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree( void **state )
 {
    // Arrange
    char aryConfigPath[PATH_MAX];
@@ -451,40 +451,40 @@ static void openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree( v
    (void)state;
 
    resetTracking();
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    ptrTempDirectory = mkdtemp( aryDirectoryTemplate );
    if ( ptrTempDirectory == NULL )
    {
-      fail_msg( "Arrange failed: unable to create temporary directory for openBbsRc config-tree test" );
+      fail_msg( "Arrange failed: unable to create temporary directory for openConfigFile config-tree test" );
       return;
    }
    snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs/config.toml",
              ptrTempDirectory );
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryConfigPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryConfigPath );
 
    // Act
-   ptrFile = openBbsRc();
+   ptrFile = openConfigFile();
 
    // Assert
    if ( ptrFile == NULL )
    {
-      fail_msg( "openBbsRc should create and open the config file when parent directories are missing" );
+      fail_msg( "openConfigFile should create and open the config file when parent directories are missing" );
    }
    if ( stat( aryConfigPath, &fileStats ) != 0 )
    {
-      fail_msg( "openBbsRc should create the config file on disk" );
+      fail_msg( "openConfigFile should create the config file on disk" );
    }
    snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
    if ( stat( aryConfigPath, &outerDirectoryStats ) != 0 ||
         !S_ISDIR( outerDirectoryStats.st_mode ) )
    {
-      fail_msg( "openBbsRc should create the outer config directory" );
+      fail_msg( "openConfigFile should create the outer config directory" );
    }
    snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config/bbs", ptrTempDirectory );
    if ( stat( aryConfigPath, &innerDirectoryStats ) != 0 ||
         !S_ISDIR( innerDirectoryStats.st_mode ) )
    {
-      fail_msg( "openBbsRc should create the app-specific config directory" );
+      fail_msg( "openConfigFile should create the app-specific config directory" );
    }
 
    // Cleanup
@@ -499,7 +499,7 @@ static void openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree( v
    rmdir( ptrTempDirectory );
 }
 
-static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( void **state )
+static void findConfigFile_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( void **state )
 {
    // Arrange
    char aryConfigPath[PATH_MAX];
@@ -513,7 +513,7 @@ static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( vo
    FILE *ptrFile;
    char *ptrTempDirectory;
    struct stat fileStats;
-   char aryDirectoryTemplate[] = "/tmp/iobbsrc_home_XXXXXX";
+   char aryDirectoryTemplate[] = "/tmp/iobbs_config_home_XXXXXX";
 
    (void)state;
 
@@ -577,11 +577,11 @@ static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( vo
       fail_msg( "Arrange failed: unable to write legacy config files for legacy-ignore test" );
       return;
    }
-   aryBbsRcName[0] = '\0';
-   isBbsRcReadOnly = 0;
+   aryConfigFileName[0] = '\0';
+   isConfigFileReadOnly = 0;
 
    // Act
-   ptrFile = findBbsRc();
+   ptrFile = findConfigFile();
 
    // Assert
    snprintf( aryExpectedConfigPath, sizeof( aryExpectedConfigPath ), "%s/.config/bbs/config.toml",
@@ -607,10 +607,10 @@ static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( vo
       unlink( aryLegacyConfigPath );
       unlink( aryFriendsPath );
       rmdir( ptrTempDirectory );
-      fail_msg( "findBbsRc should open the XDG-style config path even when legacy files exist" );
+      fail_msg( "findConfigFile should open the XDG-style config path even when legacy files exist" );
       return;
    }
-   if ( strcmp( aryBbsRcName, aryExpectedConfigPath ) != 0 )
+   if ( strcmp( aryConfigFileName, aryExpectedConfigPath ) != 0 )
    {
       fclose( ptrFile );
       unlink( aryExpectedConfigPath );
@@ -637,7 +637,7 @@ static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( vo
          unsetenv( "XDG_CONFIG_HOME" );
       }
       rmdir( ptrTempDirectory );
-      fail_msg( "findBbsRc should resolve %s; got %s", aryExpectedConfigPath, aryBbsRcName );
+      fail_msg( "findConfigFile should resolve %s; got %s", aryExpectedConfigPath, aryConfigFileName );
       return;
    }
    if ( stat( aryExpectedConfigPath, &fileStats ) != 0 )
@@ -662,7 +662,7 @@ static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( vo
          unsetenv( "XDG_CONFIG_HOME" );
       }
       rmdir( ptrTempDirectory );
-      fail_msg( "findBbsRc should create %s instead of consulting legacy files", aryExpectedConfigPath );
+      fail_msg( "findConfigFile should create %s instead of consulting legacy files", aryExpectedConfigPath );
       return;
    }
 
@@ -694,7 +694,7 @@ static void findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath( vo
    rmdir( ptrTempDirectory );
 }
 
-static void openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
+static void openConfigFile_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -703,10 +703,10 @@ static void openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
    (void)state;
 
    resetTracking();
-   isBbsRcReadOnly = 0;
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   isConfigFileReadOnly = 0;
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
-      fail_msg( "Arrange failed: unable to create temporary path for openBbsRc read-only test" );
+      fail_msg( "Arrange failed: unable to create temporary path for openConfigFile read-only test" );
       return;
    }
    if ( !tryWriteFileContents( aryPath, "read-only\n" ) )
@@ -721,25 +721,25 @@ static void openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
       fail_msg( "Arrange failed: unable to chmod read-only test file" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
 
    // Act
-   ptrFile = openBbsRc();
+   ptrFile = openConfigFile();
 
    // Assert
    if ( ptrFile == NULL )
    {
       chmod( aryPath, 0600 );
       unlink( aryPath );
-      fail_msg( "openBbsRc should still open a read-only configuration file" );
+      fail_msg( "openConfigFile should still open a read-only configuration file" );
       return;
    }
-   if ( isBbsRcReadOnly == 0 )
+   if ( isConfigFileReadOnly == 0 )
    {
       fclose( ptrFile );
       chmod( aryPath, 0600 );
       unlink( aryPath );
-      fail_msg( "openBbsRc should mark a read-only file as read-only" );
+      fail_msg( "openConfigFile should mark a read-only file as read-only" );
       return;
    }
    if ( perrorCallCount == 0 ||
@@ -748,7 +748,7 @@ static void openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
       fclose( ptrFile );
       chmod( aryPath, 0600 );
       unlink( aryPath );
-      fail_msg( "openBbsRc should warn when falling back to read-only access; got %d warnings and last message '%s'",
+      fail_msg( "openConfigFile should warn when falling back to read-only access; got %d warnings and last message '%s'",
                 perrorCallCount, aryLastPerrorMessage );
       return;
    }
@@ -758,7 +758,7 @@ static void openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state )
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
+static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -767,7 +767,7 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for core TOML test" );
       return;
@@ -821,13 +821,13 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
       fail_msg( "Arrange failed: unable to write core TOML configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strcmp( aryAutoName, "Alice" ) != 0 )
@@ -924,7 +924,7 @@ static void readBbsRc_WhenConfigContainsCoreToml_ParsesValues( void **state )
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault( void **state )
+static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -934,7 +934,7 @@ static void readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault
    cleanupReadState();
    resetTracking();
    color.text = 2;
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for invalid-color test" );
       return;
@@ -948,13 +948,13 @@ static void readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault
       fail_msg( "Arrange failed: unable to write invalid-color configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strstr( aryStdPrintfLog, "Invalid color value for 'text' ignored." ) == NULL )
@@ -970,7 +970,7 @@ static void readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **state )
+static void readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -979,7 +979,7 @@ static void readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **sta
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for away-message overflow test" );
       return;
@@ -993,13 +993,13 @@ static void readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **sta
       fail_msg( "Arrange failed: unable to write away-message overflow configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strcmp( aryAwayMessageLines[0], "one" ) != 0 ||
@@ -1015,7 +1015,7 @@ static void readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **sta
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void **state )
+static void readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1024,7 +1024,7 @@ static void readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for duplicate-contacts test" );
       return;
@@ -1039,13 +1039,13 @@ static void readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void
       fail_msg( "Arrange failed: unable to write duplicate-contacts configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( enemyList == NULL || enemyList->nitems != 1 ||
@@ -1063,7 +1063,7 @@ static void readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault( void **state )
+static void readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1072,7 +1072,7 @@ static void readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefa
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for invalid-boolean test" );
       return;
@@ -1086,13 +1086,13 @@ static void readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefa
       fail_msg( "Arrange failed: unable to write invalid-boolean configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strstr( aryStdPrintfLog,
@@ -1109,7 +1109,7 @@ static void readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefa
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault( void **state )
+static void readConfig_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1118,7 +1118,7 @@ static void readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndK
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for invalid-key test" );
       return;
@@ -1133,13 +1133,13 @@ static void readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndK
       fail_msg( "Arrange failed: unable to write invalid-key configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strstr( aryStdPrintfLog, "Illegal value for 'command', using default of 'esc'." ) == NULL )
@@ -1159,7 +1159,7 @@ static void readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndK
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault( void **state )
+static void readConfig_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1168,7 +1168,7 @@ static void readBbsRc_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for invalid-port test" );
       return;
@@ -1182,13 +1182,13 @@ static void readBbsRc_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault
       fail_msg( "Arrange failed: unable to write invalid-port configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strstr( aryStdPrintfLog, "Invalid integer value for 'port' ignored." ) == NULL )
@@ -1205,7 +1205,7 @@ static void readBbsRc_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigContainsKeyOutsideSection_PrintsWarning( void **state )
+static void readConfig_WhenConfigContainsKeyOutsideSection_PrintsWarning( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1214,7 +1214,7 @@ static void readBbsRc_WhenConfigContainsKeyOutsideSection_PrintsWarning( void **
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for key-outside-section test" );
       return;
@@ -1229,13 +1229,13 @@ static void readBbsRc_WhenConfigContainsKeyOutsideSection_PrintsWarning( void **
       fail_msg( "Arrange failed: unable to write key-outside-section configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strstr( aryStdPrintfLog, "TOML key 'host' must appear inside a section." ) == NULL )
@@ -1251,7 +1251,7 @@ static void readBbsRc_WhenConfigContainsKeyOutsideSection_PrintsWarning( void **
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigContainsUnknownSection_PrintsWarningAndContinues( void **state )
+static void readConfig_WhenConfigContainsUnknownSection_PrintsWarningAndContinues( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1260,7 +1260,7 @@ static void readBbsRc_WhenConfigContainsUnknownSection_PrintsWarningAndContinues
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for unknown-section test" );
       return;
@@ -1276,13 +1276,13 @@ static void readBbsRc_WhenConfigContainsUnknownSection_PrintsWarningAndContinues
       fail_msg( "Arrange failed: unable to write unknown-section configuration content" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( strstr( aryStdPrintfLog, "Unknown TOML section 'mystery' ignored." ) == NULL )
@@ -1298,7 +1298,7 @@ static void readBbsRc_WhenConfigContainsUnknownSection_PrintsWarningAndContinues
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( void **state )
+static void readConfig_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1307,7 +1307,7 @@ static void readBbsRc_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( v
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for missing screenreader test" );
       return;
@@ -1321,13 +1321,13 @@ static void readBbsRc_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( v
       fail_msg( "Arrange failed: unable to write configuration content for missing screenreader test" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( promptForScreenReaderModeCallCount != 1 )
@@ -1335,10 +1335,10 @@ static void readBbsRc_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( v
       fail_msg( "missing screen reader setting should trigger one prompt helper call; got %d",
                 promptForScreenReaderModeCallCount );
    }
-   if ( writeBbsRcCallCount != 1 )
+   if ( writeConfigCallCount != 1 )
    {
       fail_msg( "missing screen reader setting should rewrite config.toml once; got %d",
-                writeBbsRcCallCount );
+                writeConfigCallCount );
    }
    if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
@@ -1362,7 +1362,7 @@ static void readBbsRc_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( v
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAutocompleteOff( void **state )
+static void readConfig_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAutocompleteOff( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1371,7 +1371,7 @@ static void readBbsRc_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAuto
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for missing autocomplete test" );
       return;
@@ -1385,13 +1385,13 @@ static void readBbsRc_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAuto
       fail_msg( "Arrange failed: unable to write configuration content for missing autocomplete test" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( defaultNameAutocompleteIfUnsetCallCount != 1 )
@@ -1407,17 +1407,17 @@ static void readBbsRc_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAuto
    {
       fail_msg( "autocomplete should default off when screen reader mode is enabled" );
    }
-   if ( writeBbsRcCallCount != 1 )
+   if ( writeConfigCallCount != 1 )
    {
       fail_msg( "missing autocomplete setting should rewrite config.toml once; got %d",
-                writeBbsRcCallCount );
+                writeConfigCallCount );
    }
 
    cleanupReadState();
    unlink( aryPath );
 }
 
-static void readBbsRc_WhenConfigFileMissing_CreatesFileAndUsesDefaults( void **state )
+static void readConfig_WhenConfigFileMissing_CreatesFileAndUsesDefaults( void **state )
 {
    // Arrange
    char aryPath[PATH_MAX];
@@ -1427,23 +1427,23 @@ static void readBbsRc_WhenConfigFileMissing_CreatesFileAndUsesDefaults( void **s
 
    cleanupReadState();
    resetTracking();
-   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbsrc_test_XXXXXX" ) )
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for missing-config test" );
       return;
    }
-   snprintf( aryBbsRcName, sizeof( aryBbsRcName ), "%s", aryPath );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isBbsRcReadOnly = 0;
+   isConfigFileReadOnly = 0;
    isLoginShell = 0;
 
    // Act
-   readBbsRc();
+   readConfig();
 
    // Assert
    if ( stat( aryPath, &fileStats ) != 0 )
    {
-      fail_msg( "readBbsRc should create the configuration file when it does not exist" );
+      fail_msg( "readConfig should create the configuration file when it does not exist" );
    }
    if ( setupCallCount != 1 || setupVersionArg != -1 )
    {
@@ -1468,22 +1468,22 @@ int main( void )
 {
    const struct CMUnitTest aryTests[] =
       {
-         cmocka_unit_test( openBbsRc_WhenPathMissing_CreatesWritableConfigurationFile ),
-         cmocka_unit_test( openBbsRc_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree ),
-         cmocka_unit_test( openBbsRc_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
-         cmocka_unit_test( findBbsRc_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath ),
-         cmocka_unit_test( readBbsRc_WhenConfigContainsCoreToml_ParsesValues ),
-         cmocka_unit_test( readBbsRc_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
-         cmocka_unit_test( readBbsRc_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),
-         cmocka_unit_test( readBbsRc_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
-         cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),
-         cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault ),
-         cmocka_unit_test( readBbsRc_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault ),
-         cmocka_unit_test( readBbsRc_WhenConfigContainsKeyOutsideSection_PrintsWarning ),
-         cmocka_unit_test( readBbsRc_WhenConfigContainsUnknownSection_PrintsWarningAndContinues ),
-         cmocka_unit_test( readBbsRc_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites ),
-         cmocka_unit_test( readBbsRc_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAutocompleteOff ),
-         cmocka_unit_test( readBbsRc_WhenConfigFileMissing_CreatesFileAndUsesDefaults ),
+         cmocka_unit_test( openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile ),
+         cmocka_unit_test( openConfigFile_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree ),
+         cmocka_unit_test( openConfigFile_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
+         cmocka_unit_test( findConfigFile_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath ),
+         cmocka_unit_test( readConfig_WhenConfigContainsCoreToml_ParsesValues ),
+         cmocka_unit_test( readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
+         cmocka_unit_test( readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
+         cmocka_unit_test( readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenConfigContainsKeyOutsideSection_PrintsWarning ),
+         cmocka_unit_test( readConfig_WhenConfigContainsUnknownSection_PrintsWarningAndContinues ),
+         cmocka_unit_test( readConfig_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites ),
+         cmocka_unit_test( readConfig_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAutocompleteOff ),
+         cmocka_unit_test( readConfig_WhenConfigFileMissing_CreatesFileAndUsesDefaults ),
       };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

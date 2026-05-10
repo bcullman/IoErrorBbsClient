@@ -25,8 +25,8 @@ noinst_HEADERS = \
 bbs_SOURCES = \
 	browser.c \
 	browser_urls.c \
-	bbsrc.c \
-	bbsrc_parse.c \
+	config_file.c \
+	config_parse.c \
 	color.c \
 	color_config.c \
 	color_themes.c \
@@ -67,7 +67,7 @@ bbs_SOURCES = \
 	unix_term.c
 
 if HAVE_CMOCKA
-check_PROGRAMS = test_queue test_slist test_utility test_bbsrc test_getline test_inkey test_filter test_color test_config test_macos_keychain test_sysio test_edit test_telnet
+check_PROGRAMS = test_queue test_slist test_utility test_config_file test_getline test_inkey test_filter test_color test_config test_macos_keychain test_sysio test_edit test_telnet
 TESTS = $(check_PROGRAMS)
 test_queue_SOURCES = test/test_queue.c test/test_helpers.c queue.c
 test_queue_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
@@ -78,9 +78,9 @@ test_slist_LDADD = $(CMOCKA_LIBS)
 test_utility_SOURCES = test/test_utility.c test/test_helpers.c utility_error.c utility_input.c utility_send.c utility_string.c global.c
 test_utility_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_utility_LDADD = $(CMOCKA_LIBS)
-test_bbsrc_SOURCES = test/test_bbsrc.c test/test_helpers.c bbsrc.c bbsrc_parse.c queue.c slist.c global.c
-test_bbsrc_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
-test_bbsrc_LDADD = $(CMOCKA_LIBS)
+test_config_file_SOURCES = test/test_config_file.c test/test_helpers.c config_file.c config_parse.c queue.c slist.c global.c
+test_config_file_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
+test_config_file_LDADD = $(CMOCKA_LIBS)
 test_getline_SOURCES = test/test_getline.c test/test_helpers.c getline.c getline_name.c slist.c global.c
 test_getline_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_getline_LDADD = $(CMOCKA_LIBS)

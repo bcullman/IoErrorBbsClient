@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>

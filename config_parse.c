@@ -7,7 +7,7 @@
 /*
  * This file parses config.toml and applies the configured settings.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "color.h"
@@ -41,13 +41,13 @@ typedef struct
    bool shouldRewriteConfig;
 } ConfigReadState;
 
-static void applyBbsRcKeyDefaults( void );
+static void applyConfigKeyDefaults( void );
 static void applyDefaultUppercasePreference( int lowerKey,
                                              bool shouldUseUppercaseByDefault );
 static void ensureDefaultAwayMessage( void );
-static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState );
-static void initializeBbsRcDefaults( void );
-static void initializeBbsRcLists( void );
+static bool tryFinalizeConfigRead( ConfigReadState *ptrState );
+static void initializeConfigDefaults( void );
+static void initializeConfigLists( void );
 static bool isIllegalCommandKeyValue( int inputChar );
 static bool tryAddEnemyName( const char *ptrEnemyName );
 static bool tryAddFriendEntry( const char *ptrFriendName,
@@ -90,12 +90,12 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
                                     const char *ptrValue,
                                     ConfigReadState *ptrState );
 static char *trimWhitespace( char *ptrText );
-static void warnAboutBbsRcConflicts( void );
+static void warnAboutConfigConflicts( void );
 
 /// @brief Apply default local-command key values when the config omits them.
 ///
 /// @return This helper does not return a value.
-static void applyBbsRcKeyDefaults( void )
+static void applyConfigKeyDefaults( void )
 {
    if ( awayKey == -1 )
    {
@@ -172,12 +172,12 @@ static void ensureDefaultAwayMessage( void )
 /// @param ptrState Running read state to finalize.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState )
+static bool tryFinalizeConfigRead( ConfigReadState *ptrState )
 {
-   applyBbsRcKeyDefaults();
+   applyConfigKeyDefaults();
    ensureDefaultAwayMessage();
    defaultColors( 0 );
-   warnAboutBbsRcConflicts();
+   warnAboutConfigConflicts();
 
    slistSort( friendList );
    slistSort( enemyList );
@@ -214,14 +214,14 @@ static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState )
       defaultNameAutocompleteIfUnset();
       ptrState->shouldRewriteConfig = true;
    }
-   if ( ptrState->shouldRewriteConfig && !isBbsRcReadOnly )
+   if ( ptrState->shouldRewriteConfig && !isConfigFileReadOnly )
    {
-      writeBbsRc();
+      writeConfig();
    }
    if ( isLoginShell )
    {
       setTerm();
-      configBbsRc();
+      configClient();
       resetTerm();
    }
 
@@ -231,7 +231,7 @@ static bool tryFinalizeBbsRcRead( ConfigReadState *ptrState )
 /// @brief Initialize default config values before parsing begins.
 ///
 /// @return This helper does not return a value.
-static void initializeBbsRcDefaults( void )
+static void initializeConfigDefaults( void )
 {
    int parseIndex;
 
@@ -263,7 +263,7 @@ static void initializeBbsRcDefaults( void )
    *aryBbsHost = 0;
    *aryEditor = 0;
    bbsPort = 0;
-   ptrBbsRc = findBbsRc();
+   ptrConfigFile = findConfigFile();
 
    flagsConfiguration.hasNameAutocompleteSetting = 0;
    flagsConfiguration.hasScreenReaderModeSetting = 0;
@@ -300,7 +300,7 @@ static void initializeBbsRcDefaults( void )
 /// @brief Create the list structures used while reading config.
 ///
 /// @return This helper does not return a value.
-static void initializeBbsRcLists( void )
+static void initializeConfigLists( void )
 {
    if ( !( friendList = slistCreate( 0, fSortCompareVoid ) ) )
    {
@@ -1420,7 +1420,7 @@ static char *trimWhitespace( char *ptrText )
 /// @brief Warn about conflicting local-command key definitions.
 ///
 /// @return This helper does not return a value.
-static void warnAboutBbsRcConflicts( void )
+static void warnAboutConfigConflicts( void )
 {
    if ( captureKey >= 0 && captureKey == shellKey )
    {
@@ -1451,7 +1451,7 @@ static void warnAboutBbsRcConflicts( void )
 /// @brief Read config.toml and apply the configured client settings.
 ///
 /// @return This function does not return a value.
-void readBbsRc( void )
+void readConfig( void )
 {
    char aryLine[MAX_LINE_LENGTH + 1];
    char aryKeyName[MAX_SECTION_NAME_LENGTH];
@@ -1460,11 +1460,11 @@ void readBbsRc( void )
    ConfigReadState state = { 0 };
    TomlSectionId currentSection;
 
-   initializeBbsRcLists();
-   initializeBbsRcDefaults();
+   initializeConfigLists();
+   initializeConfigDefaults();
 
    currentSection = TOML_SECTION_NONE;
-   while ( readNormalizedLine( ptrBbsRc, aryLine, sizeof( aryLine ),
+   while ( readNormalizedLine( ptrConfigFile, aryLine, sizeof( aryLine ),
                                &state.lineNumber, &state.reads, "config.toml" ) )
    {
       const char *ptrTrimmedLine;
@@ -1507,5 +1507,5 @@ void readBbsRc( void )
       }
    }
 
-   (void)tryFinalizeBbsRcRead( &state );
+   (void)tryFinalizeConfigRead( &state );
 }

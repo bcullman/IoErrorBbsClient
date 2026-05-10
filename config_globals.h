@@ -9,11 +9,11 @@
 
 #include "defs.h"
 
-extern char aryBbsRcName[PATH_MAX];    // config.toml filename
-extern char aryTempFileName[PATH_MAX]; // bbstmp filename (usually ~/.bbstmp)
-extern bool isBbsRcReadOnly;           // set if config.toml is read-only
-extern FILE *ptrBbsRc;                 // file descriptor of config.toml
-extern FILE *tempFile;                 // file pointer to above
+extern char aryConfigFileName[PATH_MAX]; // config.toml filename
+extern char aryTempFileName[PATH_MAX];   // bbstmp filename (usually ~/.bbstmp)
+extern bool isConfigFileReadOnly;        // set if config.toml is read-only
+extern FILE *ptrConfigFile;              // file descriptor of config.toml
+extern FILE *tempFile;                   // file pointer to above
 
 extern char aryBbsHost[64];         // name of bbs host (bbs.iscabbs.com)
 extern char aryCommandLineHost[64]; // name of bbs host from command line

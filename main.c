@@ -7,7 +7,7 @@
 /*
  * Program entry point.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "defs.h"
@@ -32,7 +32,7 @@ int main( int argc, char *argv[] )
    }
    initialize();
    findHome();
-   readBbsRc();
+   readConfig();
    openTmpFile();
    arguments( argc, argv );
    connectBbs();

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -483,8 +483,7 @@ static void prompt_WhenSaveSelected_SavesMessageAndReturnsMinusOne( void **state
    static const int aryExpectedSaveSuffix[] = {
       IAC, BLOCK,
       'B', 'r', 'e', 'a', 'k', 'i', 'n', 'g', ' ', 'N', 'e', 'w', 's', '\n',
-      CTRL_D, 's'
-   };
+      CTRL_D, 's' };
    FILE *ptrMessageFile;
    int result;
    int previousChar;
@@ -546,7 +545,7 @@ static void prompt_WhenSaveSelected_SavesMessageAndReturnsMinusOne( void **state
       return;
    }
    if ( memcmp( arySentChars + sentCharCount -
-                ( sizeof( aryExpectedSaveSuffix ) / sizeof( aryExpectedSaveSuffix[0] ) ),
+                   ( sizeof( aryExpectedSaveSuffix ) / sizeof( aryExpectedSaveSuffix[0] ) ),
                 aryExpectedSaveSuffix, sizeof( aryExpectedSaveSuffix ) ) != 0 )
    {
       fclose( ptrMessageFile );

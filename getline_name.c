@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client_globals.h"
 #include "color.h"
 #include "defs.h"
@@ -216,7 +216,7 @@ char *getName( int quitPriv )
         strcmp( aryAutoName, "NONE" ) )
    {
       snprintf( aryAutoName, sizeof( aryAutoName ), "%s", aryNameBuffer );
-      writeBbsRc();
+      writeConfig();
    }
    if ( quitPriv == 1 )
    {

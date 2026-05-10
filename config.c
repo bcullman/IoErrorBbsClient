@@ -7,7 +7,7 @@
 /*
  * This file handles client configuration.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "color.h"
@@ -24,8 +24,8 @@ static const char *CONFIG_MAIN_MENU_KEYS = "cefhikoqx \n";
    "Thank you for upgrading to the latest version of IO ERROR's ISCA BBS Client!\r\nPlease take a moment to familiarize yourself with our new features."
 #define DOWNGRADE \
    "You appear to have downgraded your version of IO ERROR's ISCA BBS Client.\r\nIf you continue running this client, you may lose some of your preferences and\r\nfeatures you are accustomed to.  Please visit the above website to upgrade\r\nto the latest version of IO ERROR's ISCA BBS Client."
-#define BBSRC_INFO \
-   "IO ERROR's ISCA BBS Client integrates the contents of the .bbsrc and\r\n.bbsfriends file into a single file.  This change is fully compatible with\r\nolder clients, however those clients might re-create the .bbsfriends file.\r\nThis should not be a problem for most people; however, we recommend making a\r\nbackup copy of your .bbsrc and .bbsfriends files.  If for some reason you NEED\r\nthe .bbsrc and .bbsfriends files separated, DO NOT RUN THIS CLIENT."
+#define CONFIG_FILE_INFO \
+   "IO ERROR's ISCA BBS Client now stores its settings in a single TOML file at\r\n~/.config/bbs/config.toml, or in $XDG_CONFIG_HOME/bbs/config.toml when the\r\nenvironment override is set.  Older legacy configuration files are no longer\r\nused by this client."
 #define COLOR_INFO \
    "IO ERROR's ISCA BBS Client allows you to choose what colors posts and express\r\nmessages are displayed with.  Use the <C>olor menu in the client configuration\r\nmenu to create your customized color scheme."
 #define ENEMY_INFO \
@@ -41,14 +41,14 @@ static const char *describeKeyForHelp( int inputChar );
 /// menu writes the changes back to `config.toml` when the file is writable.
 ///
 /// @return This function does not return a value.
-void configBbsRc( void )
+void configClient( void )
 {
    flagsConfiguration.isConfigMode = 1;
-   if ( isBbsRcReadOnly )
+   if ( isConfigFileReadOnly )
    {
       stdPrintf( "\r\nConfiguration file is read-only, unable to save configuration for next session.\r\n" );
    }
-   else if ( !ptrBbsRc )
+   else if ( !ptrConfigFile )
    {
       stdPrintf( "\r\nNo configuration file, unable to save configuration for next session.\r\n" );
    }
@@ -97,11 +97,11 @@ void configBbsRc( void )
          case '\n':
             stdPrintf( "Quit\r\n" );
             flagsConfiguration.isConfigMode = 0;
-            if ( isBbsRcReadOnly || !ptrBbsRc )
+            if ( isConfigFileReadOnly || !ptrConfigFile )
             {
                return;
             }
-            writeBbsRc();
+            writeConfig();
             return;
             // NOTREACHED
 
@@ -168,10 +168,10 @@ void setup( int newVersion )
    }
    fflush( stdout );
 
-   // bbsrc file
+   // Configuration file
    if ( newVersion < 5 )
    {
-      if ( !sPrompt( BBSRC_INFO, "Continue running this client?", 1 ) )
+      if ( !sPrompt( CONFIG_FILE_INFO, "Continue running this client?", 1 ) )
       {
          myExit();
       }
@@ -207,11 +207,11 @@ void setup( int newVersion )
    defaultNameAutocompleteIfUnset();
    if ( sPrompt( ADVANCED_OPTIONS, "Configure the client now?", 0 ) )
    {
-      configBbsRc();
+      configClient();
    }
    else
    {
-      writeBbsRc();
+      writeConfig();
    }
    resetTerm();
    return;

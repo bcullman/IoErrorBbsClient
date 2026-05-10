@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -34,7 +34,7 @@ static int getNameCallCount;
 static int getNameArg;
 static int makeMessageCallCount;
 static int makeMessageArg;
-static int configBbsRcCallCount;
+static int configClientCallCount;
 static int sendAnXCallCount;
 static int morePromptHelperCallCount;
 static char aryNameResponse[64];
@@ -116,15 +116,15 @@ static void resetState( void )
    getNameArg = 0;
    makeMessageCallCount = 0;
    makeMessageArg = 0;
-   configBbsRcCallCount = 0;
+   configClientCallCount = 0;
    sendAnXCallCount = 0;
    morePromptHelperCallCount = 0;
 }
 
 // telnet.c dependencies outside these tests.
-void configBbsRc( void )
+void configClient( void )
 {
-   configBbsRcCallCount++;
+   configClientCallCount++;
 }
 
 void filterData( int inputChar )

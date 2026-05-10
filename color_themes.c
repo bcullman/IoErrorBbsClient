@@ -231,6 +231,74 @@ void everforestLightColors( void )
    color.expressFriendText = 242;
 }
 
+/// @brief Apply the Gruvbox dark hard palette to the current color settings.
+///
+/// This preset intentionally leans on Gruvbox's softer aqua, purple, yellow,
+/// and olive-green tones instead of the more aggressive red/orange accents.
+///
+/// @return This function does not return a value.
+void gruvboxDarkColors( void )
+{
+   color.text = 223;
+   color.forum = 142;
+   color.number = 109;
+   color.errorTextColor = 214;
+   color.ansiBlackTextColor = 245;
+   color.ansiBlueTextColor = 109;
+   color.ansiMagentaTextColor = 175;
+   color.postDate = 109;
+   color.postName = 142;
+   color.postText = 223;
+   color.postFriendDate = 175;
+   color.postFriendName = 108;
+   color.postFriendText = 223;
+   color.anonymous = 214;
+   color.morePrompt = 214;
+   color.ansiWhiteTextColor = 223;
+   color.reserved5 = 223;
+   color.background = 234;
+   color.inputText = 223;
+   color.inputHighlight = 109;
+   color.expressText = 223;
+   color.expressName = 142;
+   color.expressFriendName = 108;
+   color.expressFriendText = 223;
+}
+
+/// @brief Apply the Gruvbox light hard palette to the current color settings.
+///
+/// This preset keeps the same quieter accent bias as the dark palette while
+/// switching to Gruvbox's light background and softer neutral text.
+///
+/// @return This function does not return a value.
+void gruvboxLightColors( void )
+{
+   color.text = 239;
+   color.forum = 100;
+   color.number = 66;
+   color.errorTextColor = 172;
+   color.ansiBlackTextColor = 246;
+   color.ansiBlueTextColor = 66;
+   color.ansiMagentaTextColor = 132;
+   color.postDate = 66;
+   color.postName = 100;
+   color.postText = 239;
+   color.postFriendDate = 132;
+   color.postFriendName = 107;
+   color.postFriendText = 239;
+   color.anonymous = 172;
+   color.morePrompt = 172;
+   color.ansiWhiteTextColor = 239;
+   color.reserved5 = 239;
+   color.background = 230;
+   color.inputText = 239;
+   color.inputHighlight = 66;
+   color.expressText = 239;
+   color.expressName = 100;
+   color.expressFriendName = 107;
+   color.expressFriendText = 239;
+}
+
 /// @brief Apply the hot dog theme palette to the current color settings.
 ///
 /// @return This function does not return a value.

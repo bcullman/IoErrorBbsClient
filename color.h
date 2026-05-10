@@ -40,6 +40,8 @@ int formatTransformedAnsiForegroundSequence( char *ptrBuffer, size_t bufferSize,
                                              int isFriend );
 void generalColorConfig( void );
 char generalColorMenu( void );
+void gruvboxDarkColors( void );
+void gruvboxLightColors( void );
 void hotDogColors( void );
 void inputColorConfig( void );
 void postColorConfig( void );

@@ -838,6 +838,98 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
    }
 }
 
+static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   gruvboxDarkColors();
+
+   // Assert
+   if ( color.text != 223 || color.forum != 142 || color.number != 109 ||
+        color.errorTextColor != 214 )
+   {
+      fail_msg( "gruvboxDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 234 )
+   {
+      fail_msg( "gruvboxDarkColors should keep a dark background; got %d", color.background );
+   }
+   if ( color.postDate != 109 || color.postFriendDate != 175 ||
+        color.postName != 142 || color.postFriendName != 108 ||
+        color.postText != 223 || color.postFriendText != 223 ||
+        color.anonymous != 214 || color.morePrompt != 214 ||
+        color.inputText != 223 || color.inputHighlight != 109 ||
+        color.expressText != 223 || color.expressName != 142 ||
+        color.expressFriendName != 108 || color.expressFriendText != 223 )
+   {
+      fail_msg( "gruvboxDarkColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 245 || color.ansiBlueTextColor != 109 ||
+        color.ansiMagentaTextColor != 175 || color.ansiWhiteTextColor != 223 )
+   {
+      fail_msg( "gruvboxDarkColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void gruvboxLightColors_WhenApplied_SetsLightPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   gruvboxLightColors();
+
+   // Assert
+   if ( color.text != 239 || color.forum != 100 || color.number != 66 ||
+        color.errorTextColor != 172 )
+   {
+      fail_msg( "gruvboxLightColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 230 )
+   {
+      fail_msg( "gruvboxLightColors should use a light background; got %d", color.background );
+   }
+   if ( color.postDate != 66 || color.postFriendDate != 132 ||
+        color.postName != 100 || color.postFriendName != 107 ||
+        color.postText != 239 || color.postFriendText != 239 ||
+        color.anonymous != 172 || color.morePrompt != 172 ||
+        color.inputText != 239 || color.inputHighlight != 66 ||
+        color.expressText != 239 || color.expressName != 100 ||
+        color.expressFriendName != 107 || color.expressFriendText != 239 )
+   {
+      fail_msg( "gruvboxLightColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 66 ||
+        color.ansiMagentaTextColor != 132 || color.ansiWhiteTextColor != 239 )
+   {
+      fail_msg( "gruvboxLightColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
 static void ansiTransform_WhenHotDogPaletteApplied_UsesThemeColorsForAllAnsiDigits( void **state )
 {
    int transformedBlack;
@@ -1072,6 +1164,8 @@ int main( void )
       cmocka_unit_test( colorblindColors_WhenApplied_SetsAccessiblePalette ),
       cmocka_unit_test( everforestDarkColors_WhenApplied_SetsDarkPalette ),
       cmocka_unit_test( everforestLightColors_WhenApplied_SetsLightPalette ),
+      cmocka_unit_test( gruvboxDarkColors_WhenApplied_SetsDarkPalette ),
+      cmocka_unit_test( gruvboxLightColors_WhenApplied_SetsLightPalette ),
       cmocka_unit_test( hotDogColors_WhenApplied_SetsClassicHotDogPalette ),
       cmocka_unit_test( ansiTransform_WhenHotDogPaletteApplied_UsesThemeColorsForAllAnsiDigits ),
       cmocka_unit_test( ansiTransformExpress_WhenFriendSender_UsesFriendColorCodes ),

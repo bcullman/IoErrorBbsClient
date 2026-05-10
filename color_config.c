@@ -13,7 +13,7 @@ static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
-static const char *COLOR_RESET_MENU_KEYS = "dbeflmchq \n";
+static const char *COLOR_RESET_MENU_KEYS = "dbefglmuchq \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -79,6 +79,8 @@ static const PresetMenuOption aryPresetMenuOptions[] =
       { "Brilliant", 10, 11, 0, 0 },
       { "Everforest Dark", 187, 144, 236, 0 },
       { "Everforest Light", 242, 106, 230, 6 },
+      { "Gruvbox Dark", 223, 142, 234, 0 },
+      { "Gruvbox Light", 239, 100, 230, 0 },
       { "Latte (Catppuccin)", 240, 27, 255, 0 },
       { "Macchiato (Catppuccin)", 189, 111, 236, 0 },
       { "Colorblind", 231, 75, 16, 0 },
@@ -610,6 +612,14 @@ static void presetColorConfig( void )
       case 'f':
          stdPrintf( "Everforest Light\r\n" );
          everforestLightColors();
+         break;
+      case 'g':
+         stdPrintf( "Gruvbox Dark\r\n" );
+         gruvboxDarkColors();
+         break;
+      case 'u':
+         stdPrintf( "Gruvbox Light\r\n" );
+         gruvboxLightColors();
          break;
       case 'l':
          stdPrintf( "Catppuccin Latte\r\n" );

@@ -13,7 +13,7 @@ static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
-static const char *COLOR_RESET_MENU_KEYS = "dblmchq \n";
+static const char *COLOR_RESET_MENU_KEYS = "dbeflmchq \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -27,11 +27,11 @@ typedef struct
 
 typedef struct
 {
-   int keyChar;
    const char *ptrLabel;
    int textColor;
    int accentColor;
    int backgroundColor;
+   size_t mnemonicIndex;
 } PresetMenuOption;
 
 static const PickerColorOption aryForegroundPickerOptions[] =
@@ -75,12 +75,14 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { 'd', "Default", 2, 3, 0 },
-      { 'b', "Brilliant", 10, 11, 0 },
-      { 'l', "Latte (Catppuccin)", 240, 27, 255 },
-      { 'm', "Macchiato (Catppuccin)", 189, 111, 236 },
-      { 'c', "Colorblind", 231, 75, 16 },
-      { 'h', "Hotdog stand", 220, 196, 16 } };
+      { "Default", 2, 3, 0, 0 },
+      { "Brilliant", 10, 11, 0, 0 },
+      { "Everforest Dark", 187, 144, 236, 0 },
+      { "Everforest Light", 242, 106, 230, 6 },
+      { "Latte (Catppuccin)", 240, 27, 255, 0 },
+      { "Macchiato (Catppuccin)", 189, 111, 236, 0 },
+      { "Colorblind", 231, 75, 16, 0 },
+      { "Hotdog stand", 220, 196, 16, 0 } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";
@@ -601,6 +603,14 @@ static void presetColorConfig( void )
          stdPrintf( "Brilliant\r\n" );
          brilliantColors();
          break;
+      case 'e':
+         stdPrintf( "Everforest Dark\r\n" );
+         everforestDarkColors();
+         break;
+      case 'f':
+         stdPrintf( "Everforest Light\r\n" );
+         everforestLightColors();
+         break;
       case 'l':
          stdPrintf( "Catppuccin Latte\r\n" );
          catppuccinLatteColors();
@@ -723,12 +733,25 @@ static void printInputColorPreview( void )
 /// @return This helper does not return a value.
 static void printPresetMenuItem( const PresetMenuOption *ptrOption )
 {
+   size_t labelIndex;
+   size_t labelLength;
+
    stdPrintf( " " );
    printAnsiDisplayStateValue( ptrOption->textColor, ptrOption->backgroundColor );
-   printAnsiForegroundColorValue( ptrOption->accentColor );
-   stdPrintf( "%c", toupper( ptrOption->keyChar ) );
-   printAnsiForegroundColorValue( ptrOption->textColor );
-   stdPrintf( "%s\r\n", ptrOption->ptrLabel + 1 );
+   labelLength = strlen( ptrOption->ptrLabel );
+   for ( labelIndex = 0; labelIndex < labelLength; labelIndex++ )
+   {
+      if ( labelIndex == ptrOption->mnemonicIndex )
+      {
+         printAnsiForegroundColorValue( ptrOption->accentColor );
+      }
+      else
+      {
+         printAnsiForegroundColorValue( ptrOption->textColor );
+      }
+      stdPutChar( ptrOption->ptrLabel[labelIndex] );
+   }
+   stdPrintf( "\r\n" );
 }
 
 /// @brief Read and resolve one picker selection from a color menu.

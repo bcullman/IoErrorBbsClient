@@ -29,6 +29,8 @@ int colorValueFromLegacyDigit( int inputChar );
 int colorValueFromName( const char *ptrColorName );
 int colorValueToLegacyDigit( int colorValue );
 void defaultColors( int clearall );
+void everforestDarkColors( void );
+void everforestLightColors( void );
 void expressColorConfig( void );
 char expressColorMenu( void );
 void expressFriendColorConfig( void );

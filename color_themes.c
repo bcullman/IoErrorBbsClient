@@ -169,6 +169,68 @@ void defaultColors( int clearall )
    ifzero( color.expressFriendText ) color.expressFriendText = 2;
 }
 
+/// @brief Apply the Everforest dark medium palette to the current color settings.
+///
+/// @return This function does not return a value.
+void everforestDarkColors( void )
+{
+   color.text = 187;
+   color.forum = 144;
+   color.number = 109;
+   color.errorTextColor = 174;
+   color.ansiBlackTextColor = 245;
+   color.ansiBlueTextColor = 109;
+   color.ansiMagentaTextColor = 175;
+   color.postDate = 109;
+   color.postName = 108;
+   color.postText = 187;
+   color.postFriendDate = 109;
+   color.postFriendName = 144;
+   color.postFriendText = 187;
+   color.anonymous = 180;
+   color.morePrompt = 180;
+   color.ansiWhiteTextColor = 187;
+   color.reserved5 = 187;
+   color.background = 236;
+   color.inputText = 187;
+   color.inputHighlight = 109;
+   color.expressText = 187;
+   color.expressName = 108;
+   color.expressFriendName = 144;
+   color.expressFriendText = 187;
+}
+
+/// @brief Apply the Everforest light medium palette to the current color settings.
+///
+/// @return This function does not return a value.
+void everforestLightColors( void )
+{
+   color.text = 242;
+   color.forum = 106;
+   color.number = 68;
+   color.errorTextColor = 203;
+   color.ansiBlackTextColor = 246;
+   color.ansiBlueTextColor = 68;
+   color.ansiMagentaTextColor = 169;
+   color.postDate = 68;
+   color.postName = 72;
+   color.postText = 242;
+   color.postFriendDate = 68;
+   color.postFriendName = 107;
+   color.postFriendText = 242;
+   color.anonymous = 178;
+   color.morePrompt = 178;
+   color.ansiWhiteTextColor = 242;
+   color.reserved5 = 242;
+   color.background = 230;
+   color.inputText = 242;
+   color.inputHighlight = 68;
+   color.expressText = 242;
+   color.expressName = 72;
+   color.expressFriendName = 107;
+   color.expressFriendText = 242;
+}
+
 /// @brief Apply the hot dog theme palette to the current color settings.
 ///
 /// @return This function does not return a value.

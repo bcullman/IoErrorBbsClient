@@ -8,7 +8,7 @@
 #include "color.h"
 #include "defs.h"
 #include "utility.h"
-static const char *COLOR_MAIN_MENU_KEYS = "pgisoxq \n";
+static const char *COLOR_MAIN_MENU_KEYS = "tgipoxq \n";
 static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
@@ -149,7 +149,7 @@ void colorConfig( void )
    {
       printAnsiDisplayStateValue( color.text, color.background );
 
-      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<P>resets  <G>eneral  <I>nput  po<S>ts  <O>ptions  <X>press  <Q>uit" );
+      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<T>hemes  <G>eneral  <I>nput  <P>osts  <O>ptions  e<X>press  <Q>uit" );
       printThemedMnemonicText( aryPromptText, color.number );
       printThemedMnemonicText( "\r\nColor config -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
@@ -169,11 +169,11 @@ void colorConfig( void )
             colorOptions();
             break;
          case 'p':
-            presetColorConfig();
-            break;
-         case 's':
             stdPrintf( "Post colors\r\n\n" );
             postColorConfig();
+            break;
+         case 't':
+            presetColorConfig();
             break;
          case 'x':
             stdPrintf( "Express colors\r\n\n" );

@@ -51,9 +51,13 @@ static bool tryFinalizeConfigRead( ConfigReadState *ptrState );
 static void initializeConfigDefaults( void );
 static void initializeConfigLists( void );
 static bool isIllegalCommandKeyValue( int inputChar );
-static bool tryAddEnemyName( const char *ptrEnemyName );
-static bool tryAddFriendEntry( const char *ptrFriendName,
-                               const char *ptrFriendInfo );
+static void replaceEnemyListItems( slist *ptrParsedEnemyList );
+static void replaceFriendListItems( slist *ptrParsedFriendList );
+static bool tryAddEnemyNameToList( slist *ptrList,
+                                   const char *ptrEnemyName );
+static bool tryAddFriendEntryToList( slist *ptrList,
+                                     const char *ptrFriendName,
+                                     const char *ptrFriendInfo );
 static bool tryParseAwayMessagesValue( const char *ptrValue );
 static bool tryParseBooleanValue( const char *ptrValue,
                                   const char *ptrKeyName,
@@ -359,7 +363,39 @@ static bool isIllegalCommandKeyValue( int inputChar )
 /// @param ptrEnemyName Enemy name to add.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool tryAddEnemyName( const char *ptrEnemyName )
+static void replaceEnemyListItems( slist *ptrParsedEnemyList )
+{
+   slistDestroyItems( enemyList );
+   free( enemyList->items );
+   enemyList->items = ptrParsedEnemyList->items;
+   enemyList->nitems = ptrParsedEnemyList->nitems;
+   ptrParsedEnemyList->items = NULL;
+   ptrParsedEnemyList->nitems = 0;
+}
+
+/// @brief Replace the configured friend list with parsed entries.
+///
+/// @param ptrParsedFriendList Parsed list whose items should become the active list.
+///
+/// @return This helper does not return a value.
+static void replaceFriendListItems( slist *ptrParsedFriendList )
+{
+   slistDestroyItems( friendList );
+   free( friendList->items );
+   friendList->items = ptrParsedFriendList->items;
+   friendList->nitems = ptrParsedFriendList->nitems;
+   ptrParsedFriendList->items = NULL;
+   ptrParsedFriendList->nitems = 0;
+}
+
+/// @brief Add one enemy name to the supplied list.
+///
+/// @param ptrList Target list to modify.
+/// @param ptrEnemyName Enemy name to add.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryAddEnemyNameToList( slist *ptrList,
+                                   const char *ptrEnemyName )
 {
    char *ptrEnemyNameCopy;
 
@@ -368,7 +404,7 @@ static bool tryAddEnemyName( const char *ptrEnemyName )
       stdPrintf( "Empty enemy name ignored.\n" );
       return true;
    }
-   if ( slistFind( enemyList, (void *)ptrEnemyName, strCompareVoid ) != -1 )
+   if ( slistFind( ptrList, (void *)ptrEnemyName, strCompareVoid ) != -1 )
    {
       stdPrintf( "Duplicate enemy name ignored.\n" );
       return true;
@@ -382,7 +418,7 @@ static bool tryAddEnemyName( const char *ptrEnemyName )
    }
 
    snprintf( ptrEnemyNameCopy, strlen( ptrEnemyName ) + 1, "%s", ptrEnemyName );
-   if ( !slistAddItem( enemyList, ptrEnemyNameCopy, 1 ) )
+   if ( !slistAddItem( ptrList, ptrEnemyNameCopy, 1 ) )
    {
       fatalExit( "Can't add 'enemy' to list!\n", "Fatal error" );
       return false;
@@ -397,8 +433,9 @@ static bool tryAddEnemyName( const char *ptrEnemyName )
 /// @param ptrFriendInfo Friend info text, or `NULL` to use the default.
 ///
 /// @return `true` on success, otherwise `false`.
-static bool tryAddFriendEntry( const char *ptrFriendName,
-                               const char *ptrFriendInfo )
+static bool tryAddFriendEntryToList( slist *ptrList,
+                                     const char *ptrFriendName,
+                                     const char *ptrFriendInfo )
 {
    friend *ptrFriend;
 
@@ -407,7 +444,7 @@ static bool tryAddFriendEntry( const char *ptrFriendName,
       stdPrintf( "Empty friend name ignored.\n" );
       return true;
    }
-   if ( slistFind( friendList, (void *)ptrFriendName, fStrCompareVoid ) != -1 )
+   if ( slistFind( ptrList, (void *)ptrFriendName, fStrCompareVoid ) != -1 )
    {
       stdPrintf( "Duplicate friend name ignored.\n" );
       return true;
@@ -426,7 +463,7 @@ static bool tryAddFriendEntry( const char *ptrFriendName,
              "%s",
              ( ptrFriendInfo != NULL && *ptrFriendInfo != '\0' ) ? ptrFriendInfo : "(None)" );
    ptrFriend->magic = 0x3231;
-   if ( !slistAddItem( friendList, ptrFriend, 1 ) )
+   if ( !slistAddItem( ptrList, ptrFriend, 1 ) )
    {
       fatalExit( "Can't add 'friend' to list!\n", "Fatal error" );
       return false;
@@ -442,6 +479,7 @@ static bool tryAddFriendEntry( const char *ptrFriendName,
 /// @return `true` on success, otherwise `false`.
 static bool tryParseAwayMessagesValue( const char *ptrValue )
 {
+   char aryParsedMessages[5][80];
    char aryMessageText[80];
    const char *ptrCursor;
    int messageCount;
@@ -452,13 +490,12 @@ static bool tryParseAwayMessagesValue( const char *ptrValue )
       return false;
    }
 
-   for ( messageCount = 0; messageCount < 5; messageCount++ )
-   {
-      *aryAwayMessageLines[messageCount] = '\0';
-   }
-
    ptrCursor = ptrValue + 1;
    messageCount = 0;
+   for ( int messageIndex = 0; messageIndex < 5; messageIndex++ )
+   {
+      aryParsedMessages[messageIndex][0] = '\0';
+   }
    while ( true )
    {
       size_t consumedLength;
@@ -484,8 +521,8 @@ static bool tryParseAwayMessagesValue( const char *ptrValue )
       }
       if ( messageCount < 5 )
       {
-         snprintf( aryAwayMessageLines[messageCount],
-                   sizeof( aryAwayMessageLines[messageCount] ),
+         snprintf( aryParsedMessages[messageCount],
+                   sizeof( aryParsedMessages[messageCount] ),
                    "%s",
                    aryMessageText );
       }
@@ -506,6 +543,13 @@ static bool tryParseAwayMessagesValue( const char *ptrValue )
       }
       if ( *ptrCursor == ']' )
       {
+         for ( int messageIndex = 0; messageIndex < 5; messageIndex++ )
+         {
+            snprintf( aryAwayMessageLines[messageIndex],
+                      sizeof( aryAwayMessageLines[messageIndex] ),
+                      "%s",
+                      aryParsedMessages[messageIndex] );
+         }
          return true;
       }
       break;
@@ -550,10 +594,18 @@ static bool tryParseContactEnemiesValue( const char *ptrValue )
 {
    char aryEnemyName[21];
    const char *ptrCursor;
+   slist *ptrParsedEnemyList;
 
    if ( ptrValue == NULL || *ptrValue != '[' )
    {
       stdPrintf( "Invalid array value for 'enemies' ignored.\n" );
+      return false;
+   }
+
+   ptrParsedEnemyList = slistCreate( 0, sortCompareVoid );
+   if ( ptrParsedEnemyList == NULL )
+   {
+      fatalExit( "Can't create parsed 'enemy' list!\n", "Fatal error" );
       return false;
    }
 
@@ -568,6 +620,8 @@ static bool tryParseContactEnemiesValue( const char *ptrValue )
       }
       if ( *ptrCursor == ']' )
       {
+         replaceEnemyListItems( ptrParsedEnemyList );
+         slistDestroy( ptrParsedEnemyList );
          return true;
       }
       if ( *ptrCursor == '\0' )
@@ -581,8 +635,10 @@ static bool tryParseContactEnemiesValue( const char *ptrValue )
       {
          break;
       }
-      if ( !tryAddEnemyName( aryEnemyName ) )
+      if ( !tryAddEnemyNameToList( ptrParsedEnemyList, aryEnemyName ) )
       {
+         slistDestroyItems( ptrParsedEnemyList );
+         slistDestroy( ptrParsedEnemyList );
          return false;
       }
       ptrCursor += consumedLength;
@@ -597,11 +653,15 @@ static bool tryParseContactEnemiesValue( const char *ptrValue )
       }
       if ( *ptrCursor == ']' )
       {
+         replaceEnemyListItems( ptrParsedEnemyList );
+         slistDestroy( ptrParsedEnemyList );
          return true;
       }
       break;
    }
 
+   slistDestroyItems( ptrParsedEnemyList );
+   slistDestroy( ptrParsedEnemyList );
    stdPrintf( "Invalid array value for 'enemies' ignored.\n" );
    return false;
 }
@@ -614,10 +674,18 @@ static bool tryParseContactEnemiesValue( const char *ptrValue )
 static bool tryParseContactFriendsValue( const char *ptrValue )
 {
    const char *ptrCursor;
+   slist *ptrParsedFriendList;
 
    if ( ptrValue == NULL || *ptrValue != '[' )
    {
       stdPrintf( "Invalid array value for 'friends' ignored.\n" );
+      return false;
+   }
+
+   ptrParsedFriendList = slistCreate( 0, fSortCompareVoid );
+   if ( ptrParsedFriendList == NULL )
+   {
+      fatalExit( "Can't create parsed 'friend' list!\n", "Fatal error" );
       return false;
    }
 
@@ -635,6 +703,8 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
       }
       if ( *ptrCursor == ']' )
       {
+         replaceFriendListItems( ptrParsedFriendList );
+         slistDestroy( ptrParsedFriendList );
          return true;
       }
       if ( *ptrCursor != '{' )
@@ -669,12 +739,16 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
          if ( ptrEquals == NULL )
          {
             stdPrintf( "Invalid friend entry ignored.\n" );
+            slistDestroyItems( ptrParsedFriendList );
+            slistDestroy( ptrParsedFriendList );
             return false;
          }
          fieldNameLength = (size_t)( ptrEquals - ptrCursor );
          if ( fieldNameLength == 0 || fieldNameLength >= sizeof( aryFieldName ) )
          {
             stdPrintf( "Invalid friend entry ignored.\n" );
+            slistDestroyItems( ptrParsedFriendList );
+            slistDestroy( ptrParsedFriendList );
             return false;
          }
          memcpy( aryFieldName, ptrCursor, fieldNameLength );
@@ -691,6 +765,8 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
                                         sizeof( aryFieldValue ) ) )
          {
             stdPrintf( "Invalid friend entry ignored.\n" );
+            slistDestroyItems( ptrParsedFriendList );
+            slistDestroy( ptrParsedFriendList );
             return false;
          }
          if ( strcmp( aryFieldName, "info" ) == 0 )
@@ -724,6 +800,8 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
          }
 
          stdPrintf( "Invalid friend entry ignored.\n" );
+         slistDestroyItems( ptrParsedFriendList );
+         slistDestroy( ptrParsedFriendList );
          return false;
       }
 
@@ -731,8 +809,12 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
       {
          stdPrintf( "Friend entry without a name ignored.\n" );
       }
-      else if ( !tryAddFriendEntry( aryFriendName, hasInfoField ? aryFriendInfo : NULL ) )
+      else if ( !tryAddFriendEntryToList( ptrParsedFriendList,
+                                          aryFriendName,
+                                          hasInfoField ? aryFriendInfo : NULL ) )
       {
+         slistDestroyItems( ptrParsedFriendList );
+         slistDestroy( ptrParsedFriendList );
          return false;
       }
 
@@ -747,11 +829,15 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
       }
       if ( *ptrCursor == ']' )
       {
+         replaceFriendListItems( ptrParsedFriendList );
+         slistDestroy( ptrParsedFriendList );
          return true;
       }
       break;
    }
 
+   slistDestroyItems( ptrParsedFriendList );
+   slistDestroy( ptrParsedFriendList );
    stdPrintf( "Invalid array value for 'friends' ignored.\n" );
    return false;
 }

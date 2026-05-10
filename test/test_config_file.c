@@ -1096,6 +1096,57 @@ static void readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **st
    unlink( aryPath );
 }
 
+/// @brief Verify that malformed away-message arrays leave defaults unchanged.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void readConfig_WhenAwayMessagesArrayIsMalformed_KeepsDefaultMessage( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for malformed-away test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[away]\n"
+           "messages = [\"changed\", \"broken\"\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write malformed away-message configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isConfigFileReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( strcmp( aryAwayMessageLines[0], "I'm away from my keyboard right now." ) != 0 )
+   {
+      fail_msg( "malformed away-message array should leave the default message untouched; got '%s'",
+                aryAwayMessageLines[0] );
+   }
+   if ( strstr( aryStdPrintfLog, "Invalid array value for 'messages' ignored." ) == NULL )
+   {
+      fail_msg( "malformed away-message array should emit a warning; log was: %s", aryStdPrintfLog );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
 static void readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates( void **state )
 {
    // Arrange
@@ -1138,6 +1189,62 @@ static void readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates( voi
         strstr( aryStdPrintfLog, "Duplicate friend name ignored." ) == NULL )
    {
       fail_msg( "duplicate contacts should emit warnings; log was: %s", aryStdPrintfLog );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+/// @brief Verify that malformed contact arrays leave parsed lists unchanged.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void readConfig_WhenContactArraysAreMalformed_KeepListsEmpty( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for malformed-contact test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[contacts]\n"
+           "enemies = [\"Mallory\", \"Eve\"\n"
+           "friends = [{ name = \"Bob\", info = \"First\" }\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write malformed contact configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isConfigFileReadOnly = 0;
+   isLoginShell = 0;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( enemyList == NULL || enemyList->nitems != 0 )
+   {
+      fail_msg( "malformed enemy array should leave enemy list empty" );
+   }
+   if ( friendList == NULL || friendList->nitems != 0 )
+   {
+      fail_msg( "malformed friend array should leave friend list empty" );
+   }
+   if ( strstr( aryStdPrintfLog, "Invalid array value for 'enemies' ignored." ) == NULL ||
+        strstr( aryStdPrintfLog, "Invalid array value for 'friends' ignored." ) == NULL )
+   {
+      fail_msg( "malformed contact arrays should emit warnings; log was: %s", aryStdPrintfLog );
    }
 
    cleanupReadState();
@@ -1556,7 +1663,9 @@ int main( void )
          cmocka_unit_test( readConfig_WhenConfigContainsCoreToml_ParsesValues ),
          cmocka_unit_test( readConfig_WhenVersionMissing_RewritesConfigWithCurrentVersion ),
          cmocka_unit_test( readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
+         cmocka_unit_test( readConfig_WhenAwayMessagesArrayIsMalformed_KeepsDefaultMessage ),
          cmocka_unit_test( readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenContactArraysAreMalformed_KeepListsEmpty ),
          cmocka_unit_test( readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
          cmocka_unit_test( readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),
          cmocka_unit_test( readConfig_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAndKeepsDefault ),

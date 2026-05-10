@@ -30,7 +30,6 @@ typedef struct
    int keyChar;
    const char *ptrLabel;
    int textColor;
-   int backgroundColor;
 } PresetMenuOption;
 
 static const PickerColorOption aryForegroundPickerOptions[] =
@@ -74,16 +73,16 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { '0', "Default", 2, 0 },
-      { '1', "Brilliant", 10, 0 },
-      { '2', "Everforest Dark", 187, 0 },
-      { '3', "Everforest Light", 242, 230 },
-      { '4', "Gruvbox Dark", 223, 0 },
-      { '5', "Gruvbox Light", 239, 230 },
-      { '6', "Latte (Catppuccin)", 240, 255 },
-      { '7', "Macchiato (Catppuccin)", 189, 0 },
-      { '8', "Colorblind", 231, 0 },
-      { '9', "Hotdog stand", 220, 0 } };
+      { '0', "Default", 2 },
+      { '1', "Brilliant", 10 },
+      { '2', "Everforest Dark", 187 },
+      { '3', "Everforest Light", 242 },
+      { '4', "Gruvbox Dark", 223 },
+      { '5', "Gruvbox Light", 239 },
+      { '6', "Latte (Catppuccin)", 240 },
+      { '7', "Macchiato (Catppuccin)", 189 },
+      { '8', "Colorblind", 231 },
+      { '9', "Hotdog stand", 220 } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";
@@ -743,8 +742,9 @@ static void printInputColorPreview( void )
 /// @return This helper does not return a value.
 static void printPresetMenuItem( const PresetMenuOption *ptrOption )
 {
+   printAnsiDisplayStateValue( color.number, color.background );
    stdPrintf( " %c.) ", ptrOption->keyChar );
-   printAnsiDisplayStateValue( ptrOption->textColor, ptrOption->backgroundColor );
+   printAnsiDisplayStateValue( ptrOption->textColor, color.background );
    printAnsiForegroundColorValue( ptrOption->textColor );
    stdPrintf( "%s", ptrOption->ptrLabel );
    stdPrintf( "\r\n" );

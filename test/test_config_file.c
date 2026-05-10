@@ -494,6 +494,11 @@ static void openConfigFile_WhenParentDirectoriesMissing_CreatesConfigDirectoryTr
    {
       fail_msg( "openConfigFile should create the app-specific config directory" );
    }
+   if ( ( innerDirectoryStats.st_mode & 0777 ) != 0700 )
+   {
+      fail_msg( "openConfigFile should create the app-specific config directory with mode 0700; got %03o",
+                innerDirectoryStats.st_mode & 0777 );
+   }
 
    // Cleanup
    fclose( ptrFile );
@@ -504,6 +509,98 @@ static void openConfigFile_WhenParentDirectoriesMissing_CreatesConfigDirectoryTr
    rmdir( aryConfigPath );
    snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/.config", ptrTempDirectory );
    rmdir( aryConfigPath );
+   rmdir( ptrTempDirectory );
+}
+
+static void openConfigFile_WhenAppConfigDirectoryExists_RestrictsItsPermissions( void **state )
+{
+   // Arrange
+   char aryConfigDirectory[PATH_MAX];
+   char aryConfigPath[PATH_MAX];
+   char aryDirectoryTemplate[] = "/tmp/iobbs_config_test_XXXXXX";
+   struct stat directoryStats;
+   FILE *ptrFile;
+   mode_t previousUmask;
+   char *ptrTempDirectory;
+
+   (void)state;
+
+   resetTracking();
+   isConfigFileReadOnly = 0;
+   ptrTempDirectory = mkdtemp( aryDirectoryTemplate );
+   if ( ptrTempDirectory == NULL )
+   {
+      fail_msg( "Arrange failed: unable to create temporary directory for config-directory permission test" );
+      return;
+   }
+   snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config", ptrTempDirectory );
+   if ( mkdir( aryConfigDirectory, 0700 ) != 0 )
+   {
+      rmdir( ptrTempDirectory );
+      fail_msg( "Arrange failed: unable to create outer config directory" );
+      return;
+   }
+   snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config/bbs", ptrTempDirectory );
+   if ( mkdir( aryConfigDirectory, 0755 ) != 0 )
+   {
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      rmdir( ptrTempDirectory );
+      fail_msg( "Arrange failed: unable to create app-specific config directory" );
+      return;
+   }
+   snprintf( aryConfigPath, sizeof( aryConfigPath ), "%s/config.toml", aryConfigDirectory );
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryConfigPath );
+
+   // Act
+   previousUmask = umask( 0022 );
+   ptrFile = openConfigFile();
+   umask( previousUmask );
+
+   // Assert
+   if ( ptrFile == NULL )
+   {
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config/bbs", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      rmdir( ptrTempDirectory );
+      fail_msg( "openConfigFile should create and open the config file when the app-specific directory already exists" );
+      return;
+   }
+   if ( stat( aryConfigDirectory, &directoryStats ) != 0 || !S_ISDIR( directoryStats.st_mode ) )
+   {
+      fclose( ptrFile );
+      unlink( aryConfigPath );
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config/bbs", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      rmdir( ptrTempDirectory );
+      fail_msg( "openConfigFile should preserve the app-specific config directory" );
+      return;
+   }
+   if ( ( directoryStats.st_mode & 0777 ) != 0700 )
+   {
+      fclose( ptrFile );
+      unlink( aryConfigPath );
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config/bbs", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config", ptrTempDirectory );
+      rmdir( aryConfigDirectory );
+      rmdir( ptrTempDirectory );
+      fail_msg( "openConfigFile should restrict an existing app-specific config directory to mode 0700; got %03o",
+                directoryStats.st_mode & 0777 );
+      return;
+   }
+
+   // Cleanup
+   fclose( ptrFile );
+   unlink( aryConfigPath );
+   snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config/bbs", ptrTempDirectory );
+   rmdir( aryConfigDirectory );
+   snprintf( aryConfigDirectory, sizeof( aryConfigDirectory ), "%s/.config", ptrTempDirectory );
+   rmdir( aryConfigDirectory );
    rmdir( ptrTempDirectory );
 }
 
@@ -1715,6 +1812,7 @@ int main( void )
       {
          cmocka_unit_test( openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile ),
          cmocka_unit_test( openConfigFile_WhenParentDirectoriesMissing_CreatesConfigDirectoryTree ),
+         cmocka_unit_test( openConfigFile_WhenAppConfigDirectoryExists_RestrictsItsPermissions ),
          cmocka_unit_test( openConfigFile_WhenPathIsReadOnly_SetsReadOnlyAndWarns ),
          cmocka_unit_test( findConfigFile_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPath ),
          cmocka_unit_test( readConfig_WhenConfigContainsCoreToml_ParsesValues ),

@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include "utility.h"
 static int ensureConfigDirectoryExists( const char *ptrPath );
+static int tryRestrictConfigDirectoryPermissions( const char *ptrPath );
 static void warnIfConfigPermissionsCannotBeRestricted( FILE *ptrFileHandle );
 
 /// @brief Create the parent config directory tree for a config file path.
@@ -65,6 +66,63 @@ static int ensureConfigDirectoryExists( const char *ptrPath )
    return 0;
 }
 
+/// @brief Restrict the app-specific config directory to owner-only access.
+///
+/// This adjusts only the final parent directory that contains `config.toml`.
+/// It does not modify broader shared directories such as an existing
+/// `~/.config` or `$XDG_CONFIG_HOME`.
+///
+/// @param ptrPath Full config file path whose immediate parent should be
+/// restricted.
+///
+/// @return `0` on success, otherwise `-1`.
+static int tryRestrictConfigDirectoryPermissions( const char *ptrPath )
+{
+   const char *ptrFileName;
+   char aryDirectoryPath[PATH_MAX];
+   char *ptrSlash;
+
+   if ( ptrPath == NULL || *ptrPath == '\0' )
+   {
+      errno = EINVAL;
+      return -1;
+   }
+   if ( strlen( ptrPath ) >= sizeof( aryDirectoryPath ) )
+   {
+      errno = ENAMETOOLONG;
+      return -1;
+   }
+
+   ptrFileName = strrchr( ptrPath, '/' );
+   if ( ptrFileName == NULL )
+   {
+      ptrFileName = ptrPath;
+   }
+   else
+   {
+      ptrFileName++;
+   }
+   if ( strcmp( ptrFileName, "config.toml" ) != 0 )
+   {
+      return 0;
+   }
+
+   snprintf( aryDirectoryPath, sizeof( aryDirectoryPath ), "%s", ptrPath );
+   ptrSlash = strrchr( aryDirectoryPath, '/' );
+   if ( ptrSlash == NULL )
+   {
+      return 0;
+   }
+   *ptrSlash = '\0';
+
+   if ( chmod( aryDirectoryPath, 0700 ) < 0 )
+   {
+      return -1;
+   }
+
+   return 0;
+}
+
 /// @brief Restrict a writable config file stream to owner-only permissions.
 ///
 /// @param ptrFileHandle Open writable config stream.
@@ -90,6 +148,11 @@ FILE *openConfigFile( void )
    FILE *ptrFileHandle;
    int savedErrno;
 
+   if ( tryRestrictConfigDirectoryPermissions( aryConfigFileName ) < 0 &&
+        errno != ENOENT )
+   {
+      sPerror( "Can't set access on config directory", "Warning" );
+   }
    ptrFileHandle = fopen( aryConfigFileName, "r+" );
    warnIfConfigPermissionsCannotBeRestricted( ptrFileHandle );
    if ( !ptrFileHandle )
@@ -98,6 +161,10 @@ FILE *openConfigFile( void )
       if ( ensureConfigDirectoryExists( aryConfigFileName ) < 0 )
       {
          savedErrno = errno;
+      }
+      else if ( tryRestrictConfigDirectoryPermissions( aryConfigFileName ) < 0 )
+      {
+         sPerror( "Can't set access on config directory", "Warning" );
       }
       ptrFileHandle = fopen( aryConfigFileName, "w+" );
       warnIfConfigPermissionsCannotBeRestricted( ptrFileHandle );

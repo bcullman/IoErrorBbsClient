@@ -111,7 +111,7 @@ void getFiveLines( int which )
    }
    if ( flagsConfiguration.shouldUseAnsi )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.inputText );
@@ -164,7 +164,7 @@ void getFiveLines( int which )
    }
    if ( flagsConfiguration.shouldUseAnsi )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       lastColor = color.text;
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),

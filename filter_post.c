@@ -30,7 +30,6 @@ static void maybePrintMorePromptColor( int inputChar );
 static bool tryKillPost( PostFilterFlags *ptrFlags, const char *ptrSenderName,
                          const char *ptrHeader, int postCount );
 
-
 /// @brief Append one character to the current filtered line buffer.
 ///
 /// @param inputChar Character to append.
@@ -48,7 +47,6 @@ static void appendFilterLineChar( int inputChar )
    *ptrCursor++ = (char)inputChar;
    *ptrCursor = 0;
 }
-
 
 /// @brief Reset post parsing state at the start of a new post.
 ///
@@ -71,7 +69,6 @@ static void beginPostMessage( PostFilterFlags *ptrFlags, char *posthdr,
    ptrFlags->secondN = 0;
 }
 
-
 /// @brief Re-emit the standard continued-post color sequence through the post filter.
 ///
 /// @return This function does not return a value.
@@ -86,7 +83,6 @@ void continuedPostHelper( void )
    }
 }
 
-
 /// @brief Filter one byte of incoming post output.
 ///
 /// @param inputChar Next input byte from the server, or `-1` for state transitions.
@@ -95,7 +91,7 @@ void continuedPostHelper( void )
 void filterPost( register int inputChar )
 {
    static char aryTempText[160];
-   static int isFriend;      // Current post is by a friend
+   static int isFriend; // Current post is by a friend
    static PostFilterFlags needs;
    static int numposts = 0;  // count of the # of posts received so far
    static char posthdr[140]; // store the post header here
@@ -132,7 +128,7 @@ void filterPost( register int inputChar )
       posthdrp = posthdr;
       *posthdr = 0;
    }
-      // Insert the character into the post buffer, or echo it directly.
+   // Insert the character into the post buffer, or echo it directly.
    if ( !needs.prochdr )
    {
       static char aryAnsiSequence[8];
@@ -222,7 +218,6 @@ void filterPost( register int inputChar )
    }
 }
 
-
 /// @brief Finish a post and flush any delayed state updates.
 ///
 /// @param ptrFlags Final post parsing state.
@@ -241,7 +236,6 @@ static void finishPostMessage( const PostFilterFlags *ptrFlags, int *ptrPostCoun
    emitUrlDetectionReport();
 }
 
-
 /// @brief Restore the normal text color after a more prompt inside a post.
 ///
 /// @param inputChar Current input character.
@@ -256,7 +250,7 @@ static void maybePrintMorePromptColor( int inputChar )
    }
 
    {
-      char aryMorePromptSequence[32];
+      char aryMorePromptSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       lastColor = color.text;
       formatAnsiForegroundSequence( aryMorePromptSequence,
@@ -265,7 +259,6 @@ static void maybePrintMorePromptColor( int inputChar )
       stdPrintf( "%s", aryMorePromptSequence );
    }
 }
-
 
 /// @brief Check whether the current post should be killed by the enemy list.
 ///

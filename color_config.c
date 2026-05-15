@@ -13,10 +13,13 @@ static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
+static const char *COLOR_OUTPUT_MODE_KEYS = "at2 \n";
 static const char *COLOR_RESET_MENU_KEYS = "0123456789qQ \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
+#define RGB_CONST( red, green, blue ) \
+   ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
 
 typedef struct
 {
@@ -75,12 +78,12 @@ static const PresetMenuOption aryPresetMenuOptions[] =
    {
       { '0', "Default", 2 },
       { '1', "Brilliant", 10 },
-      { '2', "Everforest Dark", 187 },
-      { '3', "Everforest Light", 242 },
-      { '4', "Gruvbox Dark", 223 },
-      { '5', "Gruvbox Light", 239 },
-      { '6', "Latte (Catppuccin)", 240 },
-      { '7', "Macchiato (Catppuccin)", 189 },
+      { '2', "Everforest Dark", RGB_CONST( 0xd3, 0xc6, 0xaa ) },
+      { '3', "Everforest Light", RGB_CONST( 0x5c, 0x6a, 0x72 ) },
+      { '4', "Gruvbox Dark", RGB_CONST( 0xeb, 0xdb, 0xb2 ) },
+      { '5', "Gruvbox Light", RGB_CONST( 0x3c, 0x38, 0x36 ) },
+      { '6', "Latte (Catppuccin)", RGB_CONST( 0x4c, 0x4f, 0x69 ) },
+      { '7', "Macchiato (Catppuccin)", RGB_CONST( 0xca, 0xd3, 0xf5 ) },
       { '8', "Colorblind", 231 },
       { '9', "Hotdog stand", 220 } };
 
@@ -94,6 +97,7 @@ static void configurePostColors( int *ptrDateColor, int *ptrTextColor,
 static const PickerColorOption *findPickerColorOption( const PickerColorOption *ptrOptions,
                                                        size_t itemCount,
                                                        int keyChar );
+static ColorOutputMode pickColorOutputMode( void );
 static void postColorPreview( int dateColor, int textColor, int nameColor,
                               const char *ptrName );
 static void presetColorConfig( void );
@@ -201,9 +205,38 @@ void colorOptions( void )
    stdPrintf( "Use bold ANSI colors when ANSI is enabled? (%s) -> ",
               flagsConfiguration.shouldUseBold ? "Yes" : "No" );
    flagsConfiguration.shouldUseBold = (unsigned int)yesNoDefault( flagsConfiguration.shouldUseBold );
+   stdPrintf( "Color output mode [A]uto/[T]ruecolor/[2]56 (%s) -> ",
+              colorOutputModeName( configuredColorOutputMode ) );
+   configuredColorOutputMode = pickColorOutputMode();
    if ( flagsConfiguration.shouldUseAnsi )
    {
       printAnsiDisplayStateValue( lastColor, color.background );
+   }
+}
+
+/// @brief Prompt for the preferred ANSI color output mode.
+///
+/// @return Selected color output mode.
+static ColorOutputMode pickColorOutputMode( void )
+{
+   int inputChar;
+
+   inputChar = readValidatedMenuKey( COLOR_OUTPUT_MODE_KEYS );
+   switch ( inputChar )
+   {
+      case 'a':
+         return COLOR_OUTPUT_MODE_AUTO;
+
+      case 't':
+         return COLOR_OUTPUT_MODE_TRUECOLOR;
+
+      case '2':
+         return COLOR_OUTPUT_MODE_256;
+
+      case ' ':
+      case '\n':
+      default:
+         return configuredColorOutputMode;
    }
 }
 

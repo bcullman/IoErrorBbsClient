@@ -18,6 +18,7 @@
 static bool isUppercaseDefaultEnabled( int lowerKey );
 static const char *localCommandKeyName( int inputChar );
 static void printTomlEscapedString( const char *ptrText );
+static void printTomlHexColor( int colorValue );
 static void writeAwaySettings( void );
 static void writeBehaviorSettings( void );
 static void writeColorSettings( void );
@@ -127,6 +128,19 @@ static void printTomlEscapedString( const char *ptrText )
    fputc( '"', ptrConfigFile );
 }
 
+/// @brief Write one RGB color value as a TOML hex string.
+///
+/// @param colorValue Encoded RGB color value.
+///
+/// @return This helper does not return a value.
+static void printTomlHexColor( int colorValue )
+{
+   fprintf( ptrConfigFile, "\"#%02x%02x%02x\"",
+            colorValueRed( colorValue ),
+            colorValueGreen( colorValue ),
+            colorValueBlue( colorValue ) );
+}
+
 /// @brief Write config metadata used for future schema upgrades.
 ///
 /// @return This helper does not return a value.
@@ -173,6 +187,9 @@ static void writeBehaviorSettings( void )
             flagsConfiguration.shouldEnableNameAutocomplete ? "true" : "false" );
    fprintf( ptrConfigFile, "clickable_url_summaries = %s\n",
             flagsConfiguration.shouldEnableClickableUrls ? "true" : "false" );
+   fprintf( ptrConfigFile, "color_output_mode = " );
+   printTomlEscapedString( colorOutputModeName( configuredColorOutputMode ) );
+   fprintf( ptrConfigFile, "\n" );
    fprintf( ptrConfigFile, "screen_reader_mode = %s\n",
             flagsConfiguration.isScreenReaderModeEnabled ? "true" : "false" );
    fprintf( ptrConfigFile, "suppress_enemy_express = %s\n",
@@ -213,7 +230,11 @@ static void writeColorSettings( void )
       colorValue = colorFieldValue( colorFieldIndex );
       fprintf( ptrConfigFile, "%s = ", ptrColorKeyName );
       ptrColorName = colorNameFromValue( colorValue );
-      if ( ptrColorName != NULL )
+      if ( colorValueIsRgb( colorValue ) )
+      {
+         printTomlHexColor( colorValue );
+      }
+      else if ( ptrColorName != NULL )
       {
          printTomlEscapedString( ptrColorName );
       }

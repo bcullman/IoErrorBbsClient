@@ -28,7 +28,6 @@ static const char *resolveEditorCommand( void );
 static void sendEditorCommand( int inputChar );
 static void showEditorCommandPrompt( void );
 
-
 /// @brief Reopen the temp file and revalidate it after returning from an external editor.
 ///
 /// @param ptrMessageFile Address of the current draft file handle.
@@ -52,7 +51,6 @@ static void continueAfterExternalEdit( FILE **ptrMessageFile )
       mySleep( 1 );
    }
 }
-
 
 /// @brief Copy the contents of a named file into the current draft.
 ///
@@ -91,7 +89,6 @@ static bool copyNamedFileIntoMessage( FILE *ptrMessageFile, const char *ptrInput
    return true;
 }
 
-
 /// @brief Flush editor commands that were sent to the BBS.
 ///
 /// @return This helper does not return a value.
@@ -102,7 +99,6 @@ static void flushEditorNetworkOutput( void )
       fatalPerror( "send", "Network error" );
    }
 }
-
 
 /// @brief Load a named file into the current draft from the editor prompt.
 ///
@@ -151,7 +147,7 @@ static bool loadNamedFileIntoMessage( FILE **ptrMessageFile, char *ptrInputPath,
 /// @return This helper does not return a value.
 static void printEditorCommandPrompt( void )
 {
-   char aryAnsiSequence[32];
+   char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
    static const char *aryCommandLabels[] =
       {
          "Abort",
@@ -194,7 +190,6 @@ static void printEditorCommandPrompt( void )
                                  color.text );
    printf( "%s", aryAnsiSequence );
 }
-
 
 /// @brief Handle the command prompt shown while composing a local message.
 ///
@@ -390,7 +385,6 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
    }
 }
 
-
 /// @brief Stop replaying buffered pre-editor input after the editor exits.
 ///
 /// @return This helper does not return a value.
@@ -399,7 +393,6 @@ static void resetEditorReplayState( void )
    targetByte = 0;
    bytePosition = byte;
 }
-
 
 /// @brief Resolve the configured external editor command for the current session.
 ///
@@ -417,7 +410,6 @@ static const char *resolveEditorCommand( void )
    return aryEditor;
 }
 
-
 /// @brief Send a one-character editor command back to the server.
 ///
 /// @param inputChar Command character to send.
@@ -429,7 +421,6 @@ static void sendEditorCommand( int inputChar )
    sendTrackedCharWithoutReplay( CTRL_D );
    sendTrackedCharWithoutReplay( inputChar );
 }
-
 
 /// @brief Show the editor command prompt using the current color mode.
 ///

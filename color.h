@@ -23,8 +23,10 @@ int colorFieldValue( int colorIndex );
 const char *colorFieldTomlKeyName( int colorIndex );
 int colorize( const char *str );
 const char *colorNameFromValue( int colorValue );
+const char *colorOutputModeName( ColorOutputMode outputMode );
 void colorOptions( void );
 int colorPicker( void );
+int colorValueFromHexString( const char *ptrColorText );
 int colorValueFromLegacyDigit( int inputChar );
 int colorValueFromName( const char *ptrColorName );
 int colorValueToLegacyDigit( int colorValue );
@@ -54,6 +56,8 @@ void printAnsiForegroundColorValue( int colorValue );
 void printAnsiResetValue( void );
 void printThemedMnemonicText( const char *ptrText, int defaultColor );
 void setColorFieldValue( int colorIndex, int colorValue );
+bool tryFindColorOutputMode( const char *ptrModeName,
+                             ColorOutputMode *ptrOutMode );
 bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
                                           int *ptrOutColorIndex );
 char userOrFriend( void );

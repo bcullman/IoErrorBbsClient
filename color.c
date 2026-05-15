@@ -92,6 +92,7 @@ static const NamedColorSpec aryNamedColors[] =
       { "default", COLOR_VALUE_DEFAULT } };
 
 static bool isColorNameMatch( const char *ptrLeft, const char *ptrRight );
+static int hexDigitValue( int inputChar );
 static int transformIncomingAnsiColor( int inputChar );
 static int transformPostHeaderColor( int inputChar, int isFriend );
 
@@ -118,9 +119,9 @@ int ansiTransform( int inputChar )
 void ansiTransformExpress( char *ptrText, size_t size )
 {
    char aryTempText[580];
-   char aryMessageColor[32];
-   char aryNameColor[32];
-   char aryResetColor[32];
+   char aryMessageColor[ANSI_SEQUENCE_BUFFER_SIZE];
+   char aryNameColor[ANSI_SEQUENCE_BUFFER_SIZE];
+   char aryResetColor[ANSI_SEQUENCE_BUFFER_SIZE];
    char *ptrExpressSender, *ptrExpressMarker;
 
    // Insert color only when ANSI is being used
@@ -219,7 +220,7 @@ int ansiTransformPost( int inputChar, int isFriend )
 void ansiTransformPostHeader( char *ptrText, size_t bufferSize, int isFriend )
 {
    char aryTransformedHeader[320];
-   char aryAnsiSequence[32];
+   char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
    char *ptrScan;
    size_t writeOffset;
 
@@ -283,6 +284,11 @@ const char *colorNameFromValue( int colorValue )
 {
    size_t itemIndex;
 
+   if ( colorValueIsRgb( colorValue ) )
+   {
+      return NULL;
+   }
+
    for ( itemIndex = 0; itemIndex < sizeof( aryNamedColors ) / sizeof( aryNamedColors[0] ); itemIndex++ )
    {
       if ( aryNamedColors[itemIndex].colorValue == colorValue )
@@ -292,6 +298,54 @@ const char *colorNameFromValue( int colorValue )
    }
 
    return NULL;
+}
+
+/// @brief Return the canonical TOML name for one configured color output mode.
+///
+/// @param outputMode Runtime color output mode.
+///
+/// @return Canonical TOML string for the mode.
+const char *colorOutputModeName( ColorOutputMode outputMode )
+{
+   switch ( outputMode )
+   {
+      case COLOR_OUTPUT_MODE_TRUECOLOR:
+         return "truecolor";
+
+      case COLOR_OUTPUT_MODE_256:
+         return "256";
+
+      case COLOR_OUTPUT_MODE_AUTO:
+      default:
+         return "auto";
+   }
+}
+
+/// @brief Parse a TOML hex color string into the internal RGB encoding.
+///
+/// @param ptrColorText Hex string in `#RRGGBB` form.
+///
+/// @return Encoded RGB color value, or `-1` if the string is invalid.
+int colorValueFromHexString( const char *ptrColorText )
+{
+   int blue;
+   int green;
+   int red;
+
+   if ( ptrColorText == NULL || strlen( ptrColorText ) != 7 || ptrColorText[0] != '#' )
+   {
+      return -1;
+   }
+
+   red = ( hexDigitValue( ptrColorText[1] ) << 4 ) | hexDigitValue( ptrColorText[2] );
+   green = ( hexDigitValue( ptrColorText[3] ) << 4 ) | hexDigitValue( ptrColorText[4] );
+   blue = ( hexDigitValue( ptrColorText[5] ) << 4 ) | hexDigitValue( ptrColorText[6] );
+   if ( red < 0 || green < 0 || blue < 0 )
+   {
+      return -1;
+   }
+
+   return colorValueFromRgb( red, green, blue );
 }
 
 /// @brief Convert a legacy digit color code into its numeric value.
@@ -332,6 +386,38 @@ int colorValueFromName( const char *ptrColorName )
    }
 
    return -1;
+}
+
+/// @brief Parse a TOML color output mode string.
+///
+/// @param ptrModeName TOML string value to parse.
+/// @param ptrOutMode Destination for the parsed mode.
+///
+/// @return `true` on success, otherwise `false`.
+bool tryFindColorOutputMode( const char *ptrModeName,
+                             ColorOutputMode *ptrOutMode )
+{
+   if ( ptrModeName == NULL || ptrOutMode == NULL )
+   {
+      return false;
+   }
+   if ( isColorNameMatch( ptrModeName, "auto" ) )
+   {
+      *ptrOutMode = COLOR_OUTPUT_MODE_AUTO;
+      return true;
+   }
+   if ( isColorNameMatch( ptrModeName, "truecolor" ) )
+   {
+      *ptrOutMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+      return true;
+   }
+   if ( strcmp( ptrModeName, "256" ) == 0 )
+   {
+      *ptrOutMode = COLOR_OUTPUT_MODE_256;
+      return true;
+   }
+
+   return false;
 }
 
 /// @brief Convert a color value back to its legacy digit form.
@@ -391,6 +477,29 @@ static bool isColorNameMatch( const char *ptrLeft, const char *ptrRight )
    }
 
    return *ptrLeft == '\0' && *ptrRight == '\0';
+}
+
+/// @brief Convert one hexadecimal digit to its integer value.
+///
+/// @param inputChar Hexadecimal digit character.
+///
+/// @return Digit value, or `-1` for invalid input.
+static int hexDigitValue( int inputChar )
+{
+   if ( inputChar >= '0' && inputChar <= '9' )
+   {
+      return inputChar - '0';
+   }
+   if ( inputChar >= 'a' && inputChar <= 'f' )
+   {
+      return inputChar - 'a' + 10;
+   }
+   if ( inputChar >= 'A' && inputChar <= 'F' )
+   {
+      return inputChar - 'A' + 10;
+   }
+
+   return -1;
 }
 
 /// @brief Set one color field in the internal color-field order.

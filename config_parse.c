@@ -67,6 +67,8 @@ static bool tryParseContactFriendsValue( const char *ptrValue );
 static bool tryParseColorValue( const char *ptrValue,
                                 const char *ptrKeyName,
                                 int *ptrOutValue );
+static bool tryParseColorOutputModeValue( const char *ptrValue,
+                                          ColorOutputMode *ptrOutMode );
 static bool tryParseIntegerValue( const char *ptrValue,
                                   const char *ptrKeyName,
                                   int minimumValue,
@@ -302,6 +304,7 @@ static void initializeConfigDefaults( void )
    flagsConfiguration.shouldUseBold = 0;
    flagsConfiguration.shouldUseKeychain = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
 
    defaultColors( 1 );
 
@@ -862,6 +865,13 @@ static bool tryParseColorValue( const char *ptrValue,
 
       if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) )
       {
+         parsedColorValue = colorValueFromHexString( aryParsedText );
+         if ( parsedColorValue >= 0 )
+         {
+            *ptrOutValue = parsedColorValue;
+            return true;
+         }
+
          parsedColorValue = colorValueFromName( aryParsedText );
          if ( parsedColorValue >= 0 )
          {
@@ -879,6 +889,27 @@ static bool tryParseColorValue( const char *ptrValue,
 
    stdPrintf( "Invalid color value for '%s' ignored.\n", ptrKeyName );
    return false;
+}
+
+/// @brief Parse one TOML color output mode string.
+///
+/// @param ptrValue Raw TOML string value.
+/// @param ptrOutMode Destination for the decoded mode.
+///
+/// @return `true` on success, otherwise `false`.
+static bool tryParseColorOutputModeValue( const char *ptrValue,
+                                          ColorOutputMode *ptrOutMode )
+{
+   char aryParsedText[MAX_VALUE_LENGTH];
+
+   if ( !tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) ||
+        !tryFindColorOutputMode( aryParsedText, ptrOutMode ) )
+   {
+      stdPrintf( "Invalid color output mode ignored.\n" );
+      return false;
+   }
+
+   return true;
 }
 
 /// @brief Parse a TOML integer value within a fixed range.
@@ -1340,6 +1371,16 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
             {
                flagsConfiguration.shouldEnableClickableUrls =
                   (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "color_output_mode" ) == 0 )
+         {
+            ColorOutputMode parsedOutputMode;
+
+            if ( tryParseColorOutputModeValue( ptrValue, &parsedOutputMode ) )
+            {
+               configuredColorOutputMode = parsedOutputMode;
             }
             return true;
          }

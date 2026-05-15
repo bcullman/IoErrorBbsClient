@@ -81,6 +81,7 @@ static void resetState( void )
    shouldDeleteKeychainPasswordSucceed = false;
    sPromptCallCount = 0;
    aryStdPrintfLog[0] = '\0';
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
 }
 
 static void setGetKeySequence( const int *aryValues, size_t valueCount )
@@ -240,6 +241,11 @@ const char *colorFieldTomlKeyName( int colorIndex )
 
 const char *colorNameFromValue( int colorValue )
 {
+   if ( colorValueIsRgb( colorValue ) )
+   {
+      return NULL;
+   }
+
    switch ( colorValue )
    {
       case 8:
@@ -278,6 +284,22 @@ const char *colorNameFromValue( int colorValue )
          return "default";
       default:
          return NULL;
+   }
+}
+
+const char *colorOutputModeName( ColorOutputMode outputMode )
+{
+   switch ( outputMode )
+   {
+      case COLOR_OUTPUT_MODE_TRUECOLOR:
+         return "truecolor";
+
+      case COLOR_OUTPUT_MODE_256:
+         return "256";
+
+      case COLOR_OUTPUT_MODE_AUTO:
+      default:
+         return "auto";
    }
 }
 
@@ -1207,6 +1229,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    aryKeyMap['P'] = 'p';
    aryKeyMap['w'] = 'W';
    aryKeyMap['W'] = 'w';
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    color.text = 10;
    color.forum = 11;
    color.number = 220;
@@ -1215,7 +1238,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    color.ansiBlueTextColor = 26;
    color.ansiMagentaTextColor = 91;
    color.postDate = 34;
-   color.postName = 201;
+   color.postName = colorValueFromRgb( 0x8a, 0xad, 0xf4 );
    color.postText = 231;
    color.postFriendDate = 14;
    color.postFriendName = 12;
@@ -1334,6 +1357,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
         strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
+        strstr( aryOutput, "color_output_mode = \"truecolor\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = true\n" ) == NULL ||
@@ -1379,7 +1403,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
         strstr( aryOutput, "text = \"brightgreen\"\n" ) == NULL ||
         strstr( aryOutput, "forum_prompt = \"brightyellow\"\n" ) == NULL ||
-        strstr( aryOutput, "post_name = 201\n" ) == NULL ||
+        strstr( aryOutput, "post_name = \"#8aadf4\"\n" ) == NULL ||
         strstr( aryOutput, "background = \"default\"\n" ) == NULL ||
         strstr( aryOutput, "input_text = \"cyan\"\n" ) == NULL ||
         strstr( aryOutput, "express_friend_name = \"white\"\n" ) == NULL ||
@@ -1430,6 +1454,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    aryKeyMap['P'] = 'P';
    aryKeyMap['w'] = 'w';
    aryKeyMap['W'] = 'W';
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_256;
    color.text = 2;
    color.forum = 3;
    color.number = 6;
@@ -1526,6 +1551,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
         strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
+        strstr( aryOutput, "color_output_mode = \"256\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = false\n" ) == NULL ||

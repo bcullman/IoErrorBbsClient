@@ -15,14 +15,15 @@ extern char aryEscape[2];
 extern char aryLastName[MAX_USER_NAME_HISTORY_COUNT][21]; // last username received in post or X
 extern char aryMyEditor[80];                              // name of aryUser's preferred aryEditor
 extern int aryReplyRecipient[21];
-extern char aryUser[80];         // username
-extern int childPid;             // process id of child process
-extern Color color;              // color transformations
-extern Flags flagsConfiguration; // Miscellaneous flags
-extern bool isAutoLoggedIn;      // Has autologin been done?
-extern bool isAway;              // away from keyboard?
-extern bool isLoginShell;        // whether this client is a login shell
-extern bool isXland;             // X Land - auto-fill-in-recipient
+extern char aryUser[80];                          // username
+extern int childPid;                              // process id of child process
+extern Color color;                               // color transformations
+extern ColorOutputMode configuredColorOutputMode; // configured ANSI color output depth
+extern Flags flagsConfiguration;                  // Miscellaneous flags
+extern bool isAutoLoggedIn;                       // Has autologin been done?
+extern bool isAway;                               // away from keyboard?
+extern bool isLoginShell;                         // whether this client is a login shell
+extern bool isXland;                              // X Land - auto-fill-in-recipient
 #ifdef USE_POSIX_SIGSETJMP
 extern sigjmp_buf jumpEnv; // Jump buffer for child-process return flow
 #else

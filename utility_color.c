@@ -15,7 +15,6 @@ static void printAnsiColorValue( int colorValue, bool isBackground );
 static void printAnsiSequence( const char *ptrSequence );
 static bool tryPrintLegacyAtColor( int inputChar );
 
-
 /// @brief Expand the legacy `@` color markup into ANSI output.
 ///
 /// @param str Text that may contain legacy `@` color markers.
@@ -49,7 +48,6 @@ int colorize( const char *str )
    return 1;
 }
 
-
 /// @brief Emit an ANSI background color escape for the supplied color value.
 ///
 /// @param colorValue Color value to emit.
@@ -60,7 +58,6 @@ void printAnsiBackgroundColorValue( int colorValue )
    printAnsiColorValue( colorValue, true );
 }
 
-
 /// @brief Emit an ANSI foreground or background color escape.
 ///
 /// @param colorValue Color value to emit.
@@ -69,7 +66,7 @@ void printAnsiBackgroundColorValue( int colorValue )
 /// @return This function does not return a value.
 static void printAnsiColorValue( int colorValue, bool isBackground )
 {
-   char aryAnsiSequence[32];
+   char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
    if ( !flagsConfiguration.shouldUseAnsi )
    {
@@ -87,7 +84,6 @@ static void printAnsiColorValue( int colorValue, bool isBackground )
    printAnsiSequence( aryAnsiSequence );
 }
 
-
 /// @brief Emit a full ANSI display state from the supplied foreground and background.
 ///
 /// @param foregroundColor Foreground color value.
@@ -96,7 +92,7 @@ static void printAnsiColorValue( int colorValue, bool isBackground )
 /// @return This function does not return a value.
 void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
 {
-   char aryAnsiSequence[32];
+   char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
    if ( !flagsConfiguration.shouldUseAnsi )
    {
@@ -109,7 +105,6 @@ void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
    printAnsiSequence( aryAnsiSequence );
 }
 
-
 /// @brief Emit an ANSI foreground color escape for the supplied color value.
 ///
 /// @param colorValue Color value to emit.
@@ -120,13 +115,12 @@ void printAnsiForegroundColorValue( int colorValue )
    printAnsiColorValue( colorValue, false );
 }
 
-
 /// @brief Emit the configured ANSI reset sequence.
 ///
 /// @return This function does not return a value.
 void printAnsiResetValue( void )
 {
-   char aryAnsiSequence[32];
+   char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
    if ( !flagsConfiguration.shouldUseAnsi )
    {
@@ -137,7 +131,6 @@ void printAnsiResetValue( void )
    printAnsiSequence( aryAnsiSequence );
 }
 
-
 /// @brief Print a prebuilt ANSI escape sequence.
 ///
 /// @param ptrSequence Escape sequence to write.
@@ -147,7 +140,6 @@ static void printAnsiSequence( const char *ptrSequence )
 {
    stdPrintf( "%s", ptrSequence );
 }
-
 
 /// @brief Print menu text and recolor mnemonic characters wrapped in angle brackets.
 ///
@@ -187,7 +179,6 @@ void printThemedMnemonicText( const char *ptrText, int defaultColor )
       ptrScan++;
    }
 }
-
 
 /// @brief Translate a single legacy `@` color token into ANSI output.
 ///

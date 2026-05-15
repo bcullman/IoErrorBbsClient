@@ -40,7 +40,11 @@ static void resetState( void )
    printAnsiDisplayStateCallCount = 0;
 
    flagsConfiguration.shouldUseAnsi = 0;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
    lastColor = 0;
+   unsetenv( "COLORTERM" );
+   unsetenv( "TERM" );
+   unsetenv( "TERM_PROGRAM" );
 
    if ( friendList != NULL )
    {
@@ -256,7 +260,7 @@ static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmedia
    colorConfig();
 
    // Assert
-   if ( color.background != 255 )
+   if ( color.background != colorValueFromRgb( 0xef, 0xf1, 0xf5 ) )
    {
       fail_msg( "Latte preset should change the configured background to white; got %d",
                 color.background );
@@ -265,7 +269,7 @@ static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmedia
    {
       fail_msg( "colorConfig should refresh the full display state after a preset change" );
    }
-   if ( lastDisplayStateBackground != 255 )
+   if ( lastDisplayStateBackground != colorValueFromRgb( 0xef, 0xf1, 0xf5 ) )
    {
       fail_msg( "colorConfig should refresh the terminal background immediately after a preset change; got %d",
                 lastDisplayStateBackground );
@@ -274,6 +278,28 @@ static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmedia
    {
       fail_msg( "colorConfig should refresh the terminal using the active text color; got %d expected %d",
                 lastDisplayStateForeground, color.text );
+   }
+}
+
+static void colorOptions_WhenColorOutputModeSelected_UpdatesConfiguredMode( void **state )
+{
+   const int aryKeys[] = { 't' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorOptions();
+
+   // Assert
+   if ( configuredColorOutputMode != COLOR_OUTPUT_MODE_TRUECOLOR )
+   {
+      fail_msg( "colorOptions should update color output mode when truecolor is selected; got %d",
+                configuredColorOutputMode );
    }
 }
 
@@ -517,6 +543,127 @@ static void formatAnsiDisplayStateSequence_WhenDefaultBackgroundRequested_UsesCo
    }
 }
 
+static void formatAnsiForegroundSequence_WhenRgbColorAndTruecolorEnabled_Uses24BitCode( void **state )
+{
+   char arySequence[32];
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+
+   // Act
+   formatAnsiForegroundSequence( arySequence, sizeof( arySequence ),
+                                 colorValueFromRgb( 0x8a, 0xad, 0xf4 ) );
+
+   // Assert
+   if ( strcmp( arySequence, "\033[38;2;138;173;244m" ) != 0 )
+   {
+      fail_msg( "formatAnsiForegroundSequence should emit truecolor foreground escapes for RGB values; got '%s'",
+                arySequence );
+   }
+}
+
+static void formatAnsiBackgroundSequence_WhenRgbColorAndAutoModeInAppleTerminal_Uses256Fallback( void **state )
+{
+   char aryExpected[32];
+   char arySequence[32];
+   int fallbackColor;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   setenv( "TERM_PROGRAM", "Apple_Terminal", 1 );
+   fallbackColor = xterm256ValueFromRgb( 0x8a, 0xad, 0xf4 );
+   snprintf( aryExpected, sizeof( aryExpected ), "\033[48;5;%dm", fallbackColor );
+
+   // Act
+   formatAnsiBackgroundSequence( arySequence, sizeof( arySequence ),
+                                 colorValueFromRgb( 0x8a, 0xad, 0xf4 ) );
+
+   // Assert
+   if ( strcmp( arySequence, aryExpected ) != 0 )
+   {
+      fail_msg( "formatAnsiBackgroundSequence should downgrade RGB backgrounds for Apple Terminal; expected '%s' got '%s'",
+                aryExpected, arySequence );
+   }
+}
+
+static void formatAnsiForegroundSequence_WhenRgbColorAndAutoModeWithTruecolorTerminal_Uses24BitCode( void **state )
+{
+   char arySequence[32];
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   setenv( "COLORTERM", "truecolor", 1 );
+
+   // Act
+   formatAnsiForegroundSequence( arySequence, sizeof( arySequence ),
+                                 colorValueFromRgb( 0x8a, 0xad, 0xf4 ) );
+
+   // Assert
+   if ( strcmp( arySequence, "\033[38;2;138;173;244m" ) != 0 )
+   {
+      fail_msg( "formatAnsiForegroundSequence should auto-detect truecolor terminals from COLORTERM; got '%s'",
+                arySequence );
+   }
+}
+
+static void formatAnsiForegroundSequence_WhenRgbColorAnd256ModeRequested_IgnoresTruecolorTerminal( void **state )
+{
+   char aryExpected[32];
+   char arySequence[32];
+   int fallbackColor;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_256;
+   setenv( "COLORTERM", "truecolor", 1 );
+   fallbackColor = xterm256ValueFromRgb( 0x8a, 0xad, 0xf4 );
+   snprintf( aryExpected, sizeof( aryExpected ), "\033[38;5;%dm", fallbackColor );
+
+   // Act
+   formatAnsiForegroundSequence( arySequence, sizeof( arySequence ),
+                                 colorValueFromRgb( 0x8a, 0xad, 0xf4 ) );
+
+   // Assert
+   if ( strcmp( arySequence, aryExpected ) != 0 )
+   {
+      fail_msg( "formatAnsiForegroundSequence should honor explicit 256-color mode over terminal truecolor hints; expected '%s' got '%s'",
+                aryExpected, arySequence );
+   }
+}
+
+static void formatAnsiDisplayStateSequence_WhenRgbColorsRequested_UsesCombinedTruecolorSelectors( void **state )
+{
+   char arySequence[64];
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+
+   // Act
+   formatAnsiDisplayStateSequence( arySequence, sizeof( arySequence ),
+                                   colorValueFromRgb( 0xca, 0xd3, 0xf5 ),
+                                   colorValueFromRgb( 0x24, 0x27, 0x3a ),
+                                   true );
+
+   // Assert
+   if ( strcmp( arySequence, "\033[1;38;2;202;211;245;48;2;36;39;58m" ) != 0 )
+   {
+      fail_msg( "formatAnsiDisplayStateSequence should emit combined truecolor state; got '%s'",
+                arySequence );
+   }
+}
+
 static void colorblindColors_WhenApplied_SetsAccessiblePalette( void **state )
 {
    // Arrange
@@ -616,23 +763,32 @@ static void catppuccinLatteColors_WhenApplied_SetsLightPalette( void **state )
    catppuccinLatteColors();
 
    // Assert
-   if ( color.text != 240 || color.forum != 27 || color.number != 37 ||
-        color.errorTextColor != 161 )
+   if ( color.text != colorValueFromRgb( 0x4c, 0x4f, 0x69 ) ||
+        color.forum != colorValueFromRgb( 0x1e, 0x66, 0xf5 ) ||
+        color.number != colorValueFromRgb( 0x20, 0x9f, 0xb5 ) ||
+        color.errorTextColor != colorValueFromRgb( 0xd2, 0x0f, 0x39 ) )
    {
       fail_msg( "catppuccinLatteColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 255 )
+   if ( color.background != colorValueFromRgb( 0xef, 0xf1, 0xf5 ) )
    {
       fail_msg( "catppuccinLatteColors should use a light background; got %d", color.background );
    }
-   if ( color.postDate != 37 || color.postFriendDate != 30 ||
-        color.postName != 69 || color.postFriendName != 70 ||
-        color.postText != 240 || color.postFriendText != 240 ||
-        color.anonymous != 172 || color.morePrompt != 172 ||
-        color.inputText != 240 || color.inputHighlight != 27 ||
-        color.expressText != 240 || color.expressName != 27 ||
-        color.expressFriendName != 70 || color.expressFriendText != 240 )
+   if ( color.postDate != colorValueFromRgb( 0x20, 0x9f, 0xb5 ) ||
+        color.postFriendDate != colorValueFromRgb( 0x17, 0x92, 0x99 ) ||
+        color.postName != colorValueFromRgb( 0x72, 0x87, 0xfd ) ||
+        color.postFriendName != colorValueFromRgb( 0x40, 0xa0, 0x2b ) ||
+        color.postText != colorValueFromRgb( 0x4c, 0x4f, 0x69 ) ||
+        color.postFriendText != colorValueFromRgb( 0x4c, 0x4f, 0x69 ) ||
+        color.anonymous != colorValueFromRgb( 0xfe, 0x64, 0x0b ) ||
+        color.morePrompt != colorValueFromRgb( 0xdf, 0x8e, 0x1d ) ||
+        color.inputText != colorValueFromRgb( 0x4c, 0x4f, 0x69 ) ||
+        color.inputHighlight != colorValueFromRgb( 0x1e, 0x66, 0xf5 ) ||
+        color.expressText != colorValueFromRgb( 0x4c, 0x4f, 0x69 ) ||
+        color.expressName != colorValueFromRgb( 0x1e, 0x66, 0xf5 ) ||
+        color.expressFriendName != colorValueFromRgb( 0x40, 0xa0, 0x2b ) ||
+        color.expressFriendText != colorValueFromRgb( 0x4c, 0x4f, 0x69 ) )
    {
       fail_msg( "catppuccinLatteColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
@@ -641,8 +797,10 @@ static void catppuccinLatteColors_WhenApplied_SetsLightPalette( void **state )
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 27 ||
-        color.ansiMagentaTextColor != 99 || color.ansiWhiteTextColor != 60 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x9c, 0xa0, 0xb0 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x1e, 0x66, 0xf5 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xea, 0x76, 0xcb ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0x5c, 0x5f, 0x77 ) )
    {
       fail_msg( "catppuccinLatteColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -662,8 +820,10 @@ static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state 
    catppuccinMacchiatoColors();
 
    // Assert
-   if ( color.text != 189 || color.forum != 111 || color.number != 116 ||
-        color.errorTextColor != 210 )
+   if ( color.text != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) ||
+        color.forum != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) ||
+        color.number != colorValueFromRgb( 0x7d, 0xc4, 0xe4 ) ||
+        color.errorTextColor != colorValueFromRgb( 0xed, 0x87, 0x96 ) )
    {
       fail_msg( "catppuccinMacchiatoColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
@@ -672,13 +832,20 @@ static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state 
    {
       fail_msg( "catppuccinMacchiatoColors should keep a dark background; got %d", color.background );
    }
-   if ( color.postDate != 116 || color.postFriendDate != 116 ||
-        color.postName != 147 || color.postFriendName != 150 ||
-        color.postText != 189 || color.postFriendText != 189 ||
-        color.anonymous != 223 || color.morePrompt != 223 ||
-        color.inputText != 189 || color.inputHighlight != 111 ||
-        color.expressText != 189 || color.expressName != 147 ||
-        color.expressFriendName != 150 || color.expressFriendText != 189 )
+   if ( color.postDate != colorValueFromRgb( 0x7d, 0xc4, 0xe4 ) ||
+        color.postFriendDate != colorValueFromRgb( 0x8b, 0xd5, 0xca ) ||
+        color.postName != colorValueFromRgb( 0xb7, 0xbd, 0xf8 ) ||
+        color.postFriendName != colorValueFromRgb( 0xa6, 0xda, 0x95 ) ||
+        color.postText != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) ||
+        color.postFriendText != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) ||
+        color.anonymous != colorValueFromRgb( 0xf5, 0xa9, 0x7f ) ||
+        color.morePrompt != colorValueFromRgb( 0xee, 0xd4, 0x9f ) ||
+        color.inputText != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) ||
+        color.inputHighlight != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) ||
+        color.expressText != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) ||
+        color.expressName != colorValueFromRgb( 0xb7, 0xbd, 0xf8 ) ||
+        color.expressFriendName != colorValueFromRgb( 0xa6, 0xda, 0x95 ) ||
+        color.expressFriendText != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) )
    {
       fail_msg( "catppuccinMacchiatoColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
@@ -687,8 +854,10 @@ static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state 
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 103 || color.ansiBlueTextColor != 111 ||
-        color.ansiMagentaTextColor != 183 || color.ansiWhiteTextColor != 189 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x80, 0x84, 0x9d ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xc6, 0xa0, 0xf6 ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xca, 0xd3, 0xf5 ) )
    {
       fail_msg( "catppuccinMacchiatoColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -708,8 +877,10 @@ static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
    everforestDarkColors();
 
    // Assert
-   if ( color.text != 187 || color.forum != 144 || color.number != 109 ||
-        color.errorTextColor != 174 )
+   if ( color.text != colorValueFromRgb( 0xd3, 0xc6, 0xaa ) ||
+        color.forum != colorValueFromRgb( 0x7f, 0xbb, 0xb3 ) ||
+        color.number != colorValueFromRgb( 0x83, 0xc0, 0x92 ) ||
+        color.errorTextColor != colorValueFromRgb( 0xe6, 0x7e, 0x80 ) )
    {
       fail_msg( "everforestDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
@@ -718,13 +889,20 @@ static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
    {
       fail_msg( "everforestDarkColors should keep a dark background; got %d", color.background );
    }
-   if ( color.postDate != 109 || color.postFriendDate != 109 ||
-        color.postName != 108 || color.postFriendName != 144 ||
-        color.postText != 187 || color.postFriendText != 187 ||
-        color.anonymous != 180 || color.morePrompt != 180 ||
-        color.inputText != 187 || color.inputHighlight != 109 ||
-        color.expressText != 187 || color.expressName != 108 ||
-        color.expressFriendName != 144 || color.expressFriendText != 187 )
+   if ( color.postDate != colorValueFromRgb( 0x83, 0xc0, 0x92 ) ||
+        color.postFriendDate != colorValueFromRgb( 0x7f, 0xbb, 0xb3 ) ||
+        color.postName != colorValueFromRgb( 0xa7, 0xc0, 0x80 ) ||
+        color.postFriendName != colorValueFromRgb( 0xdb, 0xbc, 0x7f ) ||
+        color.postText != colorValueFromRgb( 0xd3, 0xc6, 0xaa ) ||
+        color.postFriendText != colorValueFromRgb( 0xd3, 0xc6, 0xaa ) ||
+        color.anonymous != colorValueFromRgb( 0xe6, 0x98, 0x75 ) ||
+        color.morePrompt != colorValueFromRgb( 0xdb, 0xbc, 0x7f ) ||
+        color.inputText != colorValueFromRgb( 0xd3, 0xc6, 0xaa ) ||
+        color.inputHighlight != colorValueFromRgb( 0x7f, 0xbb, 0xb3 ) ||
+        color.expressText != colorValueFromRgb( 0xd3, 0xc6, 0xaa ) ||
+        color.expressName != colorValueFromRgb( 0xa7, 0xc0, 0x80 ) ||
+        color.expressFriendName != colorValueFromRgb( 0xdb, 0xbc, 0x7f ) ||
+        color.expressFriendText != colorValueFromRgb( 0xd3, 0xc6, 0xaa ) )
    {
       fail_msg( "everforestDarkColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
@@ -733,8 +911,10 @@ static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 245 || color.ansiBlueTextColor != 109 ||
-        color.ansiMagentaTextColor != 175 || color.ansiWhiteTextColor != 187 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x85, 0x92, 0x89 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x7f, 0xbb, 0xb3 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xd6, 0x99, 0xb6 ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xe5, 0xdd, 0xc9 ) )
    {
       fail_msg( "everforestDarkColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -754,23 +934,32 @@ static void everforestLightColors_WhenApplied_SetsLightPalette( void **state )
    everforestLightColors();
 
    // Assert
-   if ( color.text != 242 || color.forum != 106 || color.number != 68 ||
-        color.errorTextColor != 203 )
+   if ( color.text != colorValueFromRgb( 0x5c, 0x6a, 0x72 ) ||
+        color.forum != colorValueFromRgb( 0x35, 0x8f, 0xa2 ) ||
+        color.number != colorValueFromRgb( 0x3a, 0x94, 0x84 ) ||
+        color.errorTextColor != colorValueFromRgb( 0xf8, 0x55, 0x52 ) )
    {
       fail_msg( "everforestLightColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 230 )
+   if ( color.background != colorValueFromRgb( 0xfd, 0xf6, 0xe3 ) )
    {
       fail_msg( "everforestLightColors should use a light background; got %d", color.background );
    }
-   if ( color.postDate != 68 || color.postFriendDate != 68 ||
-        color.postName != 72 || color.postFriendName != 107 ||
-        color.postText != 242 || color.postFriendText != 242 ||
-        color.anonymous != 178 || color.morePrompt != 178 ||
-        color.inputText != 242 || color.inputHighlight != 68 ||
-        color.expressText != 242 || color.expressName != 72 ||
-        color.expressFriendName != 107 || color.expressFriendText != 242 )
+   if ( color.postDate != colorValueFromRgb( 0x3a, 0x94, 0x84 ) ||
+        color.postFriendDate != colorValueFromRgb( 0x35, 0x8f, 0xa2 ) ||
+        color.postName != colorValueFromRgb( 0x8d, 0xb8, 0x61 ) ||
+        color.postFriendName != colorValueFromRgb( 0xda, 0xa5, 0x20 ) ||
+        color.postText != colorValueFromRgb( 0x5c, 0x6a, 0x72 ) ||
+        color.postFriendText != colorValueFromRgb( 0x5c, 0x6a, 0x72 ) ||
+        color.anonymous != colorValueFromRgb( 0xf5, 0x7d, 0x26 ) ||
+        color.morePrompt != colorValueFromRgb( 0xbf, 0x98, 0x3d ) ||
+        color.inputText != colorValueFromRgb( 0x5c, 0x6a, 0x72 ) ||
+        color.inputHighlight != colorValueFromRgb( 0x35, 0x8f, 0xa2 ) ||
+        color.expressText != colorValueFromRgb( 0x5c, 0x6a, 0x72 ) ||
+        color.expressName != colorValueFromRgb( 0x8d, 0xb8, 0x61 ) ||
+        color.expressFriendName != colorValueFromRgb( 0xda, 0xa5, 0x20 ) ||
+        color.expressFriendText != colorValueFromRgb( 0x5c, 0x6a, 0x72 ) )
    {
       fail_msg( "everforestLightColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
@@ -779,8 +968,10 @@ static void everforestLightColors_WhenApplied_SetsLightPalette( void **state )
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 68 ||
-        color.ansiMagentaTextColor != 169 || color.ansiWhiteTextColor != 242 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0xa6, 0xb0, 0x9f ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x35, 0x8f, 0xa2 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xdf, 0x69, 0xba ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0x4f, 0x5b, 0x58 ) )
    {
       fail_msg( "everforestLightColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -850,8 +1041,10 @@ static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
    gruvboxDarkColors();
 
    // Assert
-   if ( color.text != 223 || color.forum != 142 || color.number != 109 ||
-        color.errorTextColor != 214 )
+   if ( color.text != colorValueFromRgb( 0xeb, 0xdb, 0xb2 ) ||
+        color.forum != colorValueFromRgb( 0x83, 0xa5, 0x98 ) ||
+        color.number != colorValueFromRgb( 0x8e, 0xc0, 0x7c ) ||
+        color.errorTextColor != colorValueFromRgb( 0xfe, 0x80, 0x19 ) )
    {
       fail_msg( "gruvboxDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
@@ -860,13 +1053,20 @@ static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
    {
       fail_msg( "gruvboxDarkColors should keep a dark background; got %d", color.background );
    }
-   if ( color.postDate != 109 || color.postFriendDate != 175 ||
-        color.postName != 142 || color.postFriendName != 108 ||
-        color.postText != 223 || color.postFriendText != 223 ||
-        color.anonymous != 214 || color.morePrompt != 214 ||
-        color.inputText != 223 || color.inputHighlight != 109 ||
-        color.expressText != 223 || color.expressName != 142 ||
-        color.expressFriendName != 108 || color.expressFriendText != 223 )
+   if ( color.postDate != colorValueFromRgb( 0x83, 0xa5, 0x98 ) ||
+        color.postFriendDate != colorValueFromRgb( 0xd3, 0x86, 0x9b ) ||
+        color.postName != colorValueFromRgb( 0xb8, 0xbb, 0x26 ) ||
+        color.postFriendName != colorValueFromRgb( 0x8e, 0xc0, 0x7c ) ||
+        color.postText != colorValueFromRgb( 0xeb, 0xdb, 0xb2 ) ||
+        color.postFriendText != colorValueFromRgb( 0xeb, 0xdb, 0xb2 ) ||
+        color.anonymous != colorValueFromRgb( 0xfe, 0x80, 0x19 ) ||
+        color.morePrompt != colorValueFromRgb( 0xfa, 0xbd, 0x2f ) ||
+        color.inputText != colorValueFromRgb( 0xeb, 0xdb, 0xb2 ) ||
+        color.inputHighlight != colorValueFromRgb( 0x83, 0xa5, 0x98 ) ||
+        color.expressText != colorValueFromRgb( 0xeb, 0xdb, 0xb2 ) ||
+        color.expressName != colorValueFromRgb( 0xb8, 0xbb, 0x26 ) ||
+        color.expressFriendName != colorValueFromRgb( 0x8e, 0xc0, 0x7c ) ||
+        color.expressFriendText != colorValueFromRgb( 0xeb, 0xdb, 0xb2 ) )
    {
       fail_msg( "gruvboxDarkColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
@@ -875,8 +1075,10 @@ static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 245 || color.ansiBlueTextColor != 109 ||
-        color.ansiMagentaTextColor != 175 || color.ansiWhiteTextColor != 223 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x92, 0x83, 0x74 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x83, 0xa5, 0x98 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xd3, 0x86, 0x9b ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xfb, 0xf1, 0xc7 ) )
    {
       fail_msg( "gruvboxDarkColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -896,23 +1098,32 @@ static void gruvboxLightColors_WhenApplied_SetsLightPalette( void **state )
    gruvboxLightColors();
 
    // Assert
-   if ( color.text != 239 || color.forum != 100 || color.number != 66 ||
-        color.errorTextColor != 172 )
+   if ( color.text != colorValueFromRgb( 0x3c, 0x38, 0x36 ) ||
+        color.forum != colorValueFromRgb( 0x45, 0x85, 0x88 ) ||
+        color.number != colorValueFromRgb( 0x68, 0x9d, 0x6a ) ||
+        color.errorTextColor != colorValueFromRgb( 0xd6, 0x5d, 0x0e ) )
    {
       fail_msg( "gruvboxLightColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 230 )
+   if ( color.background != colorValueFromRgb( 0xf9, 0xf5, 0xd7 ) )
    {
       fail_msg( "gruvboxLightColors should use a light background; got %d", color.background );
    }
-   if ( color.postDate != 66 || color.postFriendDate != 132 ||
-        color.postName != 100 || color.postFriendName != 107 ||
-        color.postText != 239 || color.postFriendText != 239 ||
-        color.anonymous != 172 || color.morePrompt != 172 ||
-        color.inputText != 239 || color.inputHighlight != 66 ||
-        color.expressText != 239 || color.expressName != 100 ||
-        color.expressFriendName != 107 || color.expressFriendText != 239 )
+   if ( color.postDate != colorValueFromRgb( 0x45, 0x85, 0x88 ) ||
+        color.postFriendDate != colorValueFromRgb( 0xb1, 0x62, 0x86 ) ||
+        color.postName != colorValueFromRgb( 0x79, 0x74, 0x0e ) ||
+        color.postFriendName != colorValueFromRgb( 0x68, 0x9d, 0x6a ) ||
+        color.postText != colorValueFromRgb( 0x3c, 0x38, 0x36 ) ||
+        color.postFriendText != colorValueFromRgb( 0x3c, 0x38, 0x36 ) ||
+        color.anonymous != colorValueFromRgb( 0xaf, 0x3a, 0x03 ) ||
+        color.morePrompt != colorValueFromRgb( 0xd7, 0x99, 0x21 ) ||
+        color.inputText != colorValueFromRgb( 0x3c, 0x38, 0x36 ) ||
+        color.inputHighlight != colorValueFromRgb( 0x45, 0x85, 0x88 ) ||
+        color.expressText != colorValueFromRgb( 0x3c, 0x38, 0x36 ) ||
+        color.expressName != colorValueFromRgb( 0x79, 0x74, 0x0e ) ||
+        color.expressFriendName != colorValueFromRgb( 0x68, 0x9d, 0x6a ) ||
+        color.expressFriendText != colorValueFromRgb( 0x3c, 0x38, 0x36 ) )
    {
       fail_msg( "gruvboxLightColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
@@ -921,8 +1132,10 @@ static void gruvboxLightColors_WhenApplied_SetsLightPalette( void **state )
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 66 ||
-        color.ansiMagentaTextColor != 132 || color.ansiWhiteTextColor != 239 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0xa8, 0x99, 0x84 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x45, 0x85, 0x88 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xb1, 0x62, 0x86 ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0x28, 0x28, 0x28 ) )
    {
       fail_msg( "gruvboxLightColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -1157,7 +1370,12 @@ int main( void )
       cmocka_unit_test( formatAnsiForegroundSequence_WhenClassicColorRequested_UsesClassicAnsiCode ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenBrightColorRequested_UsesBrightAnsiCode ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenExtendedColorRequested_Uses256ColorCode ),
+      cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAndTruecolorEnabled_Uses24BitCode ),
+      cmocka_unit_test( formatAnsiBackgroundSequence_WhenRgbColorAndAutoModeInAppleTerminal_Uses256Fallback ),
+      cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAndAutoModeWithTruecolorTerminal_Uses24BitCode ),
+      cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAnd256ModeRequested_IgnoresTruecolorTerminal ),
       cmocka_unit_test( formatAnsiDisplayStateSequence_WhenDefaultBackgroundRequested_UsesCombinedSelectors ),
+      cmocka_unit_test( formatAnsiDisplayStateSequence_WhenRgbColorsRequested_UsesCombinedTruecolorSelectors ),
       cmocka_unit_test( brilliantColors_WhenApplied_SetsBrightDefaultPalette ),
       cmocka_unit_test( catppuccinLatteColors_WhenApplied_SetsLightPalette ),
       cmocka_unit_test( catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette ),
@@ -1171,6 +1389,7 @@ int main( void )
       cmocka_unit_test( ansiTransformExpress_WhenFriendSender_UsesFriendColorCodes ),
       cmocka_unit_test( ansiTransformExpress_WhenAnsiDisabled_LeavesTextUnchanged ),
       cmocka_unit_test( ansiTransformPostHeader_WhenFriendPost_RewritesHeaderDigitsAndTracksColor ),
+      cmocka_unit_test( colorOptions_WhenColorOutputModeSelected_UpdatesConfiguredMode ),
       cmocka_unit_test( colorPicker_WhenInvalidThenValidInput_ReturnsMappedColorAndFlushes ),
       cmocka_unit_test( colorPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue ),
       cmocka_unit_test( backgroundPicker_WhenDefaultSelected_ReturnsDefaultCode ),

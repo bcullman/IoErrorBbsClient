@@ -167,6 +167,8 @@ static void writeBehaviorSettings( void )
    fprintf( ptrConfigFile, "[behavior]\n" );
    fprintf( ptrConfigFile, "auto_answer_ansi = %s\n",
             flagsConfiguration.shouldAutoAnswerAnsiPrompt ? "true" : "false" );
+   fprintf( ptrConfigFile, "auto_reply_to_x_messages = %s\n",
+            isXland ? "true" : "false" );
    fprintf( ptrConfigFile, "autocomplete_recipients = %s\n",
             flagsConfiguration.shouldEnableNameAutocomplete ? "true" : "false" );
    fprintf( ptrConfigFile, "clickable_url_summaries = %s\n",

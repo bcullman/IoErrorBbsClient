@@ -903,6 +903,7 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "\n"
            "[behavior]\n"
            "auto_answer_ansi = true\n"
+           "auto_reply_to_x_messages = false\n"
            "autocomplete_recipients = false\n"
            "clickable_url_summaries = false\n"
            "screen_reader_mode = true\n"
@@ -977,6 +978,10 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
         flagsConfiguration.shouldEnableTitleBar )
    {
       fail_msg( "expected parsed behavior settings were not applied correctly" );
+   }
+   if ( isXland )
+   {
+      fail_msg( "expected auto_reply_to_x_messages = false to disable XLand auto-reply" );
    }
    if ( strcmp( aryAwayMessageLines[0], "Gone to lunch." ) != 0 ||
         strcmp( aryAwayMessageLines[1], "Back by 2pm." ) != 0 ||
@@ -1800,6 +1805,10 @@ static void readConfig_WhenConfigFileMissing_CreatesFileAndUsesDefaults( void **
    {
       fail_msg( "missing config should restore the default away message; got '%s'",
                 aryAwayMessageLines[0] );
+   }
+   if ( isXland )
+   {
+      fail_msg( "missing config should default auto-reply to X messages off" );
    }
 
    cleanupReadState();

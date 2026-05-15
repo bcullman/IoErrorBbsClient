@@ -270,7 +270,7 @@ static void initializeConfigDefaults( void )
       aryKeyMap[parseIndex] = (char)parseIndex;
    }
 
-   isXland = 1;
+   isXland = 0;
    xlandQueue = newQueue( 21, MAX_USER_NAME_HISTORY_COUNT );
    if ( !xlandQueue )
    {
@@ -1313,6 +1313,14 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
             {
                flagsConfiguration.shouldAutoAnswerAnsiPrompt =
                   (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "auto_reply_to_x_messages" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               isXland = parsedBooleanValue;
             }
             return true;
          }

@@ -1243,6 +1243,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    flagsConfiguration.shouldSquelchExpress = true;
    flagsConfiguration.shouldSquelchPost = true;
    flagsConfiguration.shouldUseKeychain = false;
+   isXland = false;
    ptrEnemyName = (char *)calloc( 1, strlen( "Mallory" ) + 1 );
    ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
    if ( ptrEnemyName == NULL || ptrFriend == NULL )
@@ -1330,6 +1331,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    }
    if ( strstr( aryOutput, "[behavior]\n" ) == NULL ||
         strstr( aryOutput, "auto_answer_ansi = true\n" ) == NULL ||
+        strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
@@ -1463,6 +1465,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    flagsConfiguration.shouldSquelchExpress = false;
    flagsConfiguration.shouldSquelchPost = false;
    flagsConfiguration.shouldUseKeychain = false;
+   isXland = true;
 #ifdef ENABLE_KEYCHAIN
    flagsConfiguration.shouldUseKeychain = true;
 #endif
@@ -1520,6 +1523,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
       return;
    }
    if ( strstr( aryOutput, "auto_answer_ansi = false\n" ) == NULL ||
+        strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||

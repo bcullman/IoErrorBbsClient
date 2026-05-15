@@ -23,7 +23,6 @@ int getWindowSize( void );
 void information( void );
 void initialize( void );
 void license( void );
-void moveIfNeeded( const char *oldpath, const char *newpath );
 noreturn void myExit( void );
 void mySleep( unsigned int sec );
 RETSIGTYPE naws( int signalNumber );

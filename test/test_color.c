@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -25,6 +25,9 @@ static size_t inputCount;
 static size_t inputIndex;
 static unsigned int flushCount;
 static unsigned int lastFlushValue;
+static int lastDisplayStateBackground;
+static int lastDisplayStateForeground;
+static unsigned int printAnsiDisplayStateCallCount;
 
 static void resetState( void )
 {
@@ -32,6 +35,9 @@ static void resetState( void )
    inputIndex = 0;
    flushCount = 0;
    lastFlushValue = 0;
+   lastDisplayStateBackground = -2;
+   lastDisplayStateForeground = -2;
+   printAnsiDisplayStateCallCount = 0;
 
    flagsConfiguration.shouldUseAnsi = 0;
    lastColor = 0;
@@ -100,8 +106,9 @@ void printAnsiBackgroundColorValue( int colorValue )
 
 void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
 {
-   (void)foregroundColor;
-   (void)backgroundColor;
+   lastDisplayStateForeground = foregroundColor;
+   lastDisplayStateBackground = backgroundColor;
+   printAnsiDisplayStateCallCount++;
 }
 
 void printThemedMnemonicText( const char *ptrText, int defaultColor )
@@ -188,6 +195,11 @@ int stdPrintf( const char *format, ... )
    return 1;
 }
 
+int stdPutChar( int inputChar )
+{
+   return inputChar;
+}
+
 int yesNoDefault( int defaultAnswer )
 {
    return defaultAnswer;
@@ -224,6 +236,44 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
       fail_msg( "defaultColors(1) did not set full ANSI fallback colors as expected; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
                 color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately( void **state )
+{
+   const int aryKeys[] = { 't', '6', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = 1;
+   color.background = 0;
+   color.text = 2;
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( color.background != 255 )
+   {
+      fail_msg( "Latte preset should change the configured background to white; got %d",
+                color.background );
+   }
+   if ( printAnsiDisplayStateCallCount == 0 )
+   {
+      fail_msg( "colorConfig should refresh the full display state after a preset change" );
+   }
+   if ( lastDisplayStateBackground != 255 )
+   {
+      fail_msg( "colorConfig should refresh the terminal background immediately after a preset change; got %d",
+                lastDisplayStateBackground );
+   }
+   if ( lastDisplayStateForeground != color.text )
+   {
+      fail_msg( "colorConfig should refresh the terminal using the active text color; got %d expected %d",
+                lastDisplayStateForeground, color.text );
    }
 }
 
@@ -485,7 +535,7 @@ static void colorblindColors_WhenApplied_SetsAccessiblePalette( void **state )
       fail_msg( "colorblindColors should set general accessible colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 16 )
+   if ( color.background != 0 )
    {
       fail_msg( "colorblindColors should keep a dark background; got %d", color.background );
    }
@@ -554,6 +604,190 @@ static void brilliantColors_WhenApplied_SetsBrightDefaultPalette( void **state )
    }
 }
 
+static void catppuccinLatteColors_WhenApplied_SetsLightPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   catppuccinLatteColors();
+
+   // Assert
+   if ( color.text != 240 || color.forum != 27 || color.number != 37 ||
+        color.errorTextColor != 161 )
+   {
+      fail_msg( "catppuccinLatteColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 255 )
+   {
+      fail_msg( "catppuccinLatteColors should use a light background; got %d", color.background );
+   }
+   if ( color.postDate != 37 || color.postFriendDate != 30 ||
+        color.postName != 69 || color.postFriendName != 70 ||
+        color.postText != 240 || color.postFriendText != 240 ||
+        color.anonymous != 172 || color.morePrompt != 172 ||
+        color.inputText != 240 || color.inputHighlight != 27 ||
+        color.expressText != 240 || color.expressName != 27 ||
+        color.expressFriendName != 70 || color.expressFriendText != 240 )
+   {
+      fail_msg( "catppuccinLatteColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 27 ||
+        color.ansiMagentaTextColor != 99 || color.ansiWhiteTextColor != 60 )
+   {
+      fail_msg( "catppuccinLatteColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   catppuccinMacchiatoColors();
+
+   // Assert
+   if ( color.text != 189 || color.forum != 111 || color.number != 116 ||
+        color.errorTextColor != 210 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 0 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should keep a dark background; got %d", color.background );
+   }
+   if ( color.postDate != 116 || color.postFriendDate != 116 ||
+        color.postName != 147 || color.postFriendName != 150 ||
+        color.postText != 189 || color.postFriendText != 189 ||
+        color.anonymous != 223 || color.morePrompt != 223 ||
+        color.inputText != 189 || color.inputHighlight != 111 ||
+        color.expressText != 189 || color.expressName != 147 ||
+        color.expressFriendName != 150 || color.expressFriendText != 189 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 103 || color.ansiBlueTextColor != 111 ||
+        color.ansiMagentaTextColor != 183 || color.ansiWhiteTextColor != 189 )
+   {
+      fail_msg( "catppuccinMacchiatoColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   everforestDarkColors();
+
+   // Assert
+   if ( color.text != 187 || color.forum != 144 || color.number != 109 ||
+        color.errorTextColor != 174 )
+   {
+      fail_msg( "everforestDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 0 )
+   {
+      fail_msg( "everforestDarkColors should keep a dark background; got %d", color.background );
+   }
+   if ( color.postDate != 109 || color.postFriendDate != 109 ||
+        color.postName != 108 || color.postFriendName != 144 ||
+        color.postText != 187 || color.postFriendText != 187 ||
+        color.anonymous != 180 || color.morePrompt != 180 ||
+        color.inputText != 187 || color.inputHighlight != 109 ||
+        color.expressText != 187 || color.expressName != 108 ||
+        color.expressFriendName != 144 || color.expressFriendText != 187 )
+   {
+      fail_msg( "everforestDarkColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 245 || color.ansiBlueTextColor != 109 ||
+        color.ansiMagentaTextColor != 175 || color.ansiWhiteTextColor != 187 )
+   {
+      fail_msg( "everforestDarkColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void everforestLightColors_WhenApplied_SetsLightPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   everforestLightColors();
+
+   // Assert
+   if ( color.text != 242 || color.forum != 106 || color.number != 68 ||
+        color.errorTextColor != 203 )
+   {
+      fail_msg( "everforestLightColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 230 )
+   {
+      fail_msg( "everforestLightColors should use a light background; got %d", color.background );
+   }
+   if ( color.postDate != 68 || color.postFriendDate != 68 ||
+        color.postName != 72 || color.postFriendName != 107 ||
+        color.postText != 242 || color.postFriendText != 242 ||
+        color.anonymous != 178 || color.morePrompt != 178 ||
+        color.inputText != 242 || color.inputHighlight != 68 ||
+        color.expressText != 242 || color.expressName != 72 ||
+        color.expressFriendName != 107 || color.expressFriendText != 242 )
+   {
+      fail_msg( "everforestLightColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 68 ||
+        color.ansiMagentaTextColor != 169 || color.ansiWhiteTextColor != 242 )
+   {
+      fail_msg( "everforestLightColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
 static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
 {
    // Arrange
@@ -572,7 +806,7 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
       fail_msg( "hotDogColors should set general hot dog colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 16 )
+   if ( color.background != 0 )
    {
       fail_msg( "hotDogColors should keep a black background; got %d", color.background );
    }
@@ -599,6 +833,98 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
         color.ansiMagentaTextColor != 130 || color.ansiWhiteTextColor != 220 )
    {
       fail_msg( "hotDogColors should eliminate stray gray and purple by theming the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   gruvboxDarkColors();
+
+   // Assert
+   if ( color.text != 223 || color.forum != 142 || color.number != 109 ||
+        color.errorTextColor != 214 )
+   {
+      fail_msg( "gruvboxDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 0 )
+   {
+      fail_msg( "gruvboxDarkColors should keep a dark background; got %d", color.background );
+   }
+   if ( color.postDate != 109 || color.postFriendDate != 175 ||
+        color.postName != 142 || color.postFriendName != 108 ||
+        color.postText != 223 || color.postFriendText != 223 ||
+        color.anonymous != 214 || color.morePrompt != 214 ||
+        color.inputText != 223 || color.inputHighlight != 109 ||
+        color.expressText != 223 || color.expressName != 142 ||
+        color.expressFriendName != 108 || color.expressFriendText != 223 )
+   {
+      fail_msg( "gruvboxDarkColors should map posts, prompts, input, and express roles onto the dark palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 245 || color.ansiBlueTextColor != 109 ||
+        color.ansiMagentaTextColor != 175 || color.ansiWhiteTextColor != 223 )
+   {
+      fail_msg( "gruvboxDarkColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+                color.ansiBlackTextColor, color.ansiBlueTextColor,
+                color.ansiMagentaTextColor, color.ansiWhiteTextColor );
+   }
+}
+
+static void gruvboxLightColors_WhenApplied_SetsLightPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   gruvboxLightColors();
+
+   // Assert
+   if ( color.text != 239 || color.forum != 100 || color.number != 66 ||
+        color.errorTextColor != 172 )
+   {
+      fail_msg( "gruvboxLightColors should set the light palette general colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 230 )
+   {
+      fail_msg( "gruvboxLightColors should use a light background; got %d", color.background );
+   }
+   if ( color.postDate != 66 || color.postFriendDate != 132 ||
+        color.postName != 100 || color.postFriendName != 107 ||
+        color.postText != 239 || color.postFriendText != 239 ||
+        color.anonymous != 172 || color.morePrompt != 172 ||
+        color.inputText != 239 || color.inputHighlight != 66 ||
+        color.expressText != 239 || color.expressName != 100 ||
+        color.expressFriendName != 107 || color.expressFriendText != 239 )
+   {
+      fail_msg( "gruvboxLightColors should map posts, prompts, input, and express roles onto the light palette; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+                color.postDate, color.postFriendDate, color.postName,
+                color.postFriendName, color.postText, color.postFriendText,
+                color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
+                color.expressText, color.expressName,
+                color.expressFriendName, color.expressFriendText );
+   }
+   if ( color.ansiBlackTextColor != 246 || color.ansiBlueTextColor != 66 ||
+        color.ansiMagentaTextColor != 132 || color.ansiWhiteTextColor != 239 )
+   {
+      fail_msg( "gruvboxLightColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
                 color.ansiMagentaTextColor, color.ansiWhiteTextColor );
    }
@@ -818,6 +1144,7 @@ static void backgroundPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue(
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
+      cmocka_unit_test( colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( colorValueFromName_WhenCanonicalNameProvided_ReturnsNamedPaletteValue ),
@@ -832,7 +1159,13 @@ int main( void )
       cmocka_unit_test( formatAnsiForegroundSequence_WhenExtendedColorRequested_Uses256ColorCode ),
       cmocka_unit_test( formatAnsiDisplayStateSequence_WhenDefaultBackgroundRequested_UsesCombinedSelectors ),
       cmocka_unit_test( brilliantColors_WhenApplied_SetsBrightDefaultPalette ),
+      cmocka_unit_test( catppuccinLatteColors_WhenApplied_SetsLightPalette ),
+      cmocka_unit_test( catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette ),
       cmocka_unit_test( colorblindColors_WhenApplied_SetsAccessiblePalette ),
+      cmocka_unit_test( everforestDarkColors_WhenApplied_SetsDarkPalette ),
+      cmocka_unit_test( everforestLightColors_WhenApplied_SetsLightPalette ),
+      cmocka_unit_test( gruvboxDarkColors_WhenApplied_SetsDarkPalette ),
+      cmocka_unit_test( gruvboxLightColors_WhenApplied_SetsLightPalette ),
       cmocka_unit_test( hotDogColors_WhenApplied_SetsClassicHotDogPalette ),
       cmocka_unit_test( ansiTransform_WhenHotDogPaletteApplied_UsesThemeColorsForAllAnsiDigits ),
       cmocka_unit_test( ansiTransformExpress_WhenFriendSender_UsesFriendColorCodes ),

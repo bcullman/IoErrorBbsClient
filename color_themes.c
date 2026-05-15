@@ -39,6 +39,67 @@ void brilliantColors( void )
    color.expressFriendText = 10;
 }
 
+/// @brief Apply the Catppuccin Latte palette to the current color settings.
+///
+/// @return This function does not return a value.
+void catppuccinLatteColors( void )
+{
+   color.text = 240;
+   color.forum = 27;
+   color.number = 37;
+   color.errorTextColor = 161;
+   color.ansiBlackTextColor = 246;
+   color.ansiBlueTextColor = 27;
+   color.ansiMagentaTextColor = 99;
+   color.postDate = 37;
+   color.postName = 69;
+   color.postText = 240;
+   color.postFriendDate = 30;
+   color.postFriendName = 70;
+   color.postFriendText = 240;
+   color.anonymous = 172;
+   color.morePrompt = 172;
+   color.ansiWhiteTextColor = 60;
+   color.reserved5 = 240;
+   color.background = 255;
+   color.inputText = 240;
+   color.inputHighlight = 27;
+   color.expressText = 240;
+   color.expressName = 27;
+   color.expressFriendName = 70;
+   color.expressFriendText = 240;
+}
+
+/// @brief Apply the Catppuccin Macchiato palette to the current colors.
+///
+/// @return This function does not return a value.
+void catppuccinMacchiatoColors( void )
+{
+   color.text = 189;
+   color.forum = 111;
+   color.number = 116;
+   color.errorTextColor = 210;
+   color.ansiBlackTextColor = 103;
+   color.ansiBlueTextColor = 111;
+   color.ansiMagentaTextColor = 183;
+   color.postDate = 116;
+   color.postName = 147;
+   color.postText = 189;
+   color.postFriendDate = 116;
+   color.postFriendName = 150;
+   color.postFriendText = 189;
+   color.anonymous = 223;
+   color.morePrompt = 223;
+   color.ansiWhiteTextColor = 189;
+   color.reserved5 = 189;
+   color.background = 0;
+   color.inputText = 189;
+   color.inputHighlight = 111;
+   color.expressText = 189;
+   color.expressName = 147;
+   color.expressFriendName = 150;
+   color.expressFriendText = 189;
+}
 
 /// @brief Apply the colorblind-friendly theme palette to the current colors.
 ///
@@ -62,7 +123,7 @@ void colorblindColors( void )
    color.morePrompt = 221;
    color.ansiWhiteTextColor = 221;
    color.reserved5 = 231;
-   color.background = 16;
+   color.background = 0;
    color.inputText = 231;
    color.inputHighlight = 214;
    color.expressText = 231;
@@ -108,6 +169,135 @@ void defaultColors( int clearall )
    ifzero( color.expressFriendText ) color.expressFriendText = 2;
 }
 
+/// @brief Apply the Everforest dark medium palette to the current color settings.
+///
+/// @return This function does not return a value.
+void everforestDarkColors( void )
+{
+   color.text = 187;
+   color.forum = 144;
+   color.number = 109;
+   color.errorTextColor = 174;
+   color.ansiBlackTextColor = 245;
+   color.ansiBlueTextColor = 109;
+   color.ansiMagentaTextColor = 175;
+   color.postDate = 109;
+   color.postName = 108;
+   color.postText = 187;
+   color.postFriendDate = 109;
+   color.postFriendName = 144;
+   color.postFriendText = 187;
+   color.anonymous = 180;
+   color.morePrompt = 180;
+   color.ansiWhiteTextColor = 187;
+   color.reserved5 = 187;
+   color.background = 0;
+   color.inputText = 187;
+   color.inputHighlight = 109;
+   color.expressText = 187;
+   color.expressName = 108;
+   color.expressFriendName = 144;
+   color.expressFriendText = 187;
+}
+
+/// @brief Apply the Everforest light medium palette to the current color settings.
+///
+/// @return This function does not return a value.
+void everforestLightColors( void )
+{
+   color.text = 242;
+   color.forum = 106;
+   color.number = 68;
+   color.errorTextColor = 203;
+   color.ansiBlackTextColor = 246;
+   color.ansiBlueTextColor = 68;
+   color.ansiMagentaTextColor = 169;
+   color.postDate = 68;
+   color.postName = 72;
+   color.postText = 242;
+   color.postFriendDate = 68;
+   color.postFriendName = 107;
+   color.postFriendText = 242;
+   color.anonymous = 178;
+   color.morePrompt = 178;
+   color.ansiWhiteTextColor = 242;
+   color.reserved5 = 242;
+   color.background = 230;
+   color.inputText = 242;
+   color.inputHighlight = 68;
+   color.expressText = 242;
+   color.expressName = 72;
+   color.expressFriendName = 107;
+   color.expressFriendText = 242;
+}
+
+/// @brief Apply the Gruvbox dark hard palette to the current color settings.
+///
+/// This preset intentionally leans on Gruvbox's softer aqua, purple, yellow,
+/// and olive-green tones instead of the more aggressive red/orange accents.
+///
+/// @return This function does not return a value.
+void gruvboxDarkColors( void )
+{
+   color.text = 223;
+   color.forum = 142;
+   color.number = 109;
+   color.errorTextColor = 214;
+   color.ansiBlackTextColor = 245;
+   color.ansiBlueTextColor = 109;
+   color.ansiMagentaTextColor = 175;
+   color.postDate = 109;
+   color.postName = 142;
+   color.postText = 223;
+   color.postFriendDate = 175;
+   color.postFriendName = 108;
+   color.postFriendText = 223;
+   color.anonymous = 214;
+   color.morePrompt = 214;
+   color.ansiWhiteTextColor = 223;
+   color.reserved5 = 223;
+   color.background = 0;
+   color.inputText = 223;
+   color.inputHighlight = 109;
+   color.expressText = 223;
+   color.expressName = 142;
+   color.expressFriendName = 108;
+   color.expressFriendText = 223;
+}
+
+/// @brief Apply the Gruvbox light hard palette to the current color settings.
+///
+/// This preset keeps the same quieter accent bias as the dark palette while
+/// switching to Gruvbox's light background and softer neutral text.
+///
+/// @return This function does not return a value.
+void gruvboxLightColors( void )
+{
+   color.text = 239;
+   color.forum = 100;
+   color.number = 66;
+   color.errorTextColor = 172;
+   color.ansiBlackTextColor = 246;
+   color.ansiBlueTextColor = 66;
+   color.ansiMagentaTextColor = 132;
+   color.postDate = 66;
+   color.postName = 100;
+   color.postText = 239;
+   color.postFriendDate = 132;
+   color.postFriendName = 107;
+   color.postFriendText = 239;
+   color.anonymous = 172;
+   color.morePrompt = 172;
+   color.ansiWhiteTextColor = 239;
+   color.reserved5 = 239;
+   color.background = 230;
+   color.inputText = 239;
+   color.inputHighlight = 66;
+   color.expressText = 239;
+   color.expressName = 100;
+   color.expressFriendName = 107;
+   color.expressFriendText = 239;
+}
 
 /// @brief Apply the hot dog theme palette to the current color settings.
 ///
@@ -131,7 +321,7 @@ void hotDogColors( void )
    color.morePrompt = 220;
    color.ansiWhiteTextColor = 220;
    color.reserved5 = 130;
-   color.background = 16;
+   color.background = 0;
    color.inputText = 220;
    color.inputHighlight = 231;
    color.expressText = 214;

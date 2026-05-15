@@ -125,7 +125,7 @@ static void finishExpressMessage( const ExpressFilterFlags *ptrFlags,
         itemIndex > highestExpressMessageId && !isAutoReply )
    {
       pushQueue( ptrSenderName, xlandQueue );
-      shouldSendExpressMessage = 1;
+      shouldSendExpressMessage = true;
    }
    else if ( isAutoReply && itemIndex > highestExpressMessageId )
    {
@@ -166,7 +166,7 @@ int isAutomaticReply( const char *message )
    // Wasn't a first aryLine? - move past '>'
    if ( !ptrCursor )
    {
-      return 0;
+      return false;
    }
    ptrCursor++;
 
@@ -175,11 +175,11 @@ int isAutomaticReply( const char *message )
         !strncmp( ptrCursor, "This message was automatically generated", 40 ) ||
         !strncmp( ptrCursor, "*** ISCA Windows Client", 23 ) )
    {
-      return 1;
+      return true;
    }
 
    // Treat the message as a normal express message.
-   return 0;
+   return false;
 }
 
 /// @brief Mark an automatic reply message so it will not trigger a reply.

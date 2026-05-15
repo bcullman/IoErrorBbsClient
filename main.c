@@ -7,7 +7,7 @@
 /*
  * Program entry point.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "defs.h"
@@ -24,15 +24,15 @@ int main( int argc, char *argv[] )
    aryEscape[1] = '\0';
    if ( *argv[0] == '-' )
    {
-      isLoginShell = 1;
+      isLoginShell = true;
    }
    else
    {
-      isLoginShell = 0;
+      isLoginShell = false;
    }
    initialize();
    findHome();
-   readBbsRc();
+   readConfig();
    openTmpFile();
    arguments( argc, argv );
    connectBbs();

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -30,10 +30,10 @@ static void resetState( void )
    aryLastKeychainServerLine[0] = '\0';
    sendAnXCallCount = 0;
 
-   isAway = 0;
-   isXland = 0;
-   isExpressMessageInProgress = 0;
-   shouldSendExpressMessage = 0;
+   isAway = false;
+   isXland = false;
+   isExpressMessageInProgress = false;
+   shouldSendExpressMessage = false;
    highestExpressMessageId = 0;
    pendingLinesToEat = 0;
    postProgressState = 0;
@@ -1135,7 +1135,7 @@ static void filterExpress_WhenAwayAndIncomingNewMessage_QueuesSender( void **sta
 
    resetState();
    resetLists();
-   isAway = 1;
+   isAway = true;
    xlandQueue = newQueue( 21, 5 );
    enemyList = slistCreate( 0, sortCompareVoid );
    if ( xlandQueue == NULL || enemyList == NULL )
@@ -1145,17 +1145,17 @@ static void filterExpress_WhenAwayAndIncomingNewMessage_QueuesSender( void **sta
    ptrHeader = "*** Message (#5) from Dr Strange at 3:07 PM on Feb 19, 2026 ***\r";
 
    // Act
-   isExpressMessageInProgress = 1;
+   isExpressMessageInProgress = true;
    filterExpress( -1 );
    for ( ; *ptrHeader != '\0'; ++ptrHeader )
    {
       filterExpress( *ptrHeader );
    }
-   isExpressMessageInProgress = 0;
+   isExpressMessageInProgress = false;
    filterExpress( -1 );
 
    // Assert
-   if ( shouldSendExpressMessage != 1 )
+   if ( !shouldSendExpressMessage )
    {
       fail_msg( "new incoming X while away should set shouldSendExpressMessage=1; got %d", shouldSendExpressMessage );
    }

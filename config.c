@@ -5,9 +5,9 @@
  */
 
 /*
- * This file handles configuration of the bbsrc file.
+ * This file handles client configuration.
  */
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "color.h"
@@ -16,16 +16,12 @@
 #include "defs.h"
 #include "filter_globals.h"
 #include "utility.h"
-static const char *CONFIG_MAIN_MENU_KEYS = "cefhikmoqx \n";
+static const char *CONFIG_MAIN_MENU_KEYS = "cefhikoqx \n";
 
-#define GREETING \
-   "\r\nWelcome to IO ERROR's ISCA BBS Client!  Please take a moment to familiarize\r\nyourself with some of our new features.\r\n\n"
 #define UPGRADE \
    "Thank you for upgrading to the latest version of IO ERROR's ISCA BBS Client!\r\nPlease take a moment to familiarize yourself with our new features."
 #define DOWNGRADE \
    "You appear to have downgraded your version of IO ERROR's ISCA BBS Client.\r\nIf you continue running this client, you may lose some of your preferences and\r\nfeatures you are accustomed to.  Please visit the above website to upgrade\r\nto the latest version of IO ERROR's ISCA BBS Client."
-#define BBSRC_INFO \
-   "IO ERROR's ISCA BBS Client integrates the contents of the .bbsrc and\r\n.bbsfriends file into a single file.  This change is fully compatible with\r\nolder clients, however those clients might re-create the .bbsfriends file.\r\nThis should not be a problem for most people; however, we recommend making a\r\nbackup copy of your .bbsrc and .bbsfriends files.  If for some reason you NEED\r\nthe .bbsrc and .bbsfriends files separated, DO NOT RUN THIS CLIENT."
 #define COLOR_INFO \
    "IO ERROR's ISCA BBS Client allows you to choose what colors posts and express\r\nmessages are displayed with.  Use the <C>olor menu in the client configuration\r\nmenu to create your customized color scheme."
 #define ENEMY_INFO \
@@ -35,21 +31,20 @@ static const char *CONFIG_MAIN_MENU_KEYS = "cefhikmoqx \n";
 
 static const char *describeKeyForHelp( int inputChar );
 
-
 /// @brief Run the top-level client configuration menu.
 ///
 /// The selected submenus update the in-memory configuration, and quitting the
-/// menu writes the changes back to `.bbsrc` when the file is writable.
+/// menu writes the changes back to `config.toml` when the file is writable.
 ///
 /// @return This function does not return a value.
-void configBbsRc( void )
+void configClient( void )
 {
    flagsConfiguration.isConfigMode = 1;
-   if ( isBbsRcReadOnly )
+   if ( isConfigFileReadOnly )
    {
       stdPrintf( "\r\nConfiguration file is read-only, unable to save configuration for next session.\r\n" );
    }
-   else if ( !ptrBbsRc )
+   else if ( !ptrConfigFile )
    {
       stdPrintf( "\r\nNo configuration file, unable to save configuration for next session.\r\n" );
    }
@@ -57,7 +52,8 @@ void configBbsRc( void )
    {
       int inputChar;
 
-      printThemedMnemonicText( "\r\n<C>olor  <E>nemy list  <F>riend list  <H>otkeys\r\n<I>nfo  <M>acros  <O>ptions  <X>press  <Q>uit", color.number );
+      printAnsiDisplayStateValue( color.text, color.background );
+      printThemedMnemonicText( "\r\n<C>olor  <E>nemy list  <F>riend list  <H>otkeys\r\n<I>nfo  <O>ptions  <X>press  <Q>uit", color.number );
       printThemedMnemonicText( "\r\nClient config -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
       inputChar = readValidatedMenuKey( CONFIG_MAIN_MENU_KEYS );
@@ -93,20 +89,16 @@ void configBbsRc( void )
             editUsers( enemyList, strCompareVoid, "enemy" );
             break;
 
-         case 'm':
-            configureMacros();
-            break;
-
          case 'q':
          case ' ':
          case '\n':
             stdPrintf( "Quit\r\n" );
             flagsConfiguration.isConfigMode = 0;
-            if ( isBbsRcReadOnly || !ptrBbsRc )
+            if ( isConfigFileReadOnly || !ptrConfigFile )
             {
                return;
             }
-            writeBbsRc();
+            writeConfig();
             return;
             // NOTREACHED
 
@@ -115,7 +107,6 @@ void configBbsRc( void )
       }
    }
 }
-
 
 /// @brief Describe a configured key in a user-facing format.
 ///
@@ -145,7 +136,6 @@ static const char *describeKeyForHelp( int inputChar )
    }
 }
 
-
 /// @brief Perform version-gated setup prompts and initialize new defaults.
 ///
 /// This setup flow carries forward the legacy first-run and upgrade prompts
@@ -158,32 +148,17 @@ static const char *describeKeyForHelp( int inputChar )
 void setup( int newVersion )
 {
    setTerm();
-   if ( newVersion < 1 )
+   if ( newVersion > INT_VERSION )
    {
-      stdPrintf( GREETING );
+      sInfo( DOWNGRADE, "Downgrade" );
    }
-   else if ( newVersion > INT_VERSION )
-   {
-      if ( !sPrompt( DOWNGRADE, "Continue running this client?", 0 ) )
-      {
-         myExit();
-      }
-   }
-   else
+   else if ( newVersion >= 1 )
    {
       sInfo( UPGRADE, "Upgrade" );
    }
    fflush( stdout );
 
-   // bbsrc file
-   if ( newVersion < 5 )
-   {
-      if ( !sPrompt( BBSRC_INFO, "Continue running this client?", 1 ) )
-      {
-         myExit();
-      }
-   }
-   if ( newVersion < 220 )
+   if ( newVersion >= 1 && newVersion < 220 )
    {
       if ( sPrompt( ENEMY_INFO, "Notify when posts and express messages from enemies are killed?", 1 ) )
       {
@@ -199,7 +174,7 @@ void setup( int newVersion )
       fflush( stdout );
       sInfo( COLOR_INFO, "Colors" );
    }
-   if ( newVersion < 237 )
+   if ( newVersion >= 1 && newVersion < 237 )
    {
       char aryUrlInfo[512];
 
@@ -212,13 +187,14 @@ void setup( int newVersion )
    }
    promptForScreenReaderModeIfUnset();
    defaultNameAutocompleteIfUnset();
-   if ( sPrompt( ADVANCED_OPTIONS, "Configure the client now?", 0 ) )
+   if ( newVersion >= 1 &&
+        sPrompt( ADVANCED_OPTIONS, "Configure the client now?", 0 ) )
    {
-      configBbsRc();
+      configClient();
    }
    else
    {
-      writeBbsRc();
+      writeConfig();
    }
    resetTerm();
    return;

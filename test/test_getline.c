@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -274,7 +274,7 @@ bool tryUpsertKeychainPassword( const char *ptrHost, const char *ptrUser,
    return false;
 }
 
-void writeBbsRc( void )
+void writeConfig( void )
 {
    // Test stub: config persistence is not relevant in this test.
 }
@@ -371,7 +371,7 @@ static void getName_WhenAutoLoginUsed_ProcessesBufferedKeychainServerText( void 
    (void)state;
 
    resetTracking();
-   isAutoLoggedIn = 0;
+   isAutoLoggedIn = false;
    snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Stilgar" );
 
    // Act

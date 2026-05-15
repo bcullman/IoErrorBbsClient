@@ -516,7 +516,7 @@ static bool isCurrentPasswordFailureLine( const char *ptrLine )
 
 static bool isKeychainRuntimeEnabled( void )
 {
-   return flagsConfiguration.shouldUseKeychain != 0;
+   return flagsConfiguration.shouldUseKeychain;
 }
 
 static bool isLoginPasswordFailureLine( const char *ptrLine )

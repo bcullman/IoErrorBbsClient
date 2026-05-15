@@ -33,20 +33,15 @@ typedef struct
 static const char *currentConnectionHost( void );
 static noreturn void failNetworkRead( int readErrno );
 static void flushPendingOutput( void );
-static GetKeyResult handleBufferedLocalInput( int *ptrMacroKey,
-                                              int *ptrMacroPosition,
-                                              const int *ptrPendingInputChar,
-                                              int *ptrIsMacroNext,
+static GetKeyResult handleBufferedLocalInput( int *ptrIsCommandNext,
                                               int *ptrWasUndefinedCommand );
-static GetKeyResult handleCommandKeyInput( int inputChar, int *ptrMacroKey,
-                                           int *ptrMacroPosition,
-                                           int *ptrIsMacroNext,
+static GetKeyResult handleCommandKeyInput( int inputChar,
+                                           int *ptrIsCommandNext,
                                            int *ptrWasUndefinedCommand );
-static GetKeyResult handleWaitEvent( int *ptrMacroPosition,
-                                     int *ptrPendingInputChar );
+static GetKeyResult handleWaitEvent( void );
 static bool isLocalInputDescriptorReady( void );
+static bool tryBufferReadyLocalInput( void );
 static bool tryReplaySavedByte( int *ptrInputChar );
-
 
 /// @brief Resolve the current host name used for network error reporting.
 ///
@@ -64,7 +59,6 @@ static const char *currentConnectionHost( void )
 
    return BBS_HOSTNAME;
 }
-
 
 /// @brief Abort with a detailed network read error message.
 ///
@@ -131,7 +125,6 @@ static noreturn void failNetworkRead( int readErrno )
    fatalExit( aryMessage, "Network error" );
 }
 
-
 /// @brief Flush pending network and terminal output before waiting for input.
 ///
 /// @return This helper does not return a value.
@@ -149,18 +142,14 @@ static void flushPendingOutput( void )
    }
 }
 
-
-/// @brief Retrieve the next raw key or macro byte for the client.
+/// @brief Retrieve the next raw key for the client.
 ///
 /// @return Next raw input byte, or `-1` if the connection closed.
 int getKey( void )
 {
    int inputChar = -1;
-   static int isMacroNext = 0;         // aryMacro key was hit, aryMacro is next
-   static int macroKey = 0;
-   static int macroPosition = 0;       // pointer into the aryMacro array
-   int pendingInputChar = -1;
-   static int wasUndefinedCommand = 0; // to remove the blurb about undefined aryMacro
+   static int isCommandNext = 0;
+   static int wasUndefinedCommand = 0;
 
    // While a child process is running, standard input is ignored and only
    // network traffic is processed. The same applies when express-message
@@ -175,9 +164,7 @@ int getKey( void )
          return inputChar;
       }
 
-      result = handleBufferedLocalInput( &macroKey, &macroPosition,
-                                         &pendingInputChar,
-                                         &isMacroNext, &wasUndefinedCommand );
+      result = handleBufferedLocalInput( &isCommandNext, &wasUndefinedCommand );
       if ( result.kind == GETKEY_RESULT_RETURN )
       {
          return result.inputChar;
@@ -203,7 +190,7 @@ int getKey( void )
             if ( isLocalInputDescriptorReady() )
             {
                flushPendingOutput();
-               result = handleWaitEvent( &macroPosition, &pendingInputChar );
+               result = handleWaitEvent();
                if ( result.kind == GETKEY_RESULT_RETURN )
                {
                   return result.inputChar;
@@ -215,7 +202,7 @@ int getKey( void )
       }
 
       flushPendingOutput();
-      result = handleWaitEvent( &macroPosition, &pendingInputChar );
+      result = handleWaitEvent();
       if ( result.kind == GETKEY_RESULT_RETURN )
       {
          return result.inputChar;
@@ -223,65 +210,34 @@ int getKey( void )
    }
 }
 
-
-/// @brief Handle already-buffered local terminal input and macro playback.
+/// @brief Handle already-buffered local terminal input.
 ///
-/// @param ptrMacroKey Current macro key slot.
-/// @param ptrMacroPosition Current macro playback position.
-/// @param ptrPendingInputChar Saved pending local input byte.
-/// @param ptrIsMacroNext Tracks whether the next byte is a macro selector.
+/// @param ptrIsCommandNext Tracks whether the next byte is a command selector.
 /// @param ptrWasUndefinedCommand Tracks whether the undefined-command banner is active.
 ///
 /// @return Result describing whether input was consumed, should continue, or should return.
-static GetKeyResult handleBufferedLocalInput( int *ptrMacroKey,
-                                              int *ptrMacroPosition,
-                                              const int *ptrPendingInputChar,
-                                              int *ptrIsMacroNext,
+static GetKeyResult handleBufferedLocalInput( int *ptrIsCommandNext,
                                               int *ptrWasUndefinedCommand )
 {
-   int inputChar;
    GetKeyResult result;
 
    result.kind = GETKEY_RESULT_NONE;
    result.inputChar = -1;
 
-   while ( ( *ptrMacroPosition || isPtyInputAvailable() ) && !childPid &&
+   while ( isPtyInputAvailable() && !childPid &&
            !flagsConfiguration.shouldCheckExpress )
    {
-      if ( *ptrMacroPosition > 0 )
+      int inputChar = ptyget() & 0x7f;
+      if ( inputChar > 0 && isAway )
       {
-         inputChar = aryMacro[*ptrMacroKey][( *ptrMacroPosition )++];
-         if ( inputChar )
-         {
-            lastCarriageReturn = 0;
-            result.kind = GETKEY_RESULT_RETURN;
-            result.inputChar = inputChar;
-            return result;
-         }
-
-         *ptrMacroPosition = 0;
-         continue;
-      }
-
-      if ( *ptrMacroPosition < 0 )
-      {
-         inputChar = *ptrPendingInputChar;
-         *ptrMacroPosition = 0;
-      }
-      else
-      {
-         inputChar = ptyget() & 0x7f;
-      }
-      if ( inputChar > 0 && isAway == 1 )
-      {
-         isAway = 0;
+         isAway = false;
          stdPrintf( "\r\n[No longer away]\r\n" );
       }
 
-      if ( *ptrIsMacroNext )
+      if ( *ptrIsCommandNext )
       {
-         return handleCommandKeyInput( inputChar, ptrMacroKey, ptrMacroPosition,
-                                       ptrIsMacroNext, ptrWasUndefinedCommand );
+         return handleCommandKeyInput( inputChar, ptrIsCommandNext,
+                                       ptrWasUndefinedCommand );
       }
 
       if ( *ptrWasUndefinedCommand )
@@ -291,7 +247,7 @@ static GetKeyResult handleBufferedLocalInput( int *ptrMacroKey,
       }
       if ( inputChar == commandKey && !flagsConfiguration.isConfigMode )
       {
-         *ptrIsMacroNext = 1;
+         *ptrIsCommandNext = 1;
          printf( "[Command]" );
          result.kind = GETKEY_RESULT_CONTINUE;
          return result;
@@ -305,19 +261,15 @@ static GetKeyResult handleBufferedLocalInput( int *ptrMacroKey,
    return result;
 }
 
-
-/// @brief Handle a command-key sequence or macro selection.
+/// @brief Handle a command-key sequence.
 ///
 /// @param inputChar Command character that followed the command key.
-/// @param ptrMacroKey Current macro key slot.
-/// @param ptrMacroPosition Current macro playback position.
-/// @param ptrIsMacroNext Tracks whether the next byte is a macro selector.
+/// @param ptrIsCommandNext Tracks whether the next byte is a command selector.
 /// @param ptrWasUndefinedCommand Tracks whether the undefined-command banner is active.
 ///
 /// @return Result describing whether input was consumed, should continue, or should return.
-static GetKeyResult handleCommandKeyInput( int inputChar, int *ptrMacroKey,
-                                           int *ptrMacroPosition,
-                                           int *ptrIsMacroNext,
+static GetKeyResult handleCommandKeyInput( int inputChar,
+                                           int *ptrIsCommandNext,
                                            int *ptrWasUndefinedCommand )
 {
    GetKeyResult result;
@@ -326,12 +278,11 @@ static GetKeyResult handleCommandKeyInput( int inputChar, int *ptrMacroKey,
    result.inputChar = -1;
 
    printf( "\b\b\b\b\b\b\b\b\b         \b\b\b\b\b\b\b\b\b" );
-   *ptrIsMacroNext = 0;
-   *ptrMacroPosition = 0;
+   *ptrIsCommandNext = 0;
 
    if ( inputChar == awayKey )
    {
-      isAway ^= 1;
+      isAway = !isAway;
       stdPrintf( "\r\n[%s away]\r\n", ( isAway ) ? "Now" : "No longer" );
       return result;
    }
@@ -413,30 +364,17 @@ static GetKeyResult handleCommandKeyInput( int inputChar, int *ptrMacroKey,
       }
       return result;
    }
-   if ( inputChar > 127 || !*aryMacro[*ptrMacroKey = inputChar] )
-   {
-      printf( "[Undefined command]" );
-      *ptrWasUndefinedCommand = 1;
-      return result;
-   }
-
-   result.kind = GETKEY_RESULT_RETURN;
-   result.inputChar = aryMacro[*ptrMacroKey][( *ptrMacroPosition )++];
+   printf( "[Undefined command]" );
+   *ptrWasUndefinedCommand = 1;
    return result;
 }
 
-
 /// @brief Wait for the next terminal or network event when no buffered input exists.
 ///
-/// @param ptrMacroPosition Current macro playback position.
-/// @param ptrPendingInputChar Saved pending local input byte.
-///
 /// @return Result describing whether input was consumed, should continue, or should return.
-static GetKeyResult handleWaitEvent( int *ptrMacroPosition,
-                                     int *ptrPendingInputChar )
+static GetKeyResult handleWaitEvent( void )
 {
    int eventResult;
-   int inputChar;
    GetKeyResult result;
 
    result.kind = GETKEY_RESULT_NONE;
@@ -445,19 +383,18 @@ static GetKeyResult handleWaitEvent( int *ptrMacroPosition,
    eventResult = waitNextEvent();
    if ( eventResult & 1 )
    {
-      inputChar = ptyget();
-      if ( inputChar < 0 )
+      if ( !tryBufferReadyLocalInput() )
       {
          stdPrintf( "\r\n" );
          fatalPerror( "read", "Local error" );
       }
-      *ptrPendingInputChar = inputChar & 0x7f;
-      *ptrMacroPosition = -1;
       result.kind = GETKEY_RESULT_CONTINUE;
       return result;
    }
    if ( eventResult & 2 )
    {
+      int inputChar;
+
       errno = 0;
       inputChar = netget();
       if ( inputChar < 0 )
@@ -490,6 +427,25 @@ static GetKeyResult handleWaitEvent( int *ptrMacroPosition,
    return result;
 }
 
+/// @brief Read one ready local byte into the PTY buffer without consuming it.
+///
+/// When `waitNextEvent()` reports local input, the byte still needs to be read
+/// from standard input before the normal buffered-input path can process it.
+///
+/// @return `true` when a byte was buffered successfully, otherwise `false`.
+static bool tryBufferReadyLocalInput( void )
+{
+   int inputChar;
+
+   inputChar = ptyget();
+   if ( inputChar < 0 )
+   {
+      return false;
+   }
+
+   ptrPtyInput--;
+   return true;
+}
 
 /// @brief Return the next normalized user input key.
 ///
@@ -527,7 +483,6 @@ int inKey( void )
    return ( inputChar );
 }
 
-
 /// @brief Check whether unread local terminal input is waiting on standard input.
 ///
 /// @return `true` if standard input is readable without blocking, otherwise `false`.
@@ -550,7 +505,6 @@ static bool isLocalInputDescriptorReady( void )
    isReady = select( 1, &fdr, 0, 0, &timeout ) > 0 && FD_ISSET( 0, &fdr );
    return isReady;
 }
-
 
 /// @brief Replay a saved byte from local buffering when protocol state requires it.
 ///

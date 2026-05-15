@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -19,12 +19,19 @@
 #include <stddef.h>
 #include "telnet.h"
 #include "test_helpers.h"
+#include <unistd.h>
 #include "utility.h"
 static int fatalPerrorCallCount;
 static int fatalExitCallCount;
 static int myExitCallCount;
+static int openBrowserCallCount;
 static bool shouldInjectPtyInputDuringNetworkDrain;
+static bool shouldPreloadPtyInputForWaitEvents;
+static int aryWaitEventResults[32];
+static int aryWaitPtyInput[32];
 static int telReceiveCallCount;
+static size_t waitEventResultCount;
+static size_t waitEventResultIndex;
 static int waitNextEventCallCount;
 
 static void resetState( void )
@@ -34,16 +41,20 @@ static void resetState( void )
    fatalPerrorCallCount = 0;
    fatalExitCallCount = 0;
    myExitCallCount = 0;
+   openBrowserCallCount = 0;
    shouldInjectPtyInputDuringNetworkDrain = false;
+   shouldPreloadPtyInputForWaitEvents = true;
    telReceiveCallCount = 0;
+   waitEventResultCount = 0;
+   waitEventResultIndex = 0;
    waitNextEventCallCount = 0;
 
    targetByte = 0;
    byte = 0;
    bytePosition = 0;
    childPid = 0;
-   isAway = 0;
-   isLoginShell = 0;
+   isAway = false;
+   isLoginShell = false;
    capture = 0;
 
    flagsConfiguration.isConfigMode = 0;
@@ -58,11 +69,6 @@ static void resetState( void )
    shellKey = '!';
    browserKey = 'w';
    captureKey = 'c';
-
-   for ( keyIndex = 0; keyIndex < 128; ++keyIndex )
-   {
-      aryMacro[keyIndex][0] = '\0';
-   }
    for ( keyIndex = 0; keyIndex < 1000; ++keyIndex )
    {
       arySavedByteCanReplay[keyIndex] = false;
@@ -73,6 +79,25 @@ static void resetState( void )
    ptrPtyInput = aryPtyInputBuffer;
    netInputLength = 0;
    ptrNetInput = aryNetInputBuffer;
+}
+
+static void setWaitEventSequence( const int *aryEventResults,
+                                  const int *aryInputChars,
+                                  size_t eventCount )
+{
+   size_t eventIndex;
+
+   assert_true( eventCount <= ( sizeof( aryWaitEventResults ) / sizeof( aryWaitEventResults[0] ) ) );
+   assert_true( eventCount <= ( sizeof( aryWaitPtyInput ) / sizeof( aryWaitPtyInput[0] ) ) );
+
+   waitEventResultCount = eventCount;
+   waitEventResultIndex = 0;
+
+   for ( eventIndex = 0; eventIndex < eventCount; eventIndex++ )
+   {
+      aryWaitEventResults[eventIndex] = aryEventResults[eventIndex];
+      aryWaitPtyInput[eventIndex] = aryInputChars[eventIndex];
+   }
 }
 
 static void setPtyInput( const int *aryInput, size_t inputCount )
@@ -118,7 +143,7 @@ noreturn void myExit( void )
 
 void openBrowser( void )
 {
-   // Test stub: browser launching is not relevant in this test.
+   openBrowserCallCount++;
 }
 
 void run( const char *ptrCommand, const char *ptrArg )
@@ -158,45 +183,98 @@ int telReceive( int inputChar )
 
 int waitNextEvent( void )
 {
+   const int aryNoInput[] = { 0 };
+
    waitNextEventCallCount++;
+   if ( waitEventResultIndex < waitEventResultCount )
+   {
+      int eventResult = aryWaitEventResults[waitEventResultIndex];
+
+      if ( shouldPreloadPtyInputForWaitEvents && ( eventResult & 1 ) )
+      {
+         setPtyInput( &aryWaitPtyInput[waitEventResultIndex], 1 );
+      }
+      else
+      {
+         setPtyInput( aryNoInput, 0 );
+      }
+      waitEventResultIndex++;
+      return eventResult;
+   }
+
    return 0;
+}
+
+static int withTemporaryStandardInput( const int *aryInput, size_t inputCount,
+                                       int ( *ptrCallback )( void ) )
+{
+   int fdPipe[2];
+   int result;
+   int fdSavedStdin;
+   size_t inputIndex;
+   ssize_t writeResult;
+
+   if ( pipe( fdPipe ) != 0 )
+   {
+      fail_msg( "Arrange failed: unable to create stdin pipe" );
+      return 0;
+   }
+
+   fdSavedStdin = dup( 0 );
+   if ( fdSavedStdin < 0 )
+   {
+      close( fdPipe[0] );
+      close( fdPipe[1] );
+      fail_msg( "Arrange failed: unable to duplicate stdin" );
+      return 0;
+   }
+
+   for ( inputIndex = 0; inputIndex < inputCount; inputIndex++ )
+   {
+      unsigned char inputByte;
+
+      inputByte = (unsigned char)aryInput[inputIndex];
+      writeResult = write( fdPipe[1], &inputByte, 1 );
+      if ( writeResult != 1 )
+      {
+         close( fdPipe[0] );
+         close( fdPipe[1] );
+         close( fdSavedStdin );
+         fail_msg( "Arrange failed: unable to seed stdin pipe" );
+         return 0;
+      }
+   }
+   close( fdPipe[1] );
+
+   if ( dup2( fdPipe[0], 0 ) < 0 )
+   {
+      close( fdPipe[0] );
+      close( fdSavedStdin );
+      fail_msg( "Arrange failed: unable to replace stdin" );
+      return 0;
+   }
+   close( fdPipe[0] );
+
+   result = ptrCallback();
+
+   if ( dup2( fdSavedStdin, 0 ) < 0 )
+   {
+      close( fdSavedStdin );
+      fail_msg( "Cleanup failed: unable to restore stdin" );
+      return 0;
+   }
+   close( fdSavedStdin );
+   return result;
+}
+
+static int callInKey( void )
+{
+   return inKey();
 }
 
 int yesNo( void )
 {
    return 0;
-}
-
-/// @brief Verify that command macros return their configured text.
-///
-/// @param state CMocka test state.
-///
-/// @return This test does not return a value.
-static void getKey_WhenCommandMacroTriggered_ReturnsMacroText( void **state )
-{
-   const int aryInput[] = { ';', 'm' };
-   int firstResult;
-   int secondResult;
-
-   (void)state;
-
-   resetState();
-   commandKey = ';';
-   snprintf( aryMacro['m'], sizeof( aryMacro['m'] ), "%s", "Hi" );
-   setPtyInput( aryInput, sizeof( aryInput ) / sizeof( aryInput[0] ) );
-
-   firstResult = inKey();
-   secondResult = inKey();
-
-   if ( firstResult != 'H' || secondResult != 'i' )
-   {
-      fail_msg( "macro expansion should return 'H' then 'i'; got %d then %d", firstResult, secondResult );
-   }
-   if ( fatalPerrorCallCount != 0 || myExitCallCount != 0 )
-   {
-      fail_msg( "macro expansion should not hit fatal paths; fatalPerror=%d fatalExit=%d myExit=%d",
-                fatalPerrorCallCount, fatalExitCallCount, myExitCallCount );
-   }
 }
 
 /// @brief Verify that local input interrupts buffered network draining.
@@ -357,15 +435,96 @@ static void inKey_WhenDeleteAndCtrlU_AppliesKeyTranslations( void **state )
    }
 }
 
+/// @brief Verify that local command sequences still run when input arrives via waitNextEvent.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void getKey_WhenCommandSequenceArrivesViaWaitEvent_HandlesLocalCommand( void **state )
+{
+   const int aryEventResults[] = { 1, 1, 1 };
+   const int aryInputChars[] = { ESC, 'w', 'Z' };
+   int result;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   commandKey = ESC;
+   browserKey = 'w';
+   setWaitEventSequence( aryEventResults,
+                         aryInputChars,
+                         sizeof( aryEventResults ) / sizeof( aryEventResults[0] ) );
+
+   // Act
+   result = getKey();
+
+   // Assert
+   if ( result != 'Z' )
+   {
+      fail_msg( "getKey should resume normal input after handling wait-path command sequence; got %d", result );
+   }
+   if ( openBrowserCallCount != 1 )
+   {
+      fail_msg( "getKey should invoke the browser command when command-key input arrives via waitNextEvent; got %d browser launches",
+                openBrowserCallCount );
+   }
+   if ( waitNextEventCallCount != 3 )
+   {
+      fail_msg( "getKey should consume three wait events in this regression scenario; got %d",
+                waitNextEventCallCount );
+   }
+}
+
+/// @brief Verify that `inKey()` reads prompt input when the key arrives only via waitNextEvent.
+///
+/// @param state CMocka test state.
+///
+/// @return This test does not return a value.
+static void inKey_WhenInputArrivesViaWaitEvent_ReadsFromStandardInput( void **state )
+{
+   const int aryEventResults[] = { 1 };
+   const int aryInputChars[] = { '\n' };
+   const int aryPipeInput[] = { '\n' };
+   int result;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   shouldPreloadPtyInputForWaitEvents = false;
+   setWaitEventSequence( aryEventResults,
+                         aryInputChars,
+                         sizeof( aryEventResults ) / sizeof( aryEventResults[0] ) );
+
+   // Act
+   result = withTemporaryStandardInput( aryPipeInput,
+                                        sizeof( aryPipeInput ) / sizeof( aryPipeInput[0] ),
+                                        callInKey );
+
+   // Assert
+   if ( result != '\n' )
+   {
+      fail_msg( "inKey should return newline when Enter arrives via waitNextEvent; got %d",
+                result );
+   }
+   if ( waitNextEventCallCount != 1 )
+   {
+      fail_msg( "inKey should consume exactly one wait event in this regression scenario; got %d",
+                waitNextEventCallCount );
+   }
+}
+
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
-      cmocka_unit_test( getKey_WhenCommandMacroTriggered_ReturnsMacroText ),
       cmocka_unit_test( getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput ),
+      cmocka_unit_test( getKey_WhenCommandSequenceArrivesViaWaitEvent_HandlesLocalCommand ),
       cmocka_unit_test( getKey_WhenTargetByteActive_ReturnsSavedByteAndAdvancesPosition ),
       cmocka_unit_test( getKey_WhenTargetByteIncludesNonReplayableBytes_SkipsToReplayableByte ),
       cmocka_unit_test( inKey_WhenCarriageReturnThenLineFeed_SkipsSecondNewline ),
       cmocka_unit_test( inKey_WhenDeleteAndCtrlU_AppliesKeyTranslations ),
+      cmocka_unit_test( inKey_WhenInputArrivesViaWaitEvent_ReadsFromStandardInput ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

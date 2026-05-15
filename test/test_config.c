@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "browser.h"
 #include "client.h"
 #include <cmocka.h>
@@ -44,12 +44,12 @@ static bool shouldDeleteKeychainPasswordSucceed;
 
 static char aryStdPrintfLog[4096];
 
-static void cleanupWriteBbsRcFixture( void )
+static void cleanupWriteConfigFixture( void )
 {
-   if ( ptrBbsRc != NULL )
+   if ( ptrConfigFile != NULL )
    {
-      fclose( ptrBbsRc );
-      ptrBbsRc = NULL;
+      fclose( ptrConfigFile );
+      ptrConfigFile = NULL;
    }
    if ( friendList != NULL )
    {
@@ -129,6 +129,12 @@ int capPrintf( const char *format, ... )
    return 1;
 }
 
+void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
+{
+   (void)foregroundColor;
+   (void)backgroundColor;
+}
+
 int colorize( const char *ptrText )
 {
    (void)ptrText;
@@ -157,9 +163,9 @@ void printThemedMnemonicText( const char *ptrText, int defaultColor )
    (void)defaultColor;
 }
 
-/// @brief Return one test color field in the legacy `.bbsrc` serialization order.
+/// @brief Return one test color field from the internal color-field order.
 ///
-/// @param colorIndex Field index in the `.bbsrc` color line.
+/// @param colorIndex Field index in the internal color array.
 ///
 /// @return Configured test color value at the requested index.
 int colorFieldValue( int colorIndex )
@@ -195,6 +201,41 @@ int colorFieldValue( int colorIndex )
    assert( colorIndex < COLOR_FIELD_COUNT );
 
    return *aryTestColorFields[colorIndex];
+}
+
+const char *colorFieldTomlKeyName( int colorIndex )
+{
+   static const char *const aryTestColorTomlKeys[COLOR_FIELD_COUNT] =
+      {
+         "text",
+         "forum_prompt",
+         "number_prompt",
+         "error_text",
+         "incoming_ansi_black",
+         "incoming_ansi_blue",
+         "incoming_ansi_magenta",
+         "post_date",
+         "post_name",
+         "post_text",
+         "post_friend_date",
+         "post_friend_name",
+         "post_friend_text",
+         "anonymous_post",
+         "more_prompt",
+         "incoming_ansi_white",
+         NULL,
+         "background",
+         "input_text",
+         "input_highlight",
+         "express_text",
+         "express_name",
+         "express_friend_text",
+         "express_friend_name" };
+
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+
+   return aryTestColorTomlKeys[colorIndex];
 }
 
 const char *colorNameFromValue( int colorValue )
@@ -442,7 +483,7 @@ int sortCompareVoid( const void *ptrLeft, const void *ptrRight )
    return strcmp( *ptrLeftString, *ptrRightString );
 }
 
-void truncateBbsRc( long userNameLength )
+void truncateConfigFile( long userNameLength )
 {
    (void)userNameLength;
 }
@@ -622,13 +663,13 @@ static void setup_WhenScreenReaderModeIsUnset_PromptsAndStoresAnswer( void **sta
    flagsConfiguration.isScreenReaderModeEnabled = 0;
    setPromptSequence( aryPromptAnswers, sizeof( aryPromptAnswers ) / sizeof( aryPromptAnswers[0] ) );
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
+      cleanupWriteConfigFixture();
       fail_msg( "Arrange failed: unable to initialize setup fixture" );
       return;
    }
@@ -649,40 +690,104 @@ static void setup_WhenScreenReaderModeIsUnset_PromptsAndStoresAnswer( void **sta
    // Assert
    if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
-      cleanupWriteBbsRcFixture();
+      cleanupWriteConfigFixture();
       fail_msg( "setup should mark the screen reader mode setting as present after prompting" );
       return;
    }
    if ( !flagsConfiguration.isScreenReaderModeEnabled )
    {
-      cleanupWriteBbsRcFixture();
+      cleanupWriteConfigFixture();
       fail_msg( "setup should store the user's screen reader mode choice when they answer yes" );
       return;
    }
    if ( !flagsConfiguration.hasNameAutocompleteSetting )
    {
-      cleanupWriteBbsRcFixture();
+      cleanupWriteConfigFixture();
       fail_msg( "setup should mark the autocomplete setting as present after choosing a screen reader mode" );
       return;
    }
    if ( flagsConfiguration.shouldEnableNameAutocomplete )
    {
-      cleanupWriteBbsRcFixture();
+      cleanupWriteConfigFixture();
       fail_msg( "setup should default autocomplete off when screen reader mode is enabled" );
       return;
    }
    if ( sPromptCallCount < 2 )
    {
-      cleanupWriteBbsRcFixture();
+      cleanupWriteConfigFixture();
       fail_msg( "setup should prompt for screen reader mode before asking about advanced options; got %d prompts",
                 sPromptCallCount );
       return;
    }
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 
-static void configBbsRc_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **state )
+static void setup_WhenFirstRun_SkipsLegacyUpgradePrompts( void **state )
+{
+   // Arrange
+   const int aryPromptAnswers[] = { 1 };
+
+   (void)state;
+   resetState();
+
+   flagsConfiguration.hasNameAutocompleteSetting = 0;
+   flagsConfiguration.hasScreenReaderModeSetting = 0;
+   flagsConfiguration.isScreenReaderModeEnabled = 0;
+   setPromptSequence( aryPromptAnswers, sizeof( aryPromptAnswers ) / sizeof( aryPromptAnswers[0] ) );
+
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
+   friendList = slistCreate( 0, fSortCompareVoid );
+   enemyList = slistCreate( 0, sortCompareVoid );
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize first-run setup fixture" );
+      return;
+   }
+
+   snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
+   snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   bbsPort = 23;
+   commandKey = ESC;
+   quitKey = CTRL_D;
+   suspKey = CTRL_Z;
+   shellKey = '!';
+   captureKey = 'c';
+   awayKey = 'a';
+   browserKey = 'w';
+
+   // Act
+   setup( -1 );
+
+   // Assert
+   if ( sPromptCallCount != 1 )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "first-run setup should only prompt for screen reader mode; got %d prompts",
+                sPromptCallCount );
+      return;
+   }
+   if ( !flagsConfiguration.hasScreenReaderModeSetting ||
+        !flagsConfiguration.isScreenReaderModeEnabled )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "first-run setup should still store the screen reader selection" );
+      return;
+   }
+   if ( !flagsConfiguration.hasNameAutocompleteSetting ||
+        flagsConfiguration.shouldEnableNameAutocomplete )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "first-run setup should still derive autocomplete defaults from screen reader mode" );
+      return;
+   }
+
+   cleanupWriteConfigFixture();
+}
+
+static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **state )
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
@@ -691,14 +796,14 @@ static void configBbsRc_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **s
    (void)state;
    resetState();
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Arrange failed: unable to initialize configBbsRc fixture" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize configClient fixture" );
       return;
    }
 
@@ -713,8 +818,8 @@ static void configBbsRc_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **s
    awayKey = 'a';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isBbsRcReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -729,94 +834,94 @@ static void configBbsRc_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **s
    setYesNoSequence( aryYesNoAnswers, sizeof( aryYesNoAnswers ) / sizeof( aryYesNoAnswers[0] ) );
 
    // Act
-   configBbsRc();
+   configClient();
 
    // Assert
    if ( !flagsConfiguration.isScreenReaderModeEnabled )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should enable screen reader mode when the option is answered yes" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should enable screen reader mode when the option is answered yes" );
       return;
    }
    if ( !flagsConfiguration.hasScreenReaderModeSetting )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should mark screen reader mode as configured after toggling it" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should mark screen reader mode as configured after toggling it" );
       return;
    }
    if ( flagsConfiguration.shouldEnableClickableUrls )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should seed clickable URL summaries to no when screen reader mode is enabled and the user accepts the default" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should seed clickable URL summaries to no when screen reader mode is enabled and the user accepts the default" );
       return;
    }
    if ( flagsConfiguration.shouldEnableNameAutocomplete )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should seed autocomplete to no when screen reader mode is enabled and the user accepts the default" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should seed autocomplete to no when screen reader mode is enabled and the user accepts the default" );
       return;
    }
    if ( !flagsConfiguration.hasNameAutocompleteSetting )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should mark autocomplete as configured after toggling it" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should mark autocomplete as configured after toggling it" );
       return;
    }
    if ( strstr( aryStdPrintfLog, "Use screen reader friendly mode?" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should display the screen reader mode option in the Options menu" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should display the screen reader mode option in the Options menu" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
                 "Update terminal title bar? (Yes) -> " ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should display the title bar option in the Options menu" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should display the title bar option in the Options menu" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
                 "Append OSC 8 URL summaries to posts & mail? (No) -> " ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should show the screen reader default of No for clickable URL summaries after enabling screen reader mode" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should show the screen reader default of No for clickable URL summaries after enabling screen reader mode" );
       return;
    }
    if ( strstr( aryStdPrintfLog, "Autocomplete username in recipient prompts?" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should display the autocomplete option in the Options menu" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should display the autocomplete option in the Options menu" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
                 "Autocomplete username in recipient prompts? (No) -> " ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should show the screen reader default of No for autocomplete after enabling screen reader mode" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should show the screen reader default of No for autocomplete after enabling screen reader mode" );
       return;
    }
 #ifndef ENABLE_KEYCHAIN
    if ( strstr( aryStdPrintfLog, "Use macOS Keychain for password storage?" ) != NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should hide the keychain option when keychain support is not compiled in" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should hide the keychain option when keychain support is not compiled in" );
       return;
    }
 #else
    if ( strstr( aryStdPrintfLog,
                 "Use macOS Keychain for password storage? (No) -> " ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should display the keychain option when keychain support is compiled in" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should display the keychain option when keychain support is compiled in" );
       return;
    }
 #endif
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 
 #ifdef ENABLE_KEYCHAIN
-static void configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage( void **state )
+static void configClient_WhenKeychainEnabled_ShowsNextLoginMessage( void **state )
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
@@ -825,14 +930,14 @@ static void configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage( void **state 
    (void)state;
    resetState();
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Arrange failed: unable to initialize configBbsRc fixture" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize configClient fixture" );
       return;
    }
 
@@ -851,8 +956,8 @@ static void configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage( void **state 
    aryKeyMap['w'] = 'w';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isBbsRcReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -868,13 +973,13 @@ static void configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage( void **state 
    setYesNoSequence( aryYesNoAnswers, sizeof( aryYesNoAnswers ) / sizeof( aryYesNoAnswers[0] ) );
 
    // Act
-   configBbsRc();
+   configClient();
 
    // Assert
    if ( !flagsConfiguration.shouldUseKeychain )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should enable keychain storage when the option is answered yes" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should enable keychain storage when the option is answered yes" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
@@ -882,16 +987,16 @@ static void configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage( void **state 
         strstr( aryStdPrintfLog,
                 "Saved password autofill will be available on the login after that." ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should explain that keychain storage starts after the next successful login and autofill is available on the one after that; log was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should explain that keychain storage starts after the next successful login and autofill is available on the one after that; log was:\n%s",
                 aryStdPrintfLog );
       return;
    }
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 
-static void configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **state )
+static void configClient_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **state )
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
@@ -900,14 +1005,14 @@ static void configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **s
    (void)state;
    resetState();
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Arrange failed: unable to initialize configBbsRc fixture" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize configClient fixture" );
       return;
    }
 
@@ -926,8 +1031,8 @@ static void configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **s
    aryKeyMap['w'] = 'w';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isBbsRcReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -945,19 +1050,19 @@ static void configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **s
    setYesNoSequence( aryYesNoAnswers, sizeof( aryYesNoAnswers ) / sizeof( aryYesNoAnswers[0] ) );
 
    // Act
-   configBbsRc();
+   configClient();
 
    // Assert
    if ( flagsConfiguration.shouldUseKeychain )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should disable keychain storage when the option is answered no" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should disable keychain storage when the option is answered no" );
       return;
    }
    if ( !isKeychainPasswordDeleted )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should delete the saved keychain password for the current BBS when keychain storage is turned off" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should delete the saved keychain password for the current BBS when keychain storage is turned off" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
@@ -965,24 +1070,24 @@ static void configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **s
         strstr( aryStdPrintfLog,
                 "storage was turned off." ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should explain that the saved keychain password was deleted when keychain storage is turned off; log was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should explain that the saved keychain password was deleted when keychain storage is turned off; log was:\n%s",
                 aryStdPrintfLog );
       return;
    }
    if ( strstr( aryStdPrintfLog,
                 "Forget saved Keychain password for this BBS? (No) -> " ) != NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should not show the manual keychain delete prompt after automatically deleting the saved password; log was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should not show the manual keychain delete prompt after automatically deleting the saved password; log was:\n%s",
                 aryStdPrintfLog );
       return;
    }
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 
-static void configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword( void **state )
+static void configClient_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword( void **state )
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
@@ -991,14 +1096,14 @@ static void configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPass
    (void)state;
    resetState();
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Arrange failed: unable to initialize configBbsRc fixture" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize configClient fixture" );
       return;
    }
 
@@ -1017,8 +1122,8 @@ static void configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPass
    aryKeyMap['w'] = 'w';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isBbsRcReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -1036,306 +1141,445 @@ static void configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPass
    setYesNoSequence( aryYesNoAnswers, sizeof( aryYesNoAnswers ) / sizeof( aryYesNoAnswers[0] ) );
 
    // Act
-   configBbsRc();
+   configClient();
 
    // Assert
    if ( !isKeychainPasswordDeleted )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should delete the saved keychain password for the current BBS when the user answers yes" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should delete the saved keychain password for the current BBS when the user answers yes" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
                 "Forget saved Keychain password for this BBS? (No) -> " ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should display the per-BBS keychain delete prompt when keychain password context exists" );
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should display the per-BBS keychain delete prompt when keychain password context exists" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
                 "Saved Keychain password for this BBS deleted." ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "configBbsRc should confirm that the saved keychain password was deleted; log was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should confirm that the saved keychain password was deleted; log was:\n%s",
                 aryStdPrintfLog );
       return;
    }
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 #endif
 
-static void writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne( void **state )
+static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **state )
 {
    // Arrange
    char aryOutput[4096];
+   char *ptrEnemyName;
+   friend *ptrFriend;
 
    (void)state;
    resetState();
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Arrange failed: unable to initialize writeBbsRc fixture" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize writeConfig fixture" );
       return;
    }
 
    snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
    snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Alice" );
    bbsPort = 23;
+   version = INT_VERSION;
    commandKey = ESC;
    quitKey = CTRL_D;
    suspKey = CTRL_Z;
    shellKey = '!';
    captureKey = 'c';
    awayKey = 'a';
+   browserKey = 'w';
+   aryKeyMap['p'] = 'P';
+   aryKeyMap['P'] = 'p';
+   aryKeyMap['w'] = 'W';
+   aryKeyMap['W'] = 'w';
    color.text = 10;
    color.forum = 11;
-   color.number = 14;
+   color.number = 220;
    color.errorTextColor = 9;
-   color.ansiBlackTextColor = 8;
-   color.ansiBlueTextColor = 8;
-   color.ansiMagentaTextColor = 8;
-   color.postDate = 13;
-   color.postName = 12;
-   color.postText = 15;
-   color.postFriendDate = 9;
-   color.postFriendName = 10;
-   color.postFriendText = 11;
-   color.anonymous = 12;
-   color.morePrompt = 14;
-   color.ansiWhiteTextColor = 8;
-   color.reserved5 = 8;
+   color.ansiBlackTextColor = 16;
+   color.ansiBlueTextColor = 26;
+   color.ansiMagentaTextColor = 91;
+   color.postDate = 34;
+   color.postName = 201;
+   color.postText = 231;
+   color.postFriendDate = 14;
+   color.postFriendName = 12;
+   color.postFriendText = 15;
+   color.anonymous = 8;
+   color.morePrompt = 13;
+   color.ansiWhiteTextColor = 220;
+   color.reserved5 = 999;
    color.background = COLOR_VALUE_DEFAULT;
-   color.inputText = 15;
-   color.inputHighlight = 10;
-   color.expressText = 11;
-   color.expressName = 13;
-   color.expressFriendText = 14;
-   color.expressFriendName = 13;
+   color.inputText = 44;
+   color.inputHighlight = 166;
+   color.expressText = 7;
+   color.expressName = 12;
+   color.expressFriendText = 214;
+   color.expressFriendName = 231;
+   snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Gone to lunch." );
+   snprintf( aryAwayMessageLines[1], sizeof( aryAwayMessageLines[1] ), "%s", "Back by 2pm." );
+   aryAwayMessageLines[2][0] = '\0';
    flagsConfiguration.shouldUseTcpKeepalive = true;
+   flagsConfiguration.shouldAutoAnswerAnsiPrompt = true;
    flagsConfiguration.shouldEnableClickableUrls = true;
    flagsConfiguration.shouldEnableTitleBar = true;
    flagsConfiguration.isScreenReaderModeEnabled = true;
    flagsConfiguration.shouldEnableNameAutocomplete = false;
+   flagsConfiguration.shouldSquelchExpress = true;
+   flagsConfiguration.shouldSquelchPost = true;
    flagsConfiguration.shouldUseKeychain = false;
+   isXland = false;
+   ptrEnemyName = (char *)calloc( 1, strlen( "Mallory" ) + 1 );
+   ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
+   if ( ptrEnemyName == NULL || ptrFriend == NULL )
+   {
+      free( ptrEnemyName );
+      free( ptrFriend );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to allocate contact fixtures for writeConfig test" );
+      return;
+   }
+   snprintf( ptrEnemyName, strlen( "Mallory" ) + 1, "%s", "Mallory" );
+   snprintf( ptrFriend->name, sizeof( ptrFriend->name ), "%s", "Bob" );
+   snprintf( ptrFriend->info, sizeof( ptrFriend->info ), "%s", "A buddy" );
+   ptrFriend->magic = 0x3231;
+   if ( !slistAddItem( enemyList, ptrEnemyName, 1 ) ||
+        !slistAddItem( friendList, ptrFriend, 1 ) )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to populate contact fixtures for writeConfig test" );
+      return;
+   }
 
    // Act
-   writeBbsRc();
+   writeConfig();
 
    // Assert
-   if ( !tryReadFileIntoBuffer( ptrBbsRc, aryOutput, sizeof( aryOutput ) ) )
+   if ( !tryReadFileIntoBuffer( ptrConfigFile, aryOutput, sizeof( aryOutput ) ) )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Assert failed: unable to read generated .bbsrc output" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Assert failed: unable to read generated config.toml output" );
       return;
    }
-   if ( strstr( aryOutput, "\nkeepalive 1\n" ) == NULL )
+   if ( strstr( aryOutput, "[connection]\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keepalive 1' when keepalive is enabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit a [connection] section; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nclickableurls 1\n" ) == NULL )
+   if ( strstr( aryOutput, "[metadata]\n" ) == NULL ||
+        strstr( aryOutput, "version = 2310\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'clickableurls 1' when clickable URLs are enabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit a metadata version section; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\ntitlebar 1\n" ) == NULL )
+   if ( strstr( aryOutput, "auto_login_name = \"Alice\"\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'titlebar 1' when title bar updates are enabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit auto_login_name as a TOML string; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nscreenreader 1\n" ) == NULL )
+   if ( strstr( aryOutput, "editor = \"nano\"\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'screenreader 1' when screen reader mode is enabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit editor as a TOML string; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nautocomplete 0\n" ) == NULL )
+   if ( strstr( aryOutput, "host = \"bbs.example.net\"\n" ) == NULL ||
+        strstr( aryOutput, "port = 23\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'autocomplete 0' when autocomplete is disabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit the configured host and port in TOML form; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[local_command_keys]\n" ) == NULL ||
+        strstr( aryOutput, "away = \"a\"\n" ) == NULL ||
+        strstr( aryOutput, "browser = \"w\"\n" ) == NULL ||
+        strstr( aryOutput, "capture = \"c\"\n" ) == NULL ||
+        strstr( aryOutput, "command = \"esc\"\n" ) == NULL ||
+        strstr( aryOutput, "quit = \"ctrl-d\"\n" ) == NULL ||
+        strstr( aryOutput, "shell = \"!\"\n" ) == NULL ||
+        strstr( aryOutput, "suspend = \"ctrl-z\"\n" ) == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit canonical TOML local-command key strings; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[defaults]\n" ) == NULL ||
+        strstr( aryOutput, "show_full_profile_by_default = true\n" ) == NULL ||
+        strstr( aryOutput, "show_long_who_by_default = true\n" ) == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit the semantic default-action toggles; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[behavior]\n" ) == NULL ||
+        strstr( aryOutput, "auto_answer_ansi = true\n" ) == NULL ||
+        strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
+        strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_posts = true\n" ) == NULL ||
+        strstr( aryOutput, "tcp_keepalive = true\n" ) == NULL ||
+        strstr( aryOutput, "update_title_bar = true\n" ) == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML boolean behavior settings; output was:\n%s", aryOutput );
       return;
    }
 #ifndef ENABLE_KEYCHAIN
-   if ( strstr( aryOutput, "\nkeychain " ) != NULL )
+   if ( strstr( aryOutput, "use_keychain = " ) != NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit keychain configuration when keychain support is not compiled in; output was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should omit use_keychain when keychain support is not compiled in; output was:\n%s",
                 aryOutput );
       return;
    }
 #else
-   if ( strstr( aryOutput, "\nkeychain 0\n" ) == NULL )
+   if ( strstr( aryOutput, "use_keychain = false\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keychain 0' when keychain support is compiled in and disabled at runtime; output was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit use_keychain = false when keychain support is compiled in and disabled; output was:\n%s",
                 aryOutput );
       return;
    }
 #endif
-   if ( strstr( aryOutput, "\nsite bbs.example.net 23\n" ) == NULL )
+   if ( strstr( aryOutput, "[away]\n" ) == NULL ||
+        strstr( aryOutput, "messages = [\"Gone to lunch.\", \"Back by 2pm.\"]\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit a plain site line without a secure suffix; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML away-message lines; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\ncolor brightgreen brightyellow brightcyan brightred brightblack brightblack brightblack brightmagenta brightblue brightwhite brightred brightgreen brightyellow brightblue brightcyan brightblack brightblack default brightwhite brightgreen brightyellow brightmagenta brightcyan brightmagenta\n" ) == NULL )
+   if ( strstr( aryOutput, "[contacts]\n" ) == NULL ||
+        strstr( aryOutput, "enemies = [\"Mallory\"]\n" ) == NULL ||
+        strstr( aryOutput, "friends = [{ name = \"Bob\", info = \"A buddy\" }]\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit bright ANSI color names when palette values have ANSI 16 names; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML contacts; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\naryBrowser " ) != NULL )
+   if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
+        strstr( aryOutput, "text = \"brightgreen\"\n" ) == NULL ||
+        strstr( aryOutput, "forum_prompt = \"brightyellow\"\n" ) == NULL ||
+        strstr( aryOutput, "post_name = 201\n" ) == NULL ||
+        strstr( aryOutput, "background = \"default\"\n" ) == NULL ||
+        strstr( aryOutput, "input_text = \"cyan\"\n" ) == NULL ||
+        strstr( aryOutput, "express_friend_name = \"white\"\n" ) == NULL ||
+        strstr( aryOutput, "reserved5" ) != NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit obsolete browser configuration; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML colors with stable keys and omit reserved5; output was:\n%s", aryOutput );
       return;
    }
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 
-static void writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero( void **state )
+static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **state )
 {
    // Arrange
    char aryOutput[4096];
+   char *ptrEnemyName;
+   friend *ptrFriend;
 
    (void)state;
    resetState();
 
-   cleanupWriteBbsRcFixture();
-   ptrBbsRc = tmpfile();
+   cleanupWriteConfigFixture();
+   ptrConfigFile = tmpfile();
    friendList = slistCreate( 0, fSortCompareVoid );
    enemyList = slistCreate( 0, sortCompareVoid );
-   if ( ptrBbsRc == NULL || friendList == NULL || enemyList == NULL )
+   if ( ptrConfigFile == NULL || friendList == NULL || enemyList == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Arrange failed: unable to initialize writeBbsRc fixture" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to initialize writeConfig fixture" );
       return;
    }
 
    snprintf( aryEditor, sizeof( aryEditor ), "%s", "nano" );
    snprintf( aryBbsHost, sizeof( aryBbsHost ), "%s", "bbs.example.net" );
+   aryAutoName[0] = '\0';
    bbsPort = 23;
+   version = INT_VERSION;
    commandKey = ESC;
    quitKey = CTRL_D;
    suspKey = CTRL_Z;
    shellKey = '!';
    captureKey = 'c';
    awayKey = 'a';
-   color.text = 10;
-   color.forum = 123;
-   color.number = 14;
-   color.errorTextColor = 9;
-   color.ansiBlackTextColor = 8;
-   color.ansiBlueTextColor = 8;
-   color.ansiMagentaTextColor = 8;
-   color.postDate = 13;
-   color.postName = 12;
-   color.postText = 15;
-   color.postFriendDate = 9;
-   color.postFriendName = 10;
-   color.postFriendText = 11;
-   color.anonymous = 12;
-   color.morePrompt = 14;
-   color.ansiWhiteTextColor = 8;
-   color.reserved5 = 8;
-   color.background = COLOR_VALUE_DEFAULT;
-   color.inputText = 15;
-   color.inputHighlight = 10;
-   color.expressText = 11;
-   color.expressName = 13;
-   color.expressFriendText = 14;
-   color.expressFriendName = 13;
+   browserKey = 'w';
+   aryKeyMap['p'] = 'p';
+   aryKeyMap['P'] = 'P';
+   aryKeyMap['w'] = 'w';
+   aryKeyMap['W'] = 'W';
+   color.text = 2;
+   color.forum = 3;
+   color.number = 6;
+   color.errorTextColor = 1;
+   color.ansiBlackTextColor = 2;
+   color.ansiBlueTextColor = 4;
+   color.ansiMagentaTextColor = 5;
+   color.postDate = 6;
+   color.postName = 3;
+   color.postText = 2;
+   color.postFriendDate = 6;
+   color.postFriendName = 3;
+   color.postFriendText = 2;
+   color.anonymous = 3;
+   color.morePrompt = 3;
+   color.ansiWhiteTextColor = 7;
+   color.reserved5 = 1234;
+   color.background = 0;
+   color.inputText = 2;
+   color.inputHighlight = 6;
+   color.expressText = 2;
+   color.expressName = 3;
+   color.expressFriendText = 2;
+   color.expressFriendName = 3;
+   snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Heads down coding." );
+   aryAwayMessageLines[1][0] = '\0';
    flagsConfiguration.shouldUseTcpKeepalive = false;
+   flagsConfiguration.shouldAutoAnswerAnsiPrompt = false;
    flagsConfiguration.shouldEnableClickableUrls = false;
    flagsConfiguration.shouldEnableTitleBar = false;
    flagsConfiguration.isScreenReaderModeEnabled = false;
    flagsConfiguration.shouldEnableNameAutocomplete = true;
+   flagsConfiguration.shouldSquelchExpress = false;
+   flagsConfiguration.shouldSquelchPost = false;
    flagsConfiguration.shouldUseKeychain = false;
+   isXland = true;
 #ifdef ENABLE_KEYCHAIN
    flagsConfiguration.shouldUseKeychain = true;
 #endif
+   ptrEnemyName = (char *)calloc( 1, strlen( "Eve" ) + 1 );
+   ptrFriend = (friend *)calloc( 1, sizeof( friend ) );
+   if ( ptrEnemyName == NULL || ptrFriend == NULL )
+   {
+      free( ptrEnemyName );
+      free( ptrFriend );
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to allocate contact fixtures for disabled writeConfig test" );
+      return;
+   }
+   snprintf( ptrEnemyName, strlen( "Eve" ) + 1, "%s", "Eve" );
+   snprintf( ptrFriend->name, sizeof( ptrFriend->name ), "%s", "Carol" );
+   snprintf( ptrFriend->info, sizeof( ptrFriend->info ), "%s", "(None)" );
+   ptrFriend->magic = 0x3231;
+   if ( !slistAddItem( enemyList, ptrEnemyName, 1 ) ||
+        !slistAddItem( friendList, ptrFriend, 1 ) )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "Arrange failed: unable to populate contact fixtures for disabled writeConfig test" );
+      return;
+   }
 
    // Act
-   writeBbsRc();
+   writeConfig();
 
    // Assert
-   if ( !tryReadFileIntoBuffer( ptrBbsRc, aryOutput, sizeof( aryOutput ) ) )
+   if ( !tryReadFileIntoBuffer( ptrConfigFile, aryOutput, sizeof( aryOutput ) ) )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "Assert failed: unable to read generated .bbsrc output" );
+      cleanupWriteConfigFixture();
+      fail_msg( "Assert failed: unable to read generated config.toml output" );
       return;
    }
-   if ( strstr( aryOutput, "\nkeepalive 0\n" ) == NULL )
+   if ( strstr( aryOutput, "auto_login_name = " ) != NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keepalive 0' when keepalive is disabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should omit auto_login_name when no value is configured; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nclickableurls 0\n" ) == NULL )
+   if ( strstr( aryOutput, "[metadata]\n" ) == NULL ||
+        strstr( aryOutput, "version = 2310\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'clickableurls 0' when clickable URLs are disabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit a metadata version section even in disabled-state fixtures; output was:\n%s",
+                aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\ntitlebar 0\n" ) == NULL )
+   if ( strstr( aryOutput, "show_full_profile_by_default = false\n" ) == NULL ||
+        strstr( aryOutput, "show_long_who_by_default = false\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'titlebar 0' when title bar updates are disabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit false semantic default toggles when key remapping is disabled; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\nscreenreader 0\n" ) == NULL )
+   if ( strstr( aryOutput, "auto_answer_ansi = false\n" ) == NULL ||
+        strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
+        strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||
+        strstr( aryOutput, "suppress_enemy_posts = false\n" ) == NULL ||
+        strstr( aryOutput, "tcp_keepalive = false\n" ) == NULL ||
+        strstr( aryOutput, "update_title_bar = false\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'screenreader 0' when screen reader mode is disabled; output was:\n%s", aryOutput );
-      return;
-   }
-   if ( strstr( aryOutput, "\nautocomplete 1\n" ) == NULL )
-   {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'autocomplete 1' when autocomplete is enabled; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML false values for disabled behavior settings; output was:\n%s", aryOutput );
       return;
    }
 #ifndef ENABLE_KEYCHAIN
-   if ( strstr( aryOutput, "\nkeychain " ) != NULL )
+   if ( strstr( aryOutput, "use_keychain = " ) != NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit keychain configuration when keychain support is not compiled in; output was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should omit use_keychain when keychain support is not compiled in; output was:\n%s",
                 aryOutput );
       return;
    }
 #else
-   if ( strstr( aryOutput, "\nkeychain 1\n" ) == NULL )
+   if ( strstr( aryOutput, "use_keychain = true\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should emit 'keychain 1' when keychain support is compiled in and enabled at runtime; output was:\n%s",
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit use_keychain = true when keychain support is compiled in and enabled; output was:\n%s",
                 aryOutput );
       return;
    }
 #endif
-   if ( strstr( aryOutput, "\ncolor brightgreen 123 brightcyan brightred brightblack brightblack brightblack brightmagenta brightblue brightwhite brightred brightgreen brightyellow brightblue brightcyan brightblack brightblack default brightwhite brightgreen brightyellow brightmagenta brightcyan brightmagenta\n" ) == NULL )
+   if ( strstr( aryOutput, "[away]\n" ) == NULL ||
+        strstr( aryOutput, "messages = [\"Heads down coding.\"]\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should fall back to numeric palette values when no named color exists; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML away-message lines when a single line is configured; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "\naryBrowser " ) != NULL )
+   if ( strstr( aryOutput, "[contacts]\n" ) == NULL ||
+        strstr( aryOutput, "enemies = [\"Eve\"]\n" ) == NULL ||
+        strstr( aryOutput, "friends = [{ name = \"Carol\", info = \"(None)\" }]\n" ) == NULL )
    {
-      cleanupWriteBbsRcFixture();
-      fail_msg( "writeBbsRc should not emit obsolete browser configuration; output was:\n%s", aryOutput );
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit TOML contacts for the disabled-state fixture; output was:\n%s", aryOutput );
+      return;
+   }
+   if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
+        strstr( aryOutput, "text = 2\n" ) == NULL ||
+        strstr( aryOutput, "incoming_ansi_blue = 4\n" ) == NULL ||
+        strstr( aryOutput, "background = 0\n" ) == NULL ||
+        strstr( aryOutput, "reserved5" ) != NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "writeConfig should emit numeric TOML colors when no named form exists and omit reserved5; output was:\n%s", aryOutput );
       return;
    }
 
-   cleanupWriteBbsRcFixture();
+   cleanupWriteConfigFixture();
 }
 
 int main( void )
@@ -1348,14 +1592,15 @@ int main( void )
       cmocka_unit_test( newAwayMessage_WhenUserDeclinesChange_PreservesExistingMessage ),
       cmocka_unit_test( newAwayMessage_WhenUserAcceptsChange_ReplacesWithEnteredLines ),
       cmocka_unit_test( setup_WhenScreenReaderModeIsUnset_PromptsAndStoresAnswer ),
-      cmocka_unit_test( configBbsRc_WhenOptionsToggleScreenReaderMode_UpdatesFlags ),
+      cmocka_unit_test( setup_WhenFirstRun_SkipsLegacyUpgradePrompts ),
+      cmocka_unit_test( configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags ),
 #ifdef ENABLE_KEYCHAIN
-      cmocka_unit_test( configBbsRc_WhenKeychainEnabled_ShowsNextLoginMessage ),
-      cmocka_unit_test( configBbsRc_WhenKeychainDisabled_DeletesCurrentBbsPassword ),
-      cmocka_unit_test( configBbsRc_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword ),
+      cmocka_unit_test( configClient_WhenKeychainEnabled_ShowsNextLoginMessage ),
+      cmocka_unit_test( configClient_WhenKeychainDisabled_DeletesCurrentBbsPassword ),
+      cmocka_unit_test( configClient_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPassword ),
 #endif
-      cmocka_unit_test( writeBbsRc_WhenTcpKeepaliveEnabled_WritesKeepaliveOne ),
-      cmocka_unit_test( writeBbsRc_WhenTcpKeepaliveDisabled_WritesKeepaliveZero ),
+      cmocka_unit_test( writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues ),
+      cmocka_unit_test( writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

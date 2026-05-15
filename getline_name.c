@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "bbsrc.h"
+#include "config_file.h"
 #include "client_globals.h"
 #include "color.h"
 #include "defs.h"
@@ -56,7 +56,7 @@ char *getName( int quitPriv )
    if ( quitPriv == 1 && *aryAutoName &&
         strcmp( aryAutoName, "NONE" ) && !isAutoLoggedIn )
    {
-      isAutoLoggedIn = 1;
+      isAutoLoggedIn = true;
       snprintf( junk, sizeof( junk ), "%s", aryAutoName );
       recordCurrentBbsUser( junk );
       stdPrintf( "%s\r\n", junk );
@@ -216,7 +216,7 @@ char *getName( int quitPriv )
         strcmp( aryAutoName, "NONE" ) )
    {
       snprintf( aryAutoName, sizeof( aryAutoName ), "%s", aryNameBuffer );
-      writeBbsRc();
+      writeConfig();
    }
    if ( quitPriv == 1 )
    {
@@ -385,13 +385,13 @@ int smartName( char *ptrBuffer, char *ptrEnd )
    if ( found == -1 )
    {
       *ptrEnd = hold;
-      return 0;
+      return false;
    }
    else
    {
       snprintf( ptrBuffer, MAX_USER_NAME_INPUT_LENGTH + 1, "%s", ptrFriend );
    }
-   return 1;
+   return true;
 }
 
 /// @brief Print the smart-completed name with the completion suffix highlighted.

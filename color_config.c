@@ -8,12 +8,12 @@
 #include "color.h"
 #include "defs.h"
 #include "utility.h"
-static const char *COLOR_MAIN_MENU_KEYS = "pgisoxq \n";
+static const char *COLOR_MAIN_MENU_KEYS = "tgipoxq \n";
 static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
 static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
-static const char *COLOR_RESET_MENU_KEYS = "dbchq \n";
+static const char *COLOR_RESET_MENU_KEYS = "0123456789qQ \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -30,8 +30,6 @@ typedef struct
    int keyChar;
    const char *ptrLabel;
    int textColor;
-   int accentColor;
-   int backgroundColor;
 } PresetMenuOption;
 
 static const PickerColorOption aryForegroundPickerOptions[] =
@@ -75,10 +73,16 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { 'd', "Default", 2, 3, 0 },
-      { 'b', "Brilliant", 10, 11, 0 },
-      { 'c', "Colorblind", 231, 75, 16 },
-      { 'h', "Hotdog stand", 220, 196, 16 } };
+      { '0', "Default", 2 },
+      { '1', "Brilliant", 10 },
+      { '2', "Everforest Dark", 187 },
+      { '3', "Everforest Light", 242 },
+      { '4', "Gruvbox Dark", 223 },
+      { '5', "Gruvbox Light", 239 },
+      { '6', "Latte (Catppuccin)", 240 },
+      { '7', "Macchiato (Catppuccin)", 189 },
+      { '8', "Colorblind", 231 },
+      { '9', "Hotdog stand", 220 } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";
@@ -93,6 +97,7 @@ static const PickerColorOption *findPickerColorOption( const PickerColorOption *
 static void postColorPreview( int dateColor, int textColor, int nameColor,
                               const char *ptrName );
 static void presetColorConfig( void );
+static void printPresetPreviewPane( void );
 static void printBackgroundPickerMenu( void );
 static void printExpressColorPreview( int textColor, int nameColor,
                                       const char *ptrName );
@@ -104,7 +109,6 @@ static const PickerColorOption *readPickerSelection( const char *ptrAllowedKeys,
                                                      const PickerColorOption *ptrOptions,
                                                      size_t itemCount,
                                                      void ( *printMenu )( void ) );
-
 
 /// @brief Prompt for a background color selection.
 ///
@@ -129,7 +133,6 @@ int backgroundPicker( void )
    return ptrOption->colorValue;
 }
 
-
 /// @brief Run the top-level interactive color configuration menu.
 ///
 /// @return This function does not return a value.
@@ -144,7 +147,9 @@ void colorConfig( void )
    }
    while ( true )
    {
-      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<P>resets  <G>eneral  <I>nput  po<S>ts  <O>ptions  <X>press  <Q>uit" );
+      printAnsiDisplayStateValue( color.text, color.background );
+
+      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<T>hemes  <G>eneral  <I>nput  <P>osts  <O>ptions  e<X>press  <Q>uit" );
       printThemedMnemonicText( aryPromptText, color.number );
       printThemedMnemonicText( "\r\nColor config -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
@@ -164,11 +169,11 @@ void colorConfig( void )
             colorOptions();
             break;
          case 'p':
-            presetColorConfig();
-            break;
-         case 's':
             stdPrintf( "Post colors\r\n\n" );
             postColorConfig();
+            break;
+         case 't':
+            presetColorConfig();
             break;
          case 'x':
             stdPrintf( "Express colors\r\n\n" );
@@ -184,7 +189,6 @@ void colorConfig( void )
       }
    }
 }
-
 
 /// @brief Configure general color-related display options.
 ///
@@ -202,7 +206,6 @@ void colorOptions( void )
       printAnsiDisplayStateValue( lastColor, color.background );
    }
 }
-
 
 /// @brief Prompt for a foreground color selection.
 ///
@@ -223,7 +226,6 @@ int colorPicker( void )
    stdPrintf( "%s\r\n\n", ptrOption->ptrDisplayName );
    return ptrOption->colorValue;
 }
-
 
 /// @brief Configure the text and name colors for express messages.
 ///
@@ -256,7 +258,6 @@ static void configureExpressColors( int *ptrTextColor, int *ptrNameColor,
       }
    }
 }
-
 
 /// @brief Configure the date, text, and name colors for posts.
 ///
@@ -295,7 +296,6 @@ static void configurePostColors( int *ptrDateColor, int *ptrTextColor,
    }
 }
 
-
 /// @brief Run the express color configuration flow.
 ///
 /// @return This function does not return a value.
@@ -316,7 +316,6 @@ void expressColorConfig( void )
       }
    }
 }
-
 
 /// @brief Prompt for an express color menu action.
 ///
@@ -352,7 +351,6 @@ char expressColorMenu( void )
    return (char)inputChar;
 }
 
-
 /// @brief Configure express colors for friend messages.
 ///
 /// @return This function does not return a value.
@@ -362,7 +360,6 @@ void expressFriendColorConfig( void )
                            A_FRIEND );
 }
 
-
 /// @brief Configure express colors for non-friend messages.
 ///
 /// @return This function does not return a value.
@@ -370,7 +367,6 @@ void expressUserColorConfig( void )
 {
    configureExpressColors( &color.expressText, &color.expressName, A_USER );
 }
-
 
 /// @brief Find a picker option by its menu key.
 ///
@@ -395,7 +391,6 @@ static const PickerColorOption *findPickerColorOption( const PickerColorOption *
 
    return NULL;
 }
-
 
 /// @brief Configure the general theme colors.
 ///
@@ -445,7 +440,6 @@ void generalColorConfig( void )
    }
 }
 
-
 /// @brief Configure input prompt and completion colors.
 ///
 /// @return This function does not return a value.
@@ -482,7 +476,6 @@ void inputColorConfig( void )
    }
 }
 
-
 /// @brief Run the post color configuration flow.
 ///
 /// @return This function does not return a value.
@@ -503,7 +496,6 @@ void postColorConfig( void )
       }
    }
 }
-
 
 /// @brief Prompt for a post color menu action.
 ///
@@ -542,7 +534,6 @@ char postColorMenu( void )
    return (char)inputChar;
 }
 
-
 /// @brief Print a preview line for a post color combination.
 ///
 /// @param dateColor Preview date color.
@@ -566,7 +557,6 @@ static void postColorPreview( int dateColor, int textColor, int nameColor,
    stdPrintf( "[Lobby> msg #1]\r\n" );
 }
 
-
 /// @brief Configure post colors for friend posts.
 ///
 /// @return This function does not return a value.
@@ -575,7 +565,6 @@ void postFriendColorConfig( void )
    configurePostColors( &color.postFriendDate, &color.postFriendText,
                         &color.postFriendName, A_FRIEND );
 }
-
 
 /// @brief Configure post colors for non-friend posts.
 ///
@@ -586,7 +575,6 @@ void postUserColorConfig( void )
                         &color.postName, A_USER );
 }
 
-
 /// @brief Show preset themes and apply the selected preset.
 ///
 /// @return This helper does not return a value.
@@ -594,46 +582,76 @@ static void presetColorConfig( void )
 {
    size_t optionIndex;
 
-   stdPrintf( "Color presets\r\n\n" );
-   for ( optionIndex = 0;
-         optionIndex < sizeof( aryPresetMenuOptions ) / sizeof( aryPresetMenuOptions[0] );
-         optionIndex++ )
+   while ( true )
    {
-      printPresetMenuItem( &aryPresetMenuOptions[optionIndex] );
-   }
-   printAnsiDisplayStateValue( color.text, color.background );
-   printThemedMnemonicText( " Quit\r\n", color.number );
-   printThemedMnemonicText( "Select preset -> ", color.forum );
-   printAnsiForegroundColorValue( color.text );
+      printAnsiDisplayStateValue( color.text, color.background );
+      stdPrintf( "\033[H\033[2J" );
+      stdPrintf( "Color presets\r\n\n" );
+      for ( optionIndex = 0;
+            optionIndex < sizeof( aryPresetMenuOptions ) / sizeof( aryPresetMenuOptions[0] );
+            optionIndex++ )
+      {
+         printPresetMenuItem( &aryPresetMenuOptions[optionIndex] );
+      }
+      printPresetPreviewPane();
+      printAnsiDisplayStateValue( color.text, color.background );
+      printThemedMnemonicText( " Q.) Quit\r\n", color.number );
+      printThemedMnemonicText( "Select preset (0-9 or Q) -> ", color.forum );
+      printAnsiForegroundColorValue( color.text );
 
-   switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )
-   {
-      case 'd':
-         stdPrintf( "Default\r\n" );
-         defaultColors( 1 );
-         break;
-      case 'b':
-         stdPrintf( "Brilliant\r\n" );
-         brilliantColors();
-         break;
-      case 'c':
-         stdPrintf( "Colorblind\r\n" );
-         colorblindColors();
-         break;
-      case 'h':
-         stdPrintf( "Hotdog Stand\r\n" );
-         hotDogColors();
-         break;
-      case 'q':
-      case ' ':
-      case '\n':
-         stdPrintf( "Quit\r\n" );
-         break;
-      default:
-         break;
+      switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )
+      {
+         case '0':
+            stdPrintf( "Default\r\n\n" );
+            defaultColors( 1 );
+            break;
+         case '1':
+            stdPrintf( "Brilliant\r\n\n" );
+            brilliantColors();
+            break;
+         case '2':
+            stdPrintf( "Everforest Dark\r\n\n" );
+            everforestDarkColors();
+            break;
+         case '3':
+            stdPrintf( "Everforest Light\r\n\n" );
+            everforestLightColors();
+            break;
+         case '4':
+            stdPrintf( "Gruvbox Dark\r\n\n" );
+            gruvboxDarkColors();
+            break;
+         case '5':
+            stdPrintf( "Gruvbox Light\r\n\n" );
+            gruvboxLightColors();
+            break;
+         case '6':
+            stdPrintf( "Catppuccin Latte\r\n\n" );
+            catppuccinLatteColors();
+            break;
+         case '7':
+            stdPrintf( "Catppuccin Macchiato\r\n\n" );
+            catppuccinMacchiatoColors();
+            break;
+         case '8':
+            stdPrintf( "Colorblind\r\n\n" );
+            colorblindColors();
+            break;
+         case '9':
+            stdPrintf( "Hotdog Stand\r\n\n" );
+            hotDogColors();
+            break;
+         case 'q':
+         case 'Q':
+         case ' ':
+         case '\n':
+            stdPrintf( "Quit\r\n" );
+            return;
+         default:
+            break;
+      }
    }
 }
-
 
 /// @brief Print the background picker menu.
 ///
@@ -648,7 +666,6 @@ static void printBackgroundPickerMenu( void )
    printThemedMnemonicText( "Select background -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
 }
-
 
 /// @brief Print an express message preview using the supplied colors.
 ///
@@ -668,7 +685,6 @@ static void printExpressColorPreview( int textColor, int nameColor,
    stdPrintf( " at 11:01 ***\r\n>Hi there!\r\n" );
 }
 
-
 /// @brief Print the foreground picker menu.
 ///
 /// @return This helper does not return a value.
@@ -681,7 +697,6 @@ static void printForegroundPickerMenu( void )
    printThemedMnemonicText( "Select color -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
 }
-
 
 /// @brief Print a preview of the general theme colors.
 ///
@@ -710,7 +725,6 @@ static void printGeneralColorPreview( void )
    stdPrintf( " new\r\n" );
 }
 
-
 /// @brief Print a preview of the input and completion colors.
 ///
 /// @return This helper does not return a value.
@@ -728,7 +742,6 @@ static void printInputColorPreview( void )
    stdPrintf( "Message received by Example User.\r\n" );
 }
 
-
 /// @brief Print one preset theme menu entry.
 ///
 /// @param ptrOption Preset option to display.
@@ -736,14 +749,56 @@ static void printInputColorPreview( void )
 /// @return This helper does not return a value.
 static void printPresetMenuItem( const PresetMenuOption *ptrOption )
 {
-   stdPrintf( " " );
-   printAnsiDisplayStateValue( ptrOption->textColor, ptrOption->backgroundColor );
-   printAnsiForegroundColorValue( ptrOption->accentColor );
-   stdPrintf( "%c", toupper( ptrOption->keyChar ) );
+   printAnsiDisplayStateValue( color.number, color.background );
+   stdPrintf( " %c.) ", ptrOption->keyChar );
+   printAnsiDisplayStateValue( ptrOption->textColor, color.background );
    printAnsiForegroundColorValue( ptrOption->textColor );
-   stdPrintf( "%s\r\n", ptrOption->ptrLabel + 1 );
+   stdPrintf( "%s", ptrOption->ptrLabel );
+   stdPrintf( "\r\n" );
 }
 
+/// @brief Print a themed preview pane for the current preset colors.
+///
+/// @return This helper does not return a value.
+static void printPresetPreviewPane( void )
+{
+   printAnsiDisplayStateValue( color.text, color.background );
+   printThemedMnemonicText( "\r\nPreview\r\n", color.number );
+   printAnsiForegroundColorValue( color.forum );
+   stdPrintf( "Lobby> " );
+   printAnsiForegroundColorValue( color.text );
+   stdPrintf( "Enter message  " );
+   printAnsiForegroundColorValue( color.number );
+   stdPrintf( "150" );
+   printAnsiForegroundColorValue( color.text );
+   stdPrintf( " msgs  " );
+   printAnsiForegroundColorValue( color.errorTextColor );
+   stdPrintf( "Error\r\n" );
+
+   printAnsiForegroundColorValue( color.postDate );
+   stdPrintf( "Jan  1 11:01" );
+   printAnsiForegroundColorValue( color.postText );
+   stdPrintf( " from " );
+   printAnsiForegroundColorValue( color.postName );
+   stdPrintf( "%s", A_USER );
+   printAnsiForegroundColorValue( color.postText );
+   stdPrintf( "  Hi there!\r\n" );
+
+   printAnsiForegroundColorValue( color.expressText );
+   stdPrintf( "X: " );
+   printAnsiForegroundColorValue( color.expressName );
+   stdPrintf( "%s", A_USER );
+   printAnsiForegroundColorValue( color.expressText );
+   stdPrintf( "  >Hello  ANSI: " );
+   printAnsiForegroundColorValue( color.ansiBlackTextColor );
+   stdPrintf( "blk " );
+   printAnsiForegroundColorValue( color.ansiBlueTextColor );
+   stdPrintf( "blu " );
+   printAnsiForegroundColorValue( color.ansiMagentaTextColor );
+   stdPrintf( "mag " );
+   printAnsiForegroundColorValue( color.ansiWhiteTextColor );
+   stdPrintf( "wht\r\n\r\n" );
+}
 
 /// @brief Read and resolve one picker selection from a color menu.
 ///
@@ -765,7 +820,6 @@ static const PickerColorOption *readPickerSelection( const char *ptrAllowedKeys,
 
    return findPickerColorOption( ptrOptions, itemCount, inputChar );
 }
-
 
 /// @brief Prompt for whether to configure user or friend preview colors.
 ///

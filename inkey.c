@@ -228,9 +228,9 @@ static GetKeyResult handleBufferedLocalInput( int *ptrIsCommandNext,
            !flagsConfiguration.shouldCheckExpress )
    {
       int inputChar = ptyget() & 0x7f;
-      if ( inputChar > 0 && isAway == 1 )
+      if ( inputChar > 0 && isAway )
       {
-         isAway = 0;
+         isAway = false;
          stdPrintf( "\r\n[No longer away]\r\n" );
       }
 
@@ -282,7 +282,7 @@ static GetKeyResult handleCommandKeyInput( int inputChar,
 
    if ( inputChar == awayKey )
    {
-      isAway ^= 1;
+      isAway = !isAway;
       stdPrintf( "\r\n[%s away]\r\n", ( isAway ) ? "Now" : "No longer" );
       return result;
    }

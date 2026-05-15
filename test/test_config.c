@@ -818,8 +818,8 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
    awayKey = 'a';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isConfigFileReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -956,8 +956,8 @@ static void configClient_WhenKeychainEnabled_ShowsNextLoginMessage( void **state
    aryKeyMap['w'] = 'w';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isConfigFileReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -1031,8 +1031,8 @@ static void configClient_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **
    aryKeyMap['w'] = 'w';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isConfigFileReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;
@@ -1122,8 +1122,8 @@ static void configClient_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPas
    aryKeyMap['w'] = 'w';
    browserKey = 'w';
    rows = 24;
-   isLoginShell = 0;
-   isConfigFileReadOnly = 0;
+   isLoginShell = false;
+   isConfigFileReadOnly = false;
    flagsConfiguration.shouldUseAnsi = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    flagsConfiguration.shouldEnableClickableUrls = 1;

@@ -174,7 +174,7 @@ FILE *openConfigFile( void )
       ptrFileHandle = fopen( aryConfigFileName, "r" );
       if ( ptrFileHandle )
       {
-         isConfigFileReadOnly = 1;
+         isConfigFileReadOnly = true;
          errno = savedErrno;
          sPerror( "Configuration is read-only", "Warning" );
       }

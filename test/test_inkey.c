@@ -53,8 +53,8 @@ static void resetState( void )
    byte = 0;
    bytePosition = 0;
    childPid = 0;
-   isAway = 0;
-   isLoginShell = 0;
+   isAway = false;
+   isLoginShell = false;
    capture = 0;
 
    flagsConfiguration.isConfigMode = 0;

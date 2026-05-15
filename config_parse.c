@@ -270,15 +270,15 @@ static void initializeConfigDefaults( void )
       aryKeyMap[parseIndex] = (char)parseIndex;
    }
 
-   isXland = 0;
+   isXland = false;
    xlandQueue = newQueue( 21, MAX_USER_NAME_HISTORY_COUNT );
    if ( !xlandQueue )
    {
-      isXland = 0;
+      isXland = false;
    }
    urlQueue = newQueue( 1024, 10 );
 
-   isAutoLoggedIn = 0;
+   isAutoLoggedIn = false;
    *aryAutoName = 0;
    *aryAwayMessageLines[0] = 0;
    *aryBbsHost = 0;
@@ -309,11 +309,11 @@ static void initializeConfigDefaults( void )
    ptrPostBuffer = 0;
    postHeaderActive = 0;
    highestExpressMessageId = 0;
-   isExpressMessageHeaderActive = 0;
+   isExpressMessageHeaderActive = false;
    postProgressState = 0;
-   isPostJustEnded = 0;
-   isExpressMessageInProgress = 0;
-   shouldSendExpressMessage = 0;
+   isPostJustEnded = false;
+   isExpressMessageInProgress = false;
+   shouldSendExpressMessage = false;
    pendingLinesToEat = 0;
    ptrExpressMessageBuffer = aryExpressMessageBuffer;
 }

@@ -41,7 +41,7 @@ void makeMessage( int upload )
    if ( isAway )
    {
       printf( "[No longer away]\r\n" );
-      isAway = 0;
+      isAway = false;
    }
    if ( capture )
    {

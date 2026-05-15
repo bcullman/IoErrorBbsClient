@@ -20,7 +20,6 @@ extern char **environ;
 
 static bool launchBrowserUrl( const char *ptrUrl );
 
-
 /// @brief Ask macOS to open a URL with the default browser handler.
 ///
 /// @param ptrUrl URL to open.
@@ -50,7 +49,6 @@ static bool launchBrowserUrl( const char *ptrUrl )
    return true;
 }
 
-
 /// @brief Let the user choose and open a queued URL from the browser menu.
 ///
 /// @return This function does not return a value.
@@ -74,7 +72,7 @@ void openBrowser( void )
 
    originalCaptureState = capture;
    capture = 0;
-   shouldIgnoreNetwork = 1;
+   shouldIgnoreNetwork = true;
    printf( "\r\n\n" );
    ptrUrlEntry = urlQueue->start + ( urlQueue->objsize * urlQueue->head );
    for ( inputIndex = 0; inputIndex < urlQueue->itemCount; inputIndex++ )
@@ -118,7 +116,7 @@ void openBrowser( void )
       }
       launchBrowserUrl( ptrUrlEntry );
    }
-   shouldIgnoreNetwork = 0;
+   shouldIgnoreNetwork = false;
    reprintLine();
    capture = originalCaptureState;
 }

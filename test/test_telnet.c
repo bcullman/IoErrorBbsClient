@@ -72,12 +72,12 @@ static void resetState( void )
    bytePosition = 0;
    lastInteractiveInputByte = -1;
    whoListProgress = 0;
-   isExpressMessageInProgress = 0;
-   isExpressMessageHeaderActive = 0;
+   isExpressMessageInProgress = false;
+   isExpressMessageHeaderActive = false;
    postProgressState = 0;
    postHeaderActive = 0;
-   isPostJustEnded = 0;
-   shouldSendExpressMessage = 0;
+   isPostJustEnded = false;
+   shouldSendExpressMessage = false;
    ptrPostBuffer = 0;
    oldRows = 24;
    rows = 24;
@@ -448,8 +448,8 @@ static void telReceive_WhenXMessageEndsAndPendingSend_TriggersSendAnX( void **st
    (void)state;
 
    resetState();
-   shouldSendExpressMessage = 1;
-   isExpressMessageInProgress = 1;
+   shouldSendExpressMessage = true;
+   isExpressMessageInProgress = true;
 
    // Act
    (void)telReceive( IAC );
@@ -464,7 +464,7 @@ static void telReceive_WhenXMessageEndsAndPendingSend_TriggersSendAnX( void **st
    {
       fail_msg( "XMSG_E with shouldSendExpressMessage should trigger sendAnX once; got %d", sendAnXCallCount );
    }
-   if ( shouldSendExpressMessage != 0 || isExpressMessageInProgress != 0 )
+   if ( shouldSendExpressMessage || isExpressMessageInProgress )
    {
       fail_msg( "XMSG_E should clear pending-send and in-progress flags" );
    }
@@ -489,7 +489,7 @@ static void telReceive_WhenDataByteReceived_RoutesToCorrectFilter( void **state 
 
    // Arrange
    resetState();
-   isExpressMessageInProgress = 1;
+   isExpressMessageInProgress = true;
 
    // Act
    (void)telReceive( 'B' );

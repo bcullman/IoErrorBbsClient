@@ -371,7 +371,7 @@ static void getName_WhenAutoLoginUsed_ProcessesBufferedKeychainServerText( void 
    (void)state;
 
    resetTracking();
-   isAutoLoggedIn = 0;
+   isAutoLoggedIn = false;
    snprintf( aryAutoName, sizeof( aryAutoName ), "%s", "Stilgar" );
 
    // Act

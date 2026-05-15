@@ -207,7 +207,7 @@ static int handleTelnetIacState( int inputByte, int *ptrState,
          postHeaderActive = 0;
          ptrPostBuffer = 0;
          postProgressState = 0;
-         isPostJustEnded = 1;
+         isPostJustEnded = true;
          filterPost( -1 );
          break;
 
@@ -224,22 +224,22 @@ static int handleTelnetIacState( int inputByte, int *ptrState,
       case XMSG_S:
          *ptrState = TS_DATA;
          *aryExpressParsing = 0;
-         isExpressMessageHeaderActive = 1;
-         isExpressMessageInProgress = 1;
+         isExpressMessageHeaderActive = true;
+         isExpressMessageInProgress = true;
          filterExpress( -1 );
          break;
 
       case XMSG_E:
          *ptrState = TS_DATA;
          *aryExpressParsing = 0;
-         isExpressMessageHeaderActive = 0;
-         isExpressMessageInProgress = 0;
+         isExpressMessageHeaderActive = false;
+         isExpressMessageInProgress = false;
          ptrExpressMessageBuffer = aryExpressMessageBuffer;
          filterExpress( -1 );
          if ( shouldSendExpressMessage )
          {
             sendAnX();
-            shouldSendExpressMessage = 0;
+            shouldSendExpressMessage = false;
          }
          break;
 

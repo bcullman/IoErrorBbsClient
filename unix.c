@@ -361,7 +361,7 @@ void initialize( void )
    ptrPtyInput = aryPtyInputBuffer;
    ptrNetInput = aryNetInputBuffer;
 
-   isAway = 0;
+   isAway = false;
 
 #ifdef _IOLBF
    setvbuf( stdout, NULL, _IOLBF, 0 );
@@ -372,11 +372,11 @@ void initialize( void )
    stdPrintf( "\nhttps://github.com/StilgarISCA/IoErrorBbsClient\n" );
    stdPrintf( "GPL-2.0-or-later (see LICENSE)\n\n" );
    fflush( stdout );
-   isXland = 0;
+   isXland = false;
    xlandQueue = newQueue( 21, MAX_USER_NAME_HISTORY_COUNT );
    if ( !xlandQueue )
    {
-      isXland = 0;
+      isXland = false;
    }
    if ( isLoginShell )
    {

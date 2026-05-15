@@ -274,7 +274,7 @@ void promptForScreenReaderModeIfUnset( void )
 {
    promptForScreenReaderModeCallCount++;
    flagsConfiguration.hasScreenReaderModeSetting = 1;
-   flagsConfiguration.isScreenReaderModeEnabled = 0;
+   flagsConfiguration.isScreenReaderModeEnabled = false;
 }
 
 int readNormalizedLine(
@@ -405,7 +405,7 @@ static void openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile( voi
    (void)state;
 
    resetTracking();
-   isConfigFileReadOnly = 0;
+   isConfigFileReadOnly = false;
    if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for openConfigFile missing-path test" );
@@ -423,7 +423,7 @@ static void openConfigFile_WhenPathMissing_CreatesWritableConfigurationFile( voi
    {
       fail_msg( "openConfigFile should create and open a missing configuration file" );
    }
-   if ( isConfigFileReadOnly != 0 )
+   if ( isConfigFileReadOnly )
    {
       fail_msg( "openConfigFile should not mark a newly created file as read-only" );
    }
@@ -459,7 +459,7 @@ static void openConfigFile_WhenParentDirectoriesMissing_CreatesConfigDirectoryTr
    (void)state;
 
    resetTracking();
-   isConfigFileReadOnly = 0;
+   isConfigFileReadOnly = false;
    ptrTempDirectory = mkdtemp( aryDirectoryTemplate );
    if ( ptrTempDirectory == NULL )
    {
@@ -526,7 +526,7 @@ static void openConfigFile_WhenAppConfigDirectoryExists_RestrictsItsPermissions(
    (void)state;
 
    resetTracking();
-   isConfigFileReadOnly = 0;
+   isConfigFileReadOnly = false;
    ptrTempDirectory = mkdtemp( aryDirectoryTemplate );
    if ( ptrTempDirectory == NULL )
    {
@@ -683,7 +683,7 @@ static void findConfigFile_WhenLegacyHomeRootFilesExist_IgnoresThemAndUsesXdgPat
       return;
    }
    aryConfigFileName[0] = '\0';
-   isConfigFileReadOnly = 0;
+   isConfigFileReadOnly = false;
 
    // Act
    ptrFile = findConfigFile();
@@ -808,7 +808,7 @@ static void openConfigFile_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state
    (void)state;
 
    resetTracking();
-   isConfigFileReadOnly = 0;
+   isConfigFileReadOnly = false;
    if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
    {
       fail_msg( "Arrange failed: unable to create temporary path for openConfigFile read-only test" );
@@ -839,7 +839,7 @@ static void openConfigFile_WhenPathIsReadOnly_SetsReadOnlyAndWarns( void **state
       fail_msg( "openConfigFile should still open a read-only configuration file" );
       return;
    }
-   if ( isConfigFileReadOnly == 0 )
+   if ( !isConfigFileReadOnly )
    {
       fclose( ptrFile );
       chmod( aryPath, 0600 );
@@ -932,8 +932,8 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1078,8 +1078,8 @@ static void readConfig_WhenVersionMissing_RewritesConfigWithCurrentVersion( void
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1133,8 +1133,8 @@ static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefaul
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1178,8 +1178,8 @@ static void readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries( void **st
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1228,8 +1228,8 @@ static void readConfig_WhenAwayMessagesArrayIsMalformed_KeepsDefaultMessage( voi
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1275,8 +1275,8 @@ static void readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates( voi
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1328,8 +1328,8 @@ static void readConfig_WhenContactArraysAreMalformed_KeepListsEmpty( void **stat
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1378,8 +1378,8 @@ static void readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDef
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1431,8 +1431,8 @@ static void readConfig_WhenValuesHaveInlineComments_ParsesThemNormally( void **s
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1482,8 +1482,8 @@ static void readConfig_WhenConfigContainsInvalidLocalCommandKey_PrintsWarningAnd
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1531,8 +1531,8 @@ static void readConfig_WhenConfigContainsInvalidPort_PrintsWarningAndKeepsDefaul
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1578,8 +1578,8 @@ static void readConfig_WhenConfigContainsKeyOutsideSection_PrintsWarning( void *
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1625,8 +1625,8 @@ static void readConfig_WhenConfigContainsUnknownSection_PrintsWarningAndContinue
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1670,8 +1670,8 @@ static void readConfig_WhenConfigMissingScreenReaderSetting_PromptsAndRewrites( 
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1734,8 +1734,8 @@ static void readConfig_WhenAutocompleteMissingAndScreenReaderEnabled_DefaultsAut
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();
@@ -1781,8 +1781,8 @@ static void readConfig_WhenConfigFileMissing_CreatesFileAndUsesDefaults( void **
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
-   isConfigFileReadOnly = 0;
-   isLoginShell = 0;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
 
    // Act
    readConfig();

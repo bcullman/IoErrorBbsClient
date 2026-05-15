@@ -33,7 +33,6 @@ static void trimUrlTailPunctuation( char *ptrUrlStart );
 
 static queue *ptrDetectedUrlQueue;
 
-
 /// @brief Apply the themed color used while printing a visible URL report.
 ///
 /// @param foregroundColor Foreground color value to emit.
@@ -49,7 +48,6 @@ static void applyVisibleUrlReportColor( int foregroundColor )
    lastColor = foregroundColor;
 }
 
-
 /// @brief Start a fresh clickable URL detection report.
 ///
 /// @return This function does not return a value.
@@ -62,7 +60,6 @@ void beginUrlDetectionReport( void )
    clearDetectedUrlQueue();
 }
 
-
 /// @brief Switch output to the body color for URL report entries.
 ///
 /// @return This helper does not return a value.
@@ -71,7 +68,6 @@ static void beginVisibleUrlReportBodyColor( void )
    applyVisibleUrlReportColor( color.text );
 }
 
-
 /// @brief Switch output to the header color for URL reports.
 ///
 /// @return This helper does not return a value.
@@ -79,7 +75,6 @@ static void beginVisibleUrlReportHeaderColor( void )
 {
    applyVisibleUrlReportColor( color.number );
 }
-
 
 /// @brief Empty the queued list of detected URLs.
 ///
@@ -97,7 +92,6 @@ static void clearDetectedUrlQueue( void )
       popQueue( aryTempText, ptrDetectedUrlQueue );
    }
 }
-
 
 /// @brief Emit the queued clickable URL report.
 ///
@@ -128,7 +122,6 @@ void emitUrlDetectionReport( void )
    endVisibleUrlReportColor();
 }
 
-
 /// @brief Restore normal themed output after a URL report finishes.
 ///
 /// @return This helper does not return a value.
@@ -136,7 +129,6 @@ static void endVisibleUrlReportColor( void )
 {
    applyVisibleUrlReportColor( color.text );
 }
-
 
 /// @brief Ensure the detected URL queue exists.
 ///
@@ -150,7 +142,6 @@ static bool ensureDetectedUrlQueue( void )
    ptrDetectedUrlQueue = newQueue( 1024, 64 );
    return ptrDetectedUrlQueue != NULL;
 }
-
 
 /// @brief Finalize a pending wrapped URL fragment and queue it if valid.
 ///
@@ -170,7 +161,6 @@ static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool
    aryPendingUrl[0] = '\0';
    *ptrHasPendingUrl = false;
 }
-
 
 /// @brief Scan one rendered line for URLs and queue newly detected links.
 ///
@@ -293,7 +283,6 @@ void filterUrl( const char *ptrLine )
    }
 }
 
-
 /// @brief Find the first URL start sequence in mutable text.
 ///
 /// @param ptrText Text to scan.
@@ -325,7 +314,6 @@ static char *findUrlStart( char *ptrText )
 
    return ptrEarliest;
 }
-
 
 /// @brief Find the first URL start sequence in read-only text.
 ///
@@ -359,7 +347,6 @@ static const char *findUrlStartConst( const char *ptrText )
    return ptrEarliest;
 }
 
-
 /// @brief Check whether a character is valid inside a detected URL body.
 ///
 /// @param inputChar Character to classify.
@@ -376,7 +363,6 @@ static bool isUrlBodyChar( int inputChar )
    return findChar( ptrAllowedPunctuation, inputChar ) != NULL;
 }
 
-
 /// @brief Check whether a character terminates a detected URL.
 ///
 /// @param inputChar Character to classify.
@@ -390,7 +376,6 @@ static bool isUrlTerminator( int inputChar )
    }
    return false;
 }
-
 
 /// @brief Print text while wrapping detected URLs in OSC 8 hyperlink escapes.
 ///
@@ -500,7 +485,6 @@ void printWithOsc8Links( const char *ptrText )
    }
 }
 
-
 /// @brief Queue a detected URL for the visible report output.
 ///
 /// @param ptrUrl URL text to queue.
@@ -523,7 +507,6 @@ static void queueUrlForReport( const char *ptrUrl )
       popQueue( aryTempText, ptrDetectedUrlQueue );
    }
 }
-
 
 /// @brief Queue a detected URL only if it is not already present.
 ///
@@ -549,7 +532,6 @@ static void queueUrlIfNew( const char *ptrUrl )
    }
 }
 
-
 /// @brief Check whether clickable URL reporting should be shown.
 ///
 /// @return `true` if clickable URL reporting is enabled, otherwise `false`.
@@ -560,9 +542,8 @@ static bool shouldEmitClickableUrls( void )
       return false;
    }
 
-   return flagsConfiguration.shouldEnableClickableUrls != 0;
+   return flagsConfiguration.shouldEnableClickableUrls;
 }
-
 
 /// @brief Trim trailing punctuation that should not remain part of a URL.
 ///

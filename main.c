@@ -24,11 +24,11 @@ int main( int argc, char *argv[] )
    aryEscape[1] = '\0';
    if ( *argv[0] == '-' )
    {
-      isLoginShell = 1;
+      isLoginShell = true;
    }
    else
    {
-      isLoginShell = 0;
+      isLoginShell = false;
    }
    initialize();
    findHome();

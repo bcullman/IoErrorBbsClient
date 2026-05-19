@@ -313,10 +313,10 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
    defaultColors( 1 );
 
    // Assert
-   if ( color.text != colorValueFromRgb( 0x5f, 0xff, 0x87 ) ||
-        color.forum != colorValueFromRgb( 0xff, 0xd7, 0x5f ) ||
-        color.number != colorValueFromRgb( 0x5f, 0xd7, 0xff ) ||
-        color.errorTextColor != colorValueFromRgb( 0xff, 0x5f, 0x5f ) )
+   if ( color.text != colorValueFromRgb( 0x00, 0x80, 0x00 ) ||
+        color.forum != colorValueFromRgb( 0x80, 0x80, 0x00 ) ||
+        color.number != colorValueFromRgb( 0x00, 0x80, 0x80 ) ||
+        color.errorTextColor != colorValueFromRgb( 0x80, 0x00, 0x00 ) )
    {
       fail_msg( "defaultColors(1) did not set general default colors as expected" );
    }
@@ -324,16 +324,16 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
    {
       fail_msg( "defaultColors(1) should reset background to 0; got %d", color.background );
    }
-   if ( color.postName != colorValueFromRgb( 0x5f, 0xd7, 0xff ) ||
-        color.postFriendName != colorValueFromRgb( 0xff, 0x5f, 0x5f ) ||
-        color.expressName != colorValueFromRgb( 0x5f, 0xff, 0x87 ) )
+   if ( color.postName != colorValueFromRgb( 0x00, 0x80, 0x80 ) ||
+        color.postFriendName != colorValueFromRgb( 0x80, 0x00, 0x00 ) ||
+        color.expressName != colorValueFromRgb( 0x00, 0x80, 0x00 ) )
    {
       fail_msg( "defaultColors(1) did not set post/express defaults as expected" );
    }
-   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x5f, 0xff, 0x87 ) ||
-        color.ansiBlueTextColor != colorValueFromRgb( 0x5f, 0x87, 0xff ) ||
-        color.ansiMagentaTextColor != colorValueFromRgb( 0xd7, 0x87, 0xff ) ||
-        color.ansiWhiteTextColor != colorValueFromRgb( 0xe4, 0xe4, 0xe4 ) )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x00, 0x80, 0x00 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x00, 0x00, 0x80 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0x80, 0x00, 0x80 ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xc0, 0xc0, 0xc0 ) )
    {
       fail_msg( "defaultColors(1) did not set full ANSI fallback colors as expected; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -483,9 +483,9 @@ static void defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged( void *
    defaultColors( 0 );
 
    // Assert
-   if ( color.text != colorValueFromRgb( 0x5f, 0xff, 0x87 ) )
+   if ( color.text != colorValueFromRgb( 0x00, 0x80, 0x00 ) )
    {
-      fail_msg( "defaultColors(0) should repair negative text color to the default RGB green; got %d", color.text );
+      fail_msg( "defaultColors(0) should repair negative text color to the default ANSI green intensity; got %d", color.text );
    }
    if ( color.background != 4 )
    {

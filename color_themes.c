@@ -146,33 +146,33 @@ void colorblindColors( void )
 void defaultColors( int clearall )
 {
    useBlackThemeBackgrounds = false;
-   ifzero( color.text ) color.text = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.forum ) color.forum = RGB( 0xff, 0xd7, 0x5f );
-   ifzero( color.number ) color.number = RGB( 0x5f, 0xd7, 0xff );
-   ifzero( color.errorTextColor ) color.errorTextColor = RGB( 0xff, 0x5f, 0x5f );
-   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = RGB( 0x5f, 0x87, 0xff );
-   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = RGB( 0xd7, 0x87, 0xff );
-   ifzero( color.postDate ) color.postDate = RGB( 0xd7, 0x87, 0xff );
-   ifzero( color.postName ) color.postName = RGB( 0x5f, 0xd7, 0xff );
-   ifzero( color.postText ) color.postText = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.postFriendDate ) color.postFriendDate = RGB( 0xd7, 0x87, 0xff );
-   ifzero( color.postFriendName ) color.postFriendName = RGB( 0xff, 0x5f, 0x5f );
-   ifzero( color.postFriendText ) color.postFriendText = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.anonymous ) color.anonymous = RGB( 0xff, 0xd7, 0x5f );
-   ifzero( color.morePrompt ) color.morePrompt = RGB( 0xff, 0xd7, 0x5f );
-   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = RGB( 0xe4, 0xe4, 0xe4 );
-   color.reserved5 = RGB( 0xe4, 0xe4, 0xe4 );
+   ifzero( color.text ) color.text = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.forum ) color.forum = RGB( 0x80, 0x80, 0x00 );
+   ifzero( color.number ) color.number = RGB( 0x00, 0x80, 0x80 );
+   ifzero( color.errorTextColor ) color.errorTextColor = RGB( 0x80, 0x00, 0x00 );
+   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = RGB( 0x00, 0x00, 0x80 );
+   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = RGB( 0x80, 0x00, 0x80 );
+   ifzero( color.postDate ) color.postDate = RGB( 0x80, 0x00, 0x80 );
+   ifzero( color.postName ) color.postName = RGB( 0x00, 0x80, 0x80 );
+   ifzero( color.postText ) color.postText = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.postFriendDate ) color.postFriendDate = RGB( 0x80, 0x00, 0x80 );
+   ifzero( color.postFriendName ) color.postFriendName = RGB( 0x80, 0x00, 0x00 );
+   ifzero( color.postFriendText ) color.postFriendText = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.anonymous ) color.anonymous = RGB( 0x80, 0x80, 0x00 );
+   ifzero( color.morePrompt ) color.morePrompt = RGB( 0x80, 0x80, 0x00 );
+   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = RGB( 0xc0, 0xc0, 0xc0 );
+   color.reserved5 = RGB( 0xc0, 0xc0, 0xc0 );
    if ( clearall )
    {
       color.background = 0;
    }
-   ifzero( color.inputText ) color.inputText = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.inputHighlight ) color.inputHighlight = RGB( 0x5f, 0xd7, 0xff );
-   ifzero( color.expressText ) color.expressText = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.expressName ) color.expressName = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.expressFriendName ) color.expressFriendName = RGB( 0x5f, 0xff, 0x87 );
-   ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.inputText ) color.inputText = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.inputHighlight ) color.inputHighlight = RGB( 0x00, 0x80, 0x80 );
+   ifzero( color.expressText ) color.expressText = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.expressName ) color.expressName = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.expressFriendName ) color.expressFriendName = RGB( 0x00, 0x80, 0x00 );
+   ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x00, 0x80, 0x00 );
 }
 
 /// @brief Apply the Dracula Pro dark palette to the current color settings.

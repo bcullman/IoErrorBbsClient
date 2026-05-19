@@ -76,16 +76,16 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { '0', "Default", 2 },
-      { '1', "Brilliant", 10 },
+      { '0', "Default", RGB_CONST( 0x5f, 0xff, 0x87 ) },
+      { '1', "Brilliant", RGB_CONST( 0x00, 0xff, 0x00 ) },
       { '2', "Everforest Dark", RGB_CONST( 0xd3, 0xc6, 0xaa ) },
       { '3', "Everforest Light", RGB_CONST( 0x5c, 0x6a, 0x72 ) },
       { '4', "Gruvbox Dark", RGB_CONST( 0xeb, 0xdb, 0xb2 ) },
       { '5', "Gruvbox Light", RGB_CONST( 0x3c, 0x38, 0x36 ) },
       { '6', "Latte (Catppuccin)", RGB_CONST( 0x4c, 0x4f, 0x69 ) },
       { '7', "Macchiato (Catppuccin)", RGB_CONST( 0xca, 0xd3, 0xf5 ) },
-      { '8', "Colorblind", 231 },
-      { '9', "Hotdog stand", 220 } };
+      { '8', "Colorblind", RGB_CONST( 0xff, 0xff, 0xff ) },
+      { '9', "Hotdog stand", RGB_CONST( 0xff, 0xd7, 0x00 ) } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";

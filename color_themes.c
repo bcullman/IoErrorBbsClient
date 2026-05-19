@@ -15,30 +15,30 @@
 void brilliantColors( void )
 {
    useBlackThemeBackgrounds = false;
-   color.text = 10;
-   color.forum = 11;
-   color.number = 14;
-   color.errorTextColor = 9;
-   color.ansiBlackTextColor = 10;
-   color.ansiBlueTextColor = 12;
-   color.ansiMagentaTextColor = 13;
-   color.postDate = 13;
-   color.postName = 14;
-   color.postText = 10;
-   color.postFriendDate = 13;
-   color.postFriendName = 9;
-   color.postFriendText = 10;
-   color.anonymous = 11;
-   color.morePrompt = 11;
-   color.ansiWhiteTextColor = 15;
-   color.reserved5 = 15;
+   color.text = RGB( 0x00, 0xff, 0x00 );
+   color.forum = RGB( 0xff, 0xff, 0x00 );
+   color.number = RGB( 0x00, 0xff, 0xff );
+   color.errorTextColor = RGB( 0xff, 0x00, 0x00 );
+   color.ansiBlackTextColor = RGB( 0x00, 0xff, 0x00 );
+   color.ansiBlueTextColor = RGB( 0x00, 0x00, 0xff );
+   color.ansiMagentaTextColor = RGB( 0xff, 0x00, 0xff );
+   color.postDate = RGB( 0xff, 0x00, 0xff );
+   color.postName = RGB( 0x00, 0xff, 0xff );
+   color.postText = RGB( 0x00, 0xff, 0x00 );
+   color.postFriendDate = RGB( 0xff, 0x00, 0xff );
+   color.postFriendName = RGB( 0xff, 0x00, 0x00 );
+   color.postFriendText = RGB( 0x00, 0xff, 0x00 );
+   color.anonymous = RGB( 0xff, 0xff, 0x00 );
+   color.morePrompt = RGB( 0xff, 0xff, 0x00 );
+   color.ansiWhiteTextColor = RGB( 0xff, 0xff, 0xff );
+   color.reserved5 = RGB( 0xff, 0xff, 0xff );
    color.background = 0;
-   color.inputText = 10;
-   color.inputHighlight = 14;
-   color.expressText = 10;
-   color.expressName = 10;
-   color.expressFriendName = 10;
-   color.expressFriendText = 10;
+   color.inputText = RGB( 0x00, 0xff, 0x00 );
+   color.inputHighlight = RGB( 0x00, 0xff, 0xff );
+   color.expressText = RGB( 0x00, 0xff, 0x00 );
+   color.expressName = RGB( 0x00, 0xff, 0x00 );
+   color.expressFriendName = RGB( 0x00, 0xff, 0x00 );
+   color.expressFriendText = RGB( 0x00, 0xff, 0x00 );
 }
 
 /// @brief Apply the Catppuccin Latte palette to the current color settings.
@@ -111,30 +111,30 @@ void catppuccinMacchiatoColors( void )
 void colorblindColors( void )
 {
    useBlackThemeBackgrounds = false;
-   color.text = 231;
-   color.forum = 75;
-   color.number = 214;
-   color.errorTextColor = 166;
-   color.ansiBlackTextColor = 146;
-   color.ansiBlueTextColor = 75;
-   color.ansiMagentaTextColor = 175;
-   color.postDate = 75;
-   color.postName = 214;
-   color.postText = 231;
-   color.postFriendDate = 25;
-   color.postFriendName = 175;
-   color.postFriendText = 231;
-   color.anonymous = 221;
-   color.morePrompt = 221;
-   color.ansiWhiteTextColor = 221;
-   color.reserved5 = 231;
+   color.text = RGB( 0xff, 0xff, 0xff );
+   color.forum = RGB( 0x5f, 0xaf, 0xff );
+   color.number = RGB( 0xff, 0xaf, 0x00 );
+   color.errorTextColor = RGB( 0xd7, 0x5f, 0x00 );
+   color.ansiBlackTextColor = RGB( 0xaf, 0xaf, 0xd7 );
+   color.ansiBlueTextColor = RGB( 0x5f, 0xaf, 0xff );
+   color.ansiMagentaTextColor = RGB( 0xd7, 0x87, 0xaf );
+   color.postDate = RGB( 0x5f, 0xaf, 0xff );
+   color.postName = RGB( 0xff, 0xaf, 0x00 );
+   color.postText = RGB( 0xff, 0xff, 0xff );
+   color.postFriendDate = RGB( 0x00, 0x5f, 0xaf );
+   color.postFriendName = RGB( 0xd7, 0x87, 0xaf );
+   color.postFriendText = RGB( 0xff, 0xff, 0xff );
+   color.anonymous = RGB( 0xff, 0xd7, 0x5f );
+   color.morePrompt = RGB( 0xff, 0xd7, 0x5f );
+   color.ansiWhiteTextColor = RGB( 0xff, 0xd7, 0x5f );
+   color.reserved5 = RGB( 0xff, 0xff, 0xff );
    color.background = 0;
-   color.inputText = 231;
-   color.inputHighlight = 214;
-   color.expressText = 231;
-   color.expressName = 214;
-   color.expressFriendName = 175;
-   color.expressFriendText = 231;
+   color.inputText = RGB( 0xff, 0xff, 0xff );
+   color.inputHighlight = RGB( 0xff, 0xaf, 0x00 );
+   color.expressText = RGB( 0xff, 0xff, 0xff );
+   color.expressName = RGB( 0xff, 0xaf, 0x00 );
+   color.expressFriendName = RGB( 0xd7, 0x87, 0xaf );
+   color.expressFriendText = RGB( 0xff, 0xff, 0xff );
 }
 
 /// @brief Fill unset color fields with the built-in default theme values.
@@ -146,33 +146,33 @@ void colorblindColors( void )
 void defaultColors( int clearall )
 {
    useBlackThemeBackgrounds = false;
-   ifzero( color.text ) color.text = 2;
-   ifzero( color.forum ) color.forum = 3;
-   ifzero( color.number ) color.number = 6;
-   ifzero( color.errorTextColor ) color.errorTextColor = 1;
-   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = 2;
-   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = 4;
-   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = 5;
-   ifzero( color.postDate ) color.postDate = 5;
-   ifzero( color.postName ) color.postName = 6;
-   ifzero( color.postText ) color.postText = 2;
-   ifzero( color.postFriendDate ) color.postFriendDate = 5;
-   ifzero( color.postFriendName ) color.postFriendName = 1;
-   ifzero( color.postFriendText ) color.postFriendText = 2;
-   ifzero( color.anonymous ) color.anonymous = 3;
-   ifzero( color.morePrompt ) color.morePrompt = 3;
-   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = 7;
-   color.reserved5 = 7;
+   ifzero( color.text ) color.text = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.forum ) color.forum = RGB( 0xff, 0xd7, 0x5f );
+   ifzero( color.number ) color.number = RGB( 0x5f, 0xd7, 0xff );
+   ifzero( color.errorTextColor ) color.errorTextColor = RGB( 0xff, 0x5f, 0x5f );
+   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = RGB( 0x5f, 0x87, 0xff );
+   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = RGB( 0xd7, 0x87, 0xff );
+   ifzero( color.postDate ) color.postDate = RGB( 0xd7, 0x87, 0xff );
+   ifzero( color.postName ) color.postName = RGB( 0x5f, 0xd7, 0xff );
+   ifzero( color.postText ) color.postText = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.postFriendDate ) color.postFriendDate = RGB( 0xd7, 0x87, 0xff );
+   ifzero( color.postFriendName ) color.postFriendName = RGB( 0xff, 0x5f, 0x5f );
+   ifzero( color.postFriendText ) color.postFriendText = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.anonymous ) color.anonymous = RGB( 0xff, 0xd7, 0x5f );
+   ifzero( color.morePrompt ) color.morePrompt = RGB( 0xff, 0xd7, 0x5f );
+   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = RGB( 0xe4, 0xe4, 0xe4 );
+   color.reserved5 = RGB( 0xe4, 0xe4, 0xe4 );
    if ( clearall )
    {
       color.background = 0;
    }
-   ifzero( color.inputText ) color.inputText = 2;
-   ifzero( color.inputHighlight ) color.inputHighlight = 6;
-   ifzero( color.expressText ) color.expressText = 2;
-   ifzero( color.expressName ) color.expressName = 2;
-   ifzero( color.expressFriendName ) color.expressFriendName = 2;
-   ifzero( color.expressFriendText ) color.expressFriendText = 2;
+   ifzero( color.inputText ) color.inputText = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.inputHighlight ) color.inputHighlight = RGB( 0x5f, 0xd7, 0xff );
+   ifzero( color.expressText ) color.expressText = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.expressName ) color.expressName = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.expressFriendName ) color.expressFriendName = RGB( 0x5f, 0xff, 0x87 );
+   ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x5f, 0xff, 0x87 );
 }
 
 /// @brief Apply the Everforest dark medium palette to the current color settings.
@@ -315,28 +315,28 @@ void gruvboxLightColors( void )
 void hotDogColors( void )
 {
    useBlackThemeBackgrounds = false;
-   color.text = 220;
-   color.forum = 196;
-   color.number = 220;
-   color.errorTextColor = 231;
-   color.ansiBlackTextColor = 130;
-   color.ansiBlueTextColor = 214;
-   color.ansiMagentaTextColor = 130;
-   color.postDate = 226;
-   color.postName = 226;
-   color.postText = 214;
-   color.postFriendDate = 226;
-   color.postFriendName = 226;
-   color.postFriendText = 214;
-   color.anonymous = 226;
-   color.morePrompt = 220;
-   color.ansiWhiteTextColor = 220;
-   color.reserved5 = 130;
+   color.text = RGB( 0xff, 0xd7, 0x00 );
+   color.forum = RGB( 0xff, 0x00, 0x00 );
+   color.number = RGB( 0xff, 0xd7, 0x00 );
+   color.errorTextColor = RGB( 0xff, 0xff, 0xff );
+   color.ansiBlackTextColor = RGB( 0xaf, 0x5f, 0x00 );
+   color.ansiBlueTextColor = RGB( 0xff, 0xaf, 0x00 );
+   color.ansiMagentaTextColor = RGB( 0xaf, 0x5f, 0x00 );
+   color.postDate = RGB( 0xff, 0xff, 0x00 );
+   color.postName = RGB( 0xff, 0xff, 0x00 );
+   color.postText = RGB( 0xff, 0xaf, 0x00 );
+   color.postFriendDate = RGB( 0xff, 0xff, 0x00 );
+   color.postFriendName = RGB( 0xff, 0xff, 0x00 );
+   color.postFriendText = RGB( 0xff, 0xaf, 0x00 );
+   color.anonymous = RGB( 0xff, 0xff, 0x00 );
+   color.morePrompt = RGB( 0xff, 0xd7, 0x00 );
+   color.ansiWhiteTextColor = RGB( 0xff, 0xd7, 0x00 );
+   color.reserved5 = RGB( 0xaf, 0x5f, 0x00 );
    color.background = 0;
-   color.inputText = 220;
-   color.inputHighlight = 231;
-   color.expressText = 214;
-   color.expressName = 226;
-   color.expressFriendName = 226;
-   color.expressFriendText = 214;
+   color.inputText = RGB( 0xff, 0xd7, 0x00 );
+   color.inputHighlight = RGB( 0xff, 0xff, 0xff );
+   color.expressText = RGB( 0xff, 0xaf, 0x00 );
+   color.expressName = RGB( 0xff, 0xff, 0x00 );
+   color.expressFriendName = RGB( 0xff, 0xff, 0x00 );
+   color.expressFriendText = RGB( 0xff, 0xaf, 0x00 );
 }

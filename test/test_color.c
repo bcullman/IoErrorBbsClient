@@ -223,7 +223,10 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
    defaultColors( 1 );
 
    // Assert
-   if ( color.text != 2 || color.forum != 3 || color.number != 6 || color.errorTextColor != 1 )
+   if ( color.text != colorValueFromRgb( 0x5f, 0xff, 0x87 ) ||
+        color.forum != colorValueFromRgb( 0xff, 0xd7, 0x5f ) ||
+        color.number != colorValueFromRgb( 0x5f, 0xd7, 0xff ) ||
+        color.errorTextColor != colorValueFromRgb( 0xff, 0x5f, 0x5f ) )
    {
       fail_msg( "defaultColors(1) did not set general default colors as expected" );
    }
@@ -231,12 +234,16 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
    {
       fail_msg( "defaultColors(1) should reset background to 0; got %d", color.background );
    }
-   if ( color.postName != 6 || color.postFriendName != 1 || color.expressName != 2 )
+   if ( color.postName != colorValueFromRgb( 0x5f, 0xd7, 0xff ) ||
+        color.postFriendName != colorValueFromRgb( 0xff, 0x5f, 0x5f ) ||
+        color.expressName != colorValueFromRgb( 0x5f, 0xff, 0x87 ) )
    {
       fail_msg( "defaultColors(1) did not set post/express defaults as expected" );
    }
-   if ( color.ansiBlackTextColor != 2 || color.ansiBlueTextColor != 4 ||
-        color.ansiMagentaTextColor != 5 || color.ansiWhiteTextColor != 7 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x5f, 0xff, 0x87 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x5f, 0x87, 0xff ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xd7, 0x87, 0xff ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xe4, 0xe4, 0xe4 ) )
    {
       fail_msg( "defaultColors(1) did not set full ANSI fallback colors as expected; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -318,9 +325,9 @@ static void defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged( void *
    defaultColors( 0 );
 
    // Assert
-   if ( color.text != 2 )
+   if ( color.text != colorValueFromRgb( 0x5f, 0xff, 0x87 ) )
    {
-      fail_msg( "defaultColors(0) should repair negative text color to default 2; got %d", color.text );
+      fail_msg( "defaultColors(0) should repair negative text color to the default RGB green; got %d", color.text );
    }
    if ( color.background != 4 )
    {
@@ -700,8 +707,10 @@ static void colorblindColors_WhenApplied_SetsAccessiblePalette( void **state )
    colorblindColors();
 
    // Assert
-   if ( color.text != 231 || color.forum != 75 || color.number != 214 ||
-        color.errorTextColor != 166 )
+   if ( color.text != colorValueFromRgb( 0xff, 0xff, 0xff ) ||
+        color.forum != colorValueFromRgb( 0x5f, 0xaf, 0xff ) ||
+        color.number != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.errorTextColor != colorValueFromRgb( 0xd7, 0x5f, 0x00 ) )
    {
       fail_msg( "colorblindColors should set general accessible colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
@@ -710,18 +719,24 @@ static void colorblindColors_WhenApplied_SetsAccessiblePalette( void **state )
    {
       fail_msg( "colorblindColors should keep a dark background; got %d", color.background );
    }
-   if ( color.postDate != 75 || color.postFriendDate != 25 ||
-        color.postName != 214 || color.postFriendName != 175 ||
-        color.inputHighlight != 214 || color.morePrompt != 221 ||
-        color.expressName != 214 || color.expressFriendName != 175 )
+   if ( color.postDate != colorValueFromRgb( 0x5f, 0xaf, 0xff ) ||
+        color.postFriendDate != colorValueFromRgb( 0x00, 0x5f, 0xaf ) ||
+        color.postName != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.postFriendName != colorValueFromRgb( 0xd7, 0x87, 0xaf ) ||
+        color.inputHighlight != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.morePrompt != colorValueFromRgb( 0xff, 0xd7, 0x5f ) ||
+        color.expressName != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.expressFriendName != colorValueFromRgb( 0xd7, 0x87, 0xaf ) )
    {
       fail_msg( "colorblindColors should map post, input, and express roles onto the preset palette; got postDate=%d frienddate=%d postName=%d friendname=%d inputHighlight=%d morePrompt=%d expressName=%d expressFriendName=%d",
                 color.postDate, color.postFriendDate, color.postName,
                 color.postFriendName, color.inputHighlight, color.morePrompt,
                 color.expressName, color.expressFriendName );
    }
-   if ( color.ansiBlackTextColor != 146 || color.ansiBlueTextColor != 75 ||
-        color.ansiMagentaTextColor != 175 || color.ansiWhiteTextColor != 221 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0xaf, 0xaf, 0xd7 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x5f, 0xaf, 0xff ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xd7, 0x87, 0xaf ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xff, 0xd7, 0x5f ) )
    {
       fail_msg( "colorblindColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -741,8 +756,10 @@ static void brilliantColors_WhenApplied_SetsBrightDefaultPalette( void **state )
    brilliantColors();
 
    // Assert
-   if ( color.text != 10 || color.forum != 11 || color.number != 14 ||
-        color.errorTextColor != 9 )
+   if ( color.text != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.forum != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.number != colorValueFromRgb( 0x00, 0xff, 0xff ) ||
+        color.errorTextColor != colorValueFromRgb( 0xff, 0x00, 0x00 ) )
    {
       fail_msg( "brilliantColors should set bright general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
@@ -751,25 +768,34 @@ static void brilliantColors_WhenApplied_SetsBrightDefaultPalette( void **state )
    {
       fail_msg( "brilliantColors should keep a black background; got %d", color.background );
    }
-   if ( color.postDate != 13 || color.postFriendDate != 13 ||
-        color.postName != 14 || color.postFriendName != 9 ||
-        color.postText != 10 || color.postFriendText != 10 ||
-        color.anonymous != 11 || color.morePrompt != 11 ||
-        color.inputText != 10 || color.inputHighlight != 14 ||
-        color.expressText != 10 || color.expressName != 10 ||
-        color.expressFriendName != 10 || color.expressFriendText != 10 )
+   if ( color.postDate != colorValueFromRgb( 0xff, 0x00, 0xff ) ||
+        color.postFriendDate != colorValueFromRgb( 0xff, 0x00, 0xff ) ||
+        color.postName != colorValueFromRgb( 0x00, 0xff, 0xff ) ||
+        color.postFriendName != colorValueFromRgb( 0xff, 0x00, 0x00 ) ||
+        color.postText != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.postFriendText != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.anonymous != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.morePrompt != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.inputText != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.inputHighlight != colorValueFromRgb( 0x00, 0xff, 0xff ) ||
+        color.expressText != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.expressName != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.expressFriendName != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.expressFriendText != colorValueFromRgb( 0x00, 0xff, 0x00 ) )
    {
-      fail_msg( "brilliantColors should map the default roles onto bright ANSI values; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
+      fail_msg( "brilliantColors should map the default roles onto bright RGB values; got postDate=%d frienddate=%d postName=%d friendname=%d postText=%d friendposttext=%d anonymous=%d morePrompt=%d inputText=%d inputHighlight=%d expressText=%d expressName=%d expressFriendName=%d expressFriendText=%d",
                 color.postDate, color.postFriendDate, color.postName,
                 color.postFriendName, color.postText, color.postFriendText,
                 color.anonymous, color.morePrompt, color.inputText, color.inputHighlight,
                 color.expressText, color.expressName,
                 color.expressFriendName, color.expressFriendText );
    }
-   if ( color.ansiBlackTextColor != 10 || color.ansiBlueTextColor != 12 ||
-        color.ansiMagentaTextColor != 13 || color.ansiWhiteTextColor != 15 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0x00, 0xff, 0x00 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0x00, 0x00, 0xff ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xff, 0x00, 0xff ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xff, 0xff, 0xff ) )
    {
-      fail_msg( "brilliantColors should theme the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
+      fail_msg( "brilliantColors should theme the full incoming ANSI palette with bright RGB values; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
                 color.ansiMagentaTextColor, color.ansiWhiteTextColor );
    }
@@ -1023,8 +1049,10 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
    hotDogColors();
 
    // Assert
-   if ( color.text != 220 || color.forum != 196 || color.number != 220 ||
-        color.errorTextColor != 231 )
+   if ( color.text != colorValueFromRgb( 0xff, 0xd7, 0x00 ) ||
+        color.forum != colorValueFromRgb( 0xff, 0x00, 0x00 ) ||
+        color.number != colorValueFromRgb( 0xff, 0xd7, 0x00 ) ||
+        color.errorTextColor != colorValueFromRgb( 0xff, 0xff, 0xff ) )
    {
       fail_msg( "hotDogColors should set general hot dog colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
@@ -1033,27 +1061,35 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
    {
       fail_msg( "hotDogColors should keep a black background; got %d", color.background );
    }
-   if ( color.postText != 214 || color.postFriendText != 214 ||
-        color.expressText != 214 || color.expressFriendText != 214 )
+   if ( color.postText != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.postFriendText != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.expressText != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.expressFriendText != colorValueFromRgb( 0xff, 0xaf, 0x00 ) )
    {
       fail_msg( "hotDogColors should keep only post and eXpress bodies orange; got postText=%d friendposttext=%d expressText=%d friendexpresstext=%d",
                 color.postText, color.postFriendText, color.expressText,
                 color.expressFriendText );
    }
 
-   if ( color.postDate != 226 || color.postFriendDate != 226 ||
-        color.postName != 226 || color.postFriendName != 226 ||
-        color.anonymous != 226 || color.morePrompt != 220 ||
-        color.inputText != 220 || color.expressName != 226 ||
-        color.expressFriendName != 226 )
+   if ( color.postDate != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.postFriendDate != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.postName != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.postFriendName != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.anonymous != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.morePrompt != colorValueFromRgb( 0xff, 0xd7, 0x00 ) ||
+        color.inputText != colorValueFromRgb( 0xff, 0xd7, 0x00 ) ||
+        color.expressName != colorValueFromRgb( 0xff, 0xff, 0x00 ) ||
+        color.expressFriendName != colorValueFromRgb( 0xff, 0xff, 0x00 ) )
    {
       fail_msg( "hotDogColors should keep date and name headers yellow while leaving only bodies orange; got postDate=%d frienddate=%d postName=%d friendname=%d anonymous=%d morePrompt=%d inputText=%d expressName=%d expressFriendName=%d",
                 color.postDate, color.postFriendDate, color.postName,
                 color.postFriendName, color.anonymous, color.morePrompt,
                 color.inputText, color.expressName, color.expressFriendName );
    }
-   if ( color.ansiBlackTextColor != 130 || color.ansiBlueTextColor != 214 ||
-        color.ansiMagentaTextColor != 130 || color.ansiWhiteTextColor != 220 )
+   if ( color.ansiBlackTextColor != colorValueFromRgb( 0xaf, 0x5f, 0x00 ) ||
+        color.ansiBlueTextColor != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        color.ansiMagentaTextColor != colorValueFromRgb( 0xaf, 0x5f, 0x00 ) ||
+        color.ansiWhiteTextColor != colorValueFromRgb( 0xff, 0xd7, 0x00 ) )
    {
       fail_msg( "hotDogColors should eliminate stray gray and purple by theming the full incoming ANSI palette; got black=%d blue=%d magenta=%d white=%d",
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
@@ -1199,8 +1235,10 @@ static void ansiTransform_WhenHotDogPaletteApplied_UsesThemeColorsForAllAnsiDigi
    transformedWhite = ansiTransform( '7' );
 
    // Assert
-   if ( transformedBlack != 130 || transformedBlue != 214 ||
-        transformedMagenta != 130 || transformedWhite != 220 )
+   if ( transformedBlack != colorValueFromRgb( 0xaf, 0x5f, 0x00 ) ||
+        transformedBlue != colorValueFromRgb( 0xff, 0xaf, 0x00 ) ||
+        transformedMagenta != colorValueFromRgb( 0xaf, 0x5f, 0x00 ) ||
+        transformedWhite != colorValueFromRgb( 0xff, 0xd7, 0x00 ) )
    {
       fail_msg( "ansiTransform should map all incoming ANSI digits through the active Hotdog stand palette; got black=%d blue=%d magenta=%d white=%d",
                 transformedBlack, transformedBlue, transformedMagenta,

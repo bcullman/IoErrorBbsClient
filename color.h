@@ -57,6 +57,7 @@ void printAnsiForegroundColorValue( int colorValue );
 void printAnsiResetValue( void );
 void printThemedMnemonicText( const char *ptrText, int defaultColor );
 void setColorFieldValue( int colorIndex, int colorValue );
+void tidalReefColors( void );
 bool tryFindColorOutputMode( const char *ptrModeName,
                              ColorOutputMode *ptrOutMode );
 bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,

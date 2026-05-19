@@ -372,3 +372,35 @@ void hotDogColors( void )
    color.expressFriendName = RGB( 0xff, 0xff, 0x00 );
    color.expressFriendText = RGB( 0xff, 0xaf, 0x00 );
 }
+
+/// @brief Apply the Tidal Reef dark palette to the current color settings.
+///
+/// @return This function does not return a value.
+void tidalReefColors( void )
+{
+   useBlackThemeBackgrounds = true;
+   color.text = RGB( 0xea, 0xf6, 0xad );
+   color.forum = RGB( 0x1b, 0x77, 0x8c );
+   color.number = RGB( 0x6d, 0x93, 0xea );
+   color.errorTextColor = RGB( 0x6a, 0x2f, 0xee );
+   color.ansiBlackTextColor = RGB( 0x1b, 0x77, 0x8c );
+   color.ansiBlueTextColor = RGB( 0x6d, 0x93, 0xea );
+   color.ansiMagentaTextColor = RGB( 0x6a, 0x2f, 0xee );
+   color.postDate = RGB( 0x6d, 0x93, 0xea );
+   color.postName = RGB( 0xb6, 0xdb, 0x00 );
+   color.postText = RGB( 0xea, 0xf6, 0xad );
+   color.postFriendDate = RGB( 0x1b, 0x77, 0x8c );
+   color.postFriendName = RGB( 0x6a, 0x2f, 0xee );
+   color.postFriendText = RGB( 0xea, 0xf6, 0xad );
+   color.anonymous = RGB( 0xb6, 0xdb, 0x00 );
+   color.morePrompt = RGB( 0xb6, 0xdb, 0x00 );
+   color.ansiWhiteTextColor = RGB( 0xea, 0xf6, 0xad );
+   color.reserved5 = RGB( 0xea, 0xf6, 0xad );
+   color.background = 0;
+   color.inputText = RGB( 0xea, 0xf6, 0xad );
+   color.inputHighlight = RGB( 0x6d, 0x93, 0xea );
+   color.expressText = RGB( 0xea, 0xf6, 0xad );
+   color.expressName = RGB( 0xb6, 0xdb, 0x00 );
+   color.expressFriendName = RGB( 0x6a, 0x2f, 0xee );
+   color.expressFriendText = RGB( 0xea, 0xf6, 0xad );
+}

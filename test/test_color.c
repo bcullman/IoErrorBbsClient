@@ -512,6 +512,48 @@ static void draculaProColors_WhenApplied_SetsDarkPalette( void **state )
    }
 }
 
+static void tidalReefColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   tidalReefColors();
+
+   // Assert
+   if ( color.text != colorValueFromRgb( 0xea, 0xf6, 0xad ) ||
+        color.forum != colorValueFromRgb( 0x1b, 0x77, 0x8c ) ||
+        color.number != colorValueFromRgb( 0x6d, 0x93, 0xea ) ||
+        color.errorTextColor != colorValueFromRgb( 0x6a, 0x2f, 0xee ) )
+   {
+      fail_msg( "tidalReefColors should set the general palette colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 0 )
+   {
+      fail_msg( "tidalReefColors should keep a black background; got %d",
+                color.background );
+   }
+   if ( !useBlackThemeBackgrounds )
+   {
+      fail_msg( "tidalReefColors should enable black theme background fallback" );
+   }
+   if ( color.postDate != colorValueFromRgb( 0x6d, 0x93, 0xea ) ||
+        color.postName != colorValueFromRgb( 0xb6, 0xdb, 0x00 ) ||
+        color.postFriendName != colorValueFromRgb( 0x6a, 0x2f, 0xee ) ||
+        color.morePrompt != colorValueFromRgb( 0xb6, 0xdb, 0x00 ) ||
+        color.expressName != colorValueFromRgb( 0xb6, 0xdb, 0x00 ) ||
+        color.expressFriendName != colorValueFromRgb( 0x6a, 0x2f, 0xee ) )
+   {
+      fail_msg( "tidalReefColors should map post, prompt, and express roles onto the palette; got postDate=%d postName=%d postFriendName=%d morePrompt=%d expressName=%d expressFriendName=%d",
+                color.postDate, color.postName, color.postFriendName,
+                color.morePrompt, color.expressName, color.expressFriendName );
+   }
+}
+
 static void colorValueFromName_WhenCanonicalNameProvided_ReturnsNamedPaletteValue( void **state )
 {
    int colorValue;
@@ -1613,6 +1655,7 @@ int main( void )
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( draculaProColors_WhenApplied_SetsDarkPalette ),
+      cmocka_unit_test( tidalReefColors_WhenApplied_SetsDarkPalette ),
       cmocka_unit_test( colorValueFromName_WhenCanonicalNameProvided_ReturnsNamedPaletteValue ),
       cmocka_unit_test( colorValueFromName_WhenAliasProvided_ReturnsCanonicalPaletteValue ),
       cmocka_unit_test( colorValueFromName_WhenBrightAnsiNameProvided_ReturnsBrightAnsiValue ),

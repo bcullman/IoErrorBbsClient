@@ -14,7 +14,7 @@ static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
 static const char *COLOR_OUTPUT_MODE_KEYS = "at2 \n";
-static const char *COLOR_RESET_MENU_KEYS = "abcdefghijkq \n";
+static const char *COLOR_RESET_MENU_KEYS = "abcdefghijklq \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -128,7 +128,11 @@ static const PresetMenuOption aryPresetMenuOptions[] =
       { { 0, RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
           RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0xff, 0xd7, 0x00 ) },
         'K',
-        "Hotdog stand" } };
+        "Hotdog stand" },
+      { { 0, RGB_CONST( 0xea, 0xf6, 0xad ), RGB_CONST( 0x1b, 0x77, 0x8c ),
+          RGB_CONST( 0x6a, 0x2f, 0xee ), RGB_CONST( 0xb6, 0xdb, 0x00 ) },
+        'L',
+        "Tidal Reef" } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";
@@ -690,7 +694,7 @@ static void presetColorConfig( void )
       printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
       printThemedMnemonicText( " Q.) Quit\r\n", color.number );
-      printThemedMnemonicText( "Select preset (A-K or Q) -> ", color.forum );
+      printThemedMnemonicText( "Select preset (A-L or Q) -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
 
       switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )
@@ -738,6 +742,10 @@ static void presetColorConfig( void )
          case 'k':
             stdPrintf( "Hotdog Stand\r\n\n" );
             hotDogColors();
+            break;
+         case 'l':
+            stdPrintf( "Tidal Reef\r\n\n" );
+            tidalReefColors();
             break;
          case 'q':
          case ' ':

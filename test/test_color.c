@@ -864,6 +864,36 @@ static void formatAnsiBackgroundSequence_WhenDarkThemeFallbackEnabled_UsesBlackI
    }
 }
 
+static void formatAnsiForegroundSequence_WhenGruvboxDarkFallbackUsed_PreservesAccentSeparation( void **state )
+{
+   char aryForumSequence[32];
+   char aryNumberSequence[32];
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   setenv( "TERM_PROGRAM", "Apple_Terminal", 1 );
+
+   // Act
+   formatAnsiForegroundSequence( aryForumSequence, sizeof( aryForumSequence ),
+                                 colorValueFromRgb( 0x83, 0xa5, 0x98 ) );
+   formatAnsiForegroundSequence( aryNumberSequence, sizeof( aryNumberSequence ),
+                                 colorValueFromRgb( 0x8e, 0xc0, 0x7c ) );
+
+   // Assert
+   if ( strcmp( aryForumSequence, "\033[38;5;73m" ) != 0 )
+   {
+      fail_msg( "Gruvbox Dark aqua fallback should use curated xterm color 73; got '%s'",
+                aryForumSequence );
+   }
+   if ( strcmp( aryNumberSequence, "\033[38;5;108m" ) != 0 )
+   {
+      fail_msg( "Gruvbox Dark green fallback should use xterm color 108; got '%s'",
+                aryNumberSequence );
+   }
+}
+
 static void formatAnsiForegroundSequence_WhenRgbColorAndAutoModeWithTruecolorTerminal_Uses24BitCode( void **state )
 {
    char arySequence[32];
@@ -1693,6 +1723,7 @@ int main( void )
       cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAndTruecolorEnabled_Uses24BitCode ),
       cmocka_unit_test( formatAnsiBackgroundSequence_WhenRgbColorAndAutoModeInAppleTerminal_Uses256Fallback ),
       cmocka_unit_test( formatAnsiBackgroundSequence_WhenDarkThemeFallbackEnabled_UsesBlackIn256Mode ),
+      cmocka_unit_test( formatAnsiForegroundSequence_WhenGruvboxDarkFallbackUsed_PreservesAccentSeparation ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAndAutoModeWithTruecolorTerminal_Uses24BitCode ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAnd256ModeRequested_IgnoresTruecolorTerminal ),
       cmocka_unit_test( formatAnsiDisplayStateSequence_WhenDefaultBackgroundRequested_UsesCombinedSelectors ),

@@ -263,6 +263,26 @@ static inline void xterm256RgbComponents( int colorValue, int *ptrRed,
    *ptrBlue = aryCubeLevels[cubeIndex % 6];
 }
 
+static inline bool tryMapCuratedRgbToXterm256( int red, int green, int blue,
+                                               int *ptrPaletteValue )
+{
+   // Preserve separation between Gruvbox Dark's aqua and green accents when
+   // downgrading to 256-color output. The nearest-color search collapses them
+   // both to 108, which makes the theme look monochrome on Apple Terminal.
+   if ( red == 0x83 && green == 0xa5 && blue == 0x98 )
+   {
+      *ptrPaletteValue = 73;
+      return true;
+   }
+   if ( red == 0x8e && green == 0xc0 && blue == 0x7c )
+   {
+      *ptrPaletteValue = 108;
+      return true;
+   }
+
+   return false;
+}
+
 static inline int xterm256ValueFromRgb( int red, int green, int blue )
 {
    int bestDistanceSquared;
@@ -274,6 +294,11 @@ static inline int xterm256ValueFromRgb( int red, int green, int blue )
 
    bestValue = 0;
    bestDistanceSquared = INT_MAX;
+
+   if ( tryMapCuratedRgbToXterm256( red, green, blue, &bestValue ) )
+   {
+      return bestValue;
+   }
 
    for ( paletteValue = 0; paletteValue <= 255; paletteValue++ )
    {

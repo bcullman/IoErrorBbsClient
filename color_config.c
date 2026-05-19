@@ -889,7 +889,11 @@ static void printPresetMenuRow( const PresetMenuOption *ptrLeftOption,
 /// @return This helper does not return a value.
 static void printPresetSwatches( const PresetMenuOption *ptrOption )
 {
+   bool savedUseBlackThemeBackgrounds;
    size_t swatchIndex;
+
+   savedUseBlackThemeBackgrounds = useBlackThemeBackgrounds;
+   useBlackThemeBackgrounds = false;
 
    stdPrintf( " " );
    for ( swatchIndex = 0; swatchIndex < PRESET_SWATCH_COUNT; swatchIndex++ )
@@ -902,6 +906,8 @@ static void printPresetSwatches( const PresetMenuOption *ptrOption )
       stdPrintf( "  " );
       printAnsiDisplayStateValue( color.text, color.background );
    }
+
+   useBlackThemeBackgrounds = savedUseBlackThemeBackgrounds;
 }
 
 /// @brief Print a themed preview pane for the current preset colors.

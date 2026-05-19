@@ -424,6 +424,29 @@ static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches(
    }
 }
 
+static void colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag( void **state )
+{
+   const int aryKeys[] = { 't', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   setenv( "TERM_PROGRAM", "Apple_Terminal", 1 );
+   catppuccinMacchiatoColors();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( !useBlackThemeBackgrounds )
+   {
+      fail_msg( "theme preset menu should restore useBlackThemeBackgrounds after printing swatches for a dark theme" );
+   }
+}
+
 static void colorOptions_WhenColorOutputModeSelected_UpdatesConfiguredMode( void **state )
 {
    const int aryKeys[] = { 't' };
@@ -1652,6 +1675,7 @@ int main( void )
    const struct CMUnitTest aryTests[] = {
       cmocka_unit_test( colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately ),
       cmocka_unit_test( colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches ),
+      cmocka_unit_test( colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( draculaProColors_WhenApplied_SetsDarkPalette ),

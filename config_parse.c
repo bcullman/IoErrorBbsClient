@@ -305,6 +305,7 @@ static void initializeConfigDefaults( void )
    flagsConfiguration.shouldUseKeychain = 0;
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   useBlackThemeBackgrounds = false;
 
    defaultColors( 1 );
 
@@ -1371,6 +1372,14 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
             {
                flagsConfiguration.shouldEnableClickableUrls =
                   (unsigned int)parsedBooleanValue;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "dark_theme_black_background_fallback" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               useBlackThemeBackgrounds = parsedBooleanValue;
             }
             return true;
          }

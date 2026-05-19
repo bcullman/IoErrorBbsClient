@@ -41,6 +41,7 @@ static void resetState( void )
 
    flagsConfiguration.shouldUseAnsi = 0;
    configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   useBlackThemeBackgrounds = false;
    lastColor = 0;
    unsetenv( "COLORTERM" );
    unsetenv( "TERM" );
@@ -591,6 +592,29 @@ static void formatAnsiBackgroundSequence_WhenRgbColorAndAutoModeInAppleTerminal_
    }
 }
 
+static void formatAnsiBackgroundSequence_WhenDarkThemeFallbackEnabled_UsesBlackIn256Mode( void **state )
+{
+   char arySequence[32];
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   useBlackThemeBackgrounds = true;
+   setenv( "TERM_PROGRAM", "Apple_Terminal", 1 );
+
+   // Act
+   formatAnsiBackgroundSequence( arySequence, sizeof( arySequence ),
+                                 colorValueFromRgb( 0x24, 0x27, 0x3a ) );
+
+   // Assert
+   if ( strcmp( arySequence, "\033[40m" ) != 0 )
+   {
+      fail_msg( "formatAnsiBackgroundSequence should force black for dark-theme RGB backgrounds in non-truecolor output; got '%s'",
+                arySequence );
+   }
+}
+
 static void formatAnsiForegroundSequence_WhenRgbColorAndAutoModeWithTruecolorTerminal_Uses24BitCode( void **state )
 {
    char arySequence[32];
@@ -828,9 +852,13 @@ static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state 
       fail_msg( "catppuccinMacchiatoColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 0 )
+   if ( color.background != colorValueFromRgb( 0x24, 0x27, 0x3a ) )
    {
-      fail_msg( "catppuccinMacchiatoColors should keep a dark background; got %d", color.background );
+      fail_msg( "catppuccinMacchiatoColors should use the original Macchiato background; got %d", color.background );
+   }
+   if ( !useBlackThemeBackgrounds )
+   {
+      fail_msg( "catppuccinMacchiatoColors should enable black background fallback in non-truecolor output" );
    }
    if ( color.postDate != colorValueFromRgb( 0x7d, 0xc4, 0xe4 ) ||
         color.postFriendDate != colorValueFromRgb( 0x8b, 0xd5, 0xca ) ||
@@ -885,9 +913,13 @@ static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
       fail_msg( "everforestDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 0 )
+   if ( color.background != colorValueFromRgb( 0x2f, 0x38, 0x3e ) )
    {
-      fail_msg( "everforestDarkColors should keep a dark background; got %d", color.background );
+      fail_msg( "everforestDarkColors should use the original Everforest dark medium background; got %d", color.background );
+   }
+   if ( !useBlackThemeBackgrounds )
+   {
+      fail_msg( "everforestDarkColors should enable black background fallback in non-truecolor output" );
    }
    if ( color.postDate != colorValueFromRgb( 0x83, 0xc0, 0x92 ) ||
         color.postFriendDate != colorValueFromRgb( 0x7f, 0xbb, 0xb3 ) ||
@@ -1049,9 +1081,13 @@ static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
       fail_msg( "gruvboxDarkColors should set the dark palette general colors; got text=%d forum=%d number=%d error=%d",
                 color.text, color.forum, color.number, color.errorTextColor );
    }
-   if ( color.background != 0 )
+   if ( color.background != colorValueFromRgb( 0x1d, 0x20, 0x21 ) )
    {
-      fail_msg( "gruvboxDarkColors should keep a dark background; got %d", color.background );
+      fail_msg( "gruvboxDarkColors should use the original Gruvbox dark hard background; got %d", color.background );
+   }
+   if ( !useBlackThemeBackgrounds )
+   {
+      fail_msg( "gruvboxDarkColors should enable black background fallback in non-truecolor output" );
    }
    if ( color.postDate != colorValueFromRgb( 0x83, 0xa5, 0x98 ) ||
         color.postFriendDate != colorValueFromRgb( 0xd3, 0x86, 0x9b ) ||
@@ -1372,6 +1408,7 @@ int main( void )
       cmocka_unit_test( formatAnsiForegroundSequence_WhenExtendedColorRequested_Uses256ColorCode ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAndTruecolorEnabled_Uses24BitCode ),
       cmocka_unit_test( formatAnsiBackgroundSequence_WhenRgbColorAndAutoModeInAppleTerminal_Uses256Fallback ),
+      cmocka_unit_test( formatAnsiBackgroundSequence_WhenDarkThemeFallbackEnabled_UsesBlackIn256Mode ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAndAutoModeWithTruecolorTerminal_Uses24BitCode ),
       cmocka_unit_test( formatAnsiForegroundSequence_WhenRgbColorAnd256ModeRequested_IgnoresTruecolorTerminal ),
       cmocka_unit_test( formatAnsiDisplayStateSequence_WhenDefaultBackgroundRequested_UsesCombinedSelectors ),

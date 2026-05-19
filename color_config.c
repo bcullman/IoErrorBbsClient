@@ -450,6 +450,7 @@ void generalColorConfig( void )
          case 'b':
             stdPrintf( "Background\r\n\n" );
             color.background = backgroundPicker();
+            useBlackThemeBackgrounds = false;
             break;
          case 'e':
             stdPrintf( "Error\r\n\n" );

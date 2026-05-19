@@ -23,6 +23,7 @@ extern Flags flagsConfiguration;                  // Miscellaneous flags
 extern bool isAutoLoggedIn;                       // Has autologin been done?
 extern bool isAway;                               // away from keyboard?
 extern bool isLoginShell;                         // whether this client is a login shell
+extern bool useBlackThemeBackgrounds;             // force black backgrounds in themes when not truecolor
 extern bool isXland;                              // X Land - auto-fill-in-recipient
 #ifdef USE_POSIX_SIGSETJMP
 extern sigjmp_buf jumpEnv; // Jump buffer for child-process return flow

@@ -74,6 +74,7 @@ typedef enum
 } ColorOutputMode;
 
 extern ColorOutputMode configuredColorOutputMode;
+extern bool useBlackThemeBackgrounds;
 
 static inline bool colorValueIsRgb( int colorValue )
 {
@@ -325,10 +326,16 @@ static inline size_t appendAnsiColorSelector( char *ptrBuffer, size_t bufferSize
                                                 colorValueGreen( colorValue ),
                                                 colorValueBlue( colorValue ) );
       }
-
-      colorValue = xterm256ValueFromRgb( colorValueRed( colorValue ),
-                                         colorValueGreen( colorValue ),
-                                         colorValueBlue( colorValue ) );
+      if ( isBackground && useBlackThemeBackgrounds )
+      {
+         colorValue = 0;
+      }
+      else
+      {
+         colorValue = xterm256ValueFromRgb( colorValueRed( colorValue ),
+                                            colorValueGreen( colorValue ),
+                                            colorValueBlue( colorValue ) );
+      }
    }
    if ( colorValue >= 0 && colorValue <= 7 )
    {

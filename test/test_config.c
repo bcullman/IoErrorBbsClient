@@ -82,6 +82,7 @@ static void resetState( void )
    sPromptCallCount = 0;
    aryStdPrintfLog[0] = '\0';
    configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   useBlackThemeBackgrounds = false;
 }
 
 static void setGetKeySequence( const int *aryValues, size_t valueCount )
@@ -1230,6 +1231,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    aryKeyMap['w'] = 'W';
    aryKeyMap['W'] = 'w';
    configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   useBlackThemeBackgrounds = true;
    color.text = 10;
    color.forum = 11;
    color.number = 220;
@@ -1357,6 +1359,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
         strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
+        strstr( aryOutput, "dark_theme_black_background_fallback = true\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"truecolor\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
@@ -1455,6 +1458,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    aryKeyMap['w'] = 'w';
    aryKeyMap['W'] = 'W';
    configuredColorOutputMode = COLOR_OUTPUT_MODE_256;
+   useBlackThemeBackgrounds = false;
    color.text = 2;
    color.forum = 3;
    color.number = 6;
@@ -1551,6 +1555,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
         strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
+        strstr( aryOutput, "dark_theme_black_background_fallback = false\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"256\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||

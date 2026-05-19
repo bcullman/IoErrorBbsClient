@@ -14,6 +14,7 @@
 /// @return This function does not return a value.
 void brilliantColors( void )
 {
+   useBlackThemeBackgrounds = false;
    color.text = 10;
    color.forum = 11;
    color.number = 14;
@@ -45,6 +46,7 @@ void brilliantColors( void )
 /// @return This function does not return a value.
 void catppuccinLatteColors( void )
 {
+   useBlackThemeBackgrounds = false;
    color.text = RGB( 0x4c, 0x4f, 0x69 );
    color.forum = RGB( 0x1e, 0x66, 0xf5 );
    color.number = RGB( 0x20, 0x9f, 0xb5 );
@@ -76,6 +78,7 @@ void catppuccinLatteColors( void )
 /// @return This function does not return a value.
 void catppuccinMacchiatoColors( void )
 {
+   useBlackThemeBackgrounds = true;
    color.text = RGB( 0xca, 0xd3, 0xf5 );
    color.forum = RGB( 0x8a, 0xad, 0xf4 );
    color.number = RGB( 0x7d, 0xc4, 0xe4 );
@@ -93,7 +96,7 @@ void catppuccinMacchiatoColors( void )
    color.morePrompt = RGB( 0xee, 0xd4, 0x9f );
    color.ansiWhiteTextColor = RGB( 0xca, 0xd3, 0xf5 );
    color.reserved5 = RGB( 0xca, 0xd3, 0xf5 );
-   color.background = 0;
+   color.background = RGB( 0x24, 0x27, 0x3a );
    color.inputText = RGB( 0xca, 0xd3, 0xf5 );
    color.inputHighlight = RGB( 0x8a, 0xad, 0xf4 );
    color.expressText = RGB( 0xca, 0xd3, 0xf5 );
@@ -107,6 +110,7 @@ void catppuccinMacchiatoColors( void )
 /// @return This function does not return a value.
 void colorblindColors( void )
 {
+   useBlackThemeBackgrounds = false;
    color.text = 231;
    color.forum = 75;
    color.number = 214;
@@ -141,6 +145,7 @@ void colorblindColors( void )
 /// @return This function does not return a value.
 void defaultColors( int clearall )
 {
+   useBlackThemeBackgrounds = false;
    ifzero( color.text ) color.text = 2;
    ifzero( color.forum ) color.forum = 3;
    ifzero( color.number ) color.number = 6;
@@ -175,6 +180,7 @@ void defaultColors( int clearall )
 /// @return This function does not return a value.
 void everforestDarkColors( void )
 {
+   useBlackThemeBackgrounds = true;
    color.text = RGB( 0xd3, 0xc6, 0xaa );
    color.forum = RGB( 0x7f, 0xbb, 0xb3 );
    color.number = RGB( 0x83, 0xc0, 0x92 );
@@ -192,7 +198,7 @@ void everforestDarkColors( void )
    color.morePrompt = RGB( 0xdb, 0xbc, 0x7f );
    color.ansiWhiteTextColor = RGB( 0xe5, 0xdd, 0xc9 );
    color.reserved5 = RGB( 0xd3, 0xc6, 0xaa );
-   color.background = 0;
+   color.background = RGB( 0x2f, 0x38, 0x3e );
    color.inputText = RGB( 0xd3, 0xc6, 0xaa );
    color.inputHighlight = RGB( 0x7f, 0xbb, 0xb3 );
    color.expressText = RGB( 0xd3, 0xc6, 0xaa );
@@ -206,6 +212,7 @@ void everforestDarkColors( void )
 /// @return This function does not return a value.
 void everforestLightColors( void )
 {
+   useBlackThemeBackgrounds = false;
    color.text = RGB( 0x5c, 0x6a, 0x72 );
    color.forum = RGB( 0x35, 0x8f, 0xa2 );
    color.number = RGB( 0x3a, 0x94, 0x84 );
@@ -240,6 +247,7 @@ void everforestLightColors( void )
 /// @return This function does not return a value.
 void gruvboxDarkColors( void )
 {
+   useBlackThemeBackgrounds = true;
    color.text = RGB( 0xeb, 0xdb, 0xb2 );
    color.forum = RGB( 0x83, 0xa5, 0x98 );
    color.number = RGB( 0x8e, 0xc0, 0x7c );
@@ -257,7 +265,7 @@ void gruvboxDarkColors( void )
    color.morePrompt = RGB( 0xfa, 0xbd, 0x2f );
    color.ansiWhiteTextColor = RGB( 0xfb, 0xf1, 0xc7 );
    color.reserved5 = RGB( 0xeb, 0xdb, 0xb2 );
-   color.background = 0;
+   color.background = RGB( 0x1d, 0x20, 0x21 );
    color.inputText = RGB( 0xeb, 0xdb, 0xb2 );
    color.inputHighlight = RGB( 0x83, 0xa5, 0x98 );
    color.expressText = RGB( 0xeb, 0xdb, 0xb2 );
@@ -274,6 +282,7 @@ void gruvboxDarkColors( void )
 /// @return This function does not return a value.
 void gruvboxLightColors( void )
 {
+   useBlackThemeBackgrounds = false;
    color.text = RGB( 0x3c, 0x38, 0x36 );
    color.forum = RGB( 0x45, 0x85, 0x88 );
    color.number = RGB( 0x68, 0x9d, 0x6a );
@@ -305,6 +314,7 @@ void gruvboxLightColors( void )
 /// @return This function does not return a value.
 void hotDogColors( void )
 {
+   useBlackThemeBackgrounds = false;
    color.text = 220;
    color.forum = 196;
    color.number = 220;

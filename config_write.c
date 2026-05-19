@@ -187,6 +187,8 @@ static void writeBehaviorSettings( void )
             flagsConfiguration.shouldEnableNameAutocomplete ? "true" : "false" );
    fprintf( ptrConfigFile, "clickable_url_summaries = %s\n",
             flagsConfiguration.shouldEnableClickableUrls ? "true" : "false" );
+   fprintf( ptrConfigFile, "dark_theme_black_background_fallback = %s\n",
+            useBlackThemeBackgrounds ? "true" : "false" );
    fprintf( ptrConfigFile, "color_output_mode = " );
    printTomlEscapedString( colorOutputModeName( configuredColorOutputMode ) );
    fprintf( ptrConfigFile, "\n" );

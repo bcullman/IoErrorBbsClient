@@ -20,9 +20,9 @@ static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
 #define RGB_CONST( red, green, blue ) \
    ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
-#define PRESET_COLUMN_GAP "   "
-#define PRESET_LABEL_WIDTH 24
-#define PRESET_SWATCH_COUNT 5
+#define PRESET_COLUMN_GAP " "
+#define PRESET_LABEL_WIDTH 22
+#define PRESET_SWATCH_COUNT 4
 
 typedef struct
 {
@@ -79,57 +79,51 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { { 0, RGB_CONST( 0x5f, 0xff, 0x87 ), RGB_CONST( 0xff, 0xd7, 0x5f ),
+      { { RGB_CONST( 0x5f, 0xff, 0x87 ), RGB_CONST( 0xff, 0xd7, 0x5f ),
           RGB_CONST( 0x5f, 0xd7, 0xff ), RGB_CONST( 0xff, 0x5f, 0x5f ) },
         'A',
         "Default" },
-      { { 0, RGB_CONST( 0x00, 0xff, 0x00 ), RGB_CONST( 0xff, 0xff, 0x00 ),
+      { { RGB_CONST( 0x00, 0xff, 0x00 ), RGB_CONST( 0xff, 0xff, 0x00 ),
           RGB_CONST( 0x00, 0xff, 0xff ), RGB_CONST( 0xff, 0x00, 0x00 ) },
         'B',
         "Brilliant" },
-      { { RGB_CONST( 0x2f, 0x38, 0x3e ), RGB_CONST( 0xd3, 0xc6, 0xaa ),
-          RGB_CONST( 0x7f, 0xbb, 0xb3 ), RGB_CONST( 0x83, 0xc0, 0x92 ),
-          RGB_CONST( 0xe6, 0x7e, 0x80 ) },
+      { { RGB_CONST( 0xd3, 0xc6, 0xaa ), RGB_CONST( 0x7f, 0xbb, 0xb3 ),
+          RGB_CONST( 0x83, 0xc0, 0x92 ), RGB_CONST( 0xe6, 0x7e, 0x80 ) },
         'C',
         "Everforest Dark" },
-      { { RGB_CONST( 0xfd, 0xf6, 0xe3 ), RGB_CONST( 0x5c, 0x6a, 0x72 ),
-          RGB_CONST( 0x35, 0x8f, 0xa2 ), RGB_CONST( 0x3a, 0x94, 0x84 ),
-          RGB_CONST( 0xf8, 0x55, 0x52 ) },
+      { { RGB_CONST( 0x5c, 0x6a, 0x72 ), RGB_CONST( 0x35, 0x8f, 0xa2 ),
+          RGB_CONST( 0x3a, 0x94, 0x84 ), RGB_CONST( 0xf8, 0x55, 0x52 ) },
         'D',
         "Everforest Light" },
-      { { RGB_CONST( 0x1d, 0x20, 0x21 ), RGB_CONST( 0xeb, 0xdb, 0xb2 ),
-          RGB_CONST( 0x83, 0xa5, 0x98 ), RGB_CONST( 0x8e, 0xc0, 0x7c ),
-          RGB_CONST( 0xfe, 0x80, 0x19 ) },
+      { { RGB_CONST( 0xeb, 0xdb, 0xb2 ), RGB_CONST( 0x83, 0xa5, 0x98 ),
+          RGB_CONST( 0x8e, 0xc0, 0x7c ), RGB_CONST( 0xfe, 0x80, 0x19 ) },
         'E',
         "Gruvbox Dark" },
-      { { RGB_CONST( 0xfb, 0xf1, 0xc7 ), RGB_CONST( 0x3c, 0x38, 0x36 ),
-          RGB_CONST( 0x45, 0x85, 0x88 ), RGB_CONST( 0x79, 0x74, 0x0e ),
-          RGB_CONST( 0x9d, 0x00, 0x06 ) },
+      { { RGB_CONST( 0x3c, 0x38, 0x36 ), RGB_CONST( 0x45, 0x85, 0x88 ),
+          RGB_CONST( 0x79, 0x74, 0x0e ), RGB_CONST( 0x9d, 0x00, 0x06 ) },
         'F',
         "Gruvbox Light" },
-      { { 0, RGB_CONST( 0xe3, 0xe2, 0xe9 ), RGB_CONST( 0x73, 0x59, 0xf8 ),
+      { { RGB_CONST( 0xe3, 0xe2, 0xe9 ), RGB_CONST( 0x73, 0x59, 0xf8 ),
           RGB_CONST( 0x5c, 0xf5, 0xdb ), RGB_CONST( 0xf8, 0x73, 0x59 ) },
         'G',
         "Dracula" },
-      { { RGB_CONST( 0xef, 0xf1, 0xf5 ), RGB_CONST( 0x4c, 0x4f, 0x69 ),
-          RGB_CONST( 0x1e, 0x66, 0xf5 ), RGB_CONST( 0x20, 0x9f, 0xb5 ),
-          RGB_CONST( 0xd2, 0x0f, 0x39 ) },
+      { { RGB_CONST( 0x4c, 0x4f, 0x69 ), RGB_CONST( 0x1e, 0x66, 0xf5 ),
+          RGB_CONST( 0x20, 0x9f, 0xb5 ), RGB_CONST( 0xd2, 0x0f, 0x39 ) },
         'H',
         "Latte (Catppuccin)" },
-      { { RGB_CONST( 0x24, 0x27, 0x3a ), RGB_CONST( 0xca, 0xd3, 0xf5 ),
-          RGB_CONST( 0x8a, 0xad, 0xf4 ), RGB_CONST( 0x7d, 0xc4, 0xe4 ),
-          RGB_CONST( 0xed, 0x87, 0x96 ) },
+      { { RGB_CONST( 0xca, 0xd3, 0xf5 ), RGB_CONST( 0x8a, 0xad, 0xf4 ),
+          RGB_CONST( 0x7d, 0xc4, 0xe4 ), RGB_CONST( 0xed, 0x87, 0x96 ) },
         'I',
         "Macchiato (Catppuccin)" },
-      { { 0, RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0x5f, 0xaf, 0xff ),
+      { { RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0x5f, 0xaf, 0xff ),
           RGB_CONST( 0xff, 0xaf, 0x00 ), RGB_CONST( 0xd7, 0x5f, 0x00 ) },
         'J',
         "Colorblind" },
-      { { 0, RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
+      { { RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
           RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0xff, 0xd7, 0x00 ) },
         'K',
         "Hotdog stand" },
-      { { 0, RGB_CONST( 0xea, 0xf6, 0xad ), RGB_CONST( 0x1b, 0x77, 0x8c ),
+      { { RGB_CONST( 0xea, 0xf6, 0xad ), RGB_CONST( 0x1b, 0x77, 0x8c ),
           RGB_CONST( 0x6a, 0x2f, 0xee ), RGB_CONST( 0xb6, 0xdb, 0x00 ) },
         'L',
         "Tidal Reef" } };
@@ -763,10 +757,14 @@ static void presetColorConfig( void )
 /// @return This helper does not return a value.
 static void printBackgroundPickerMenu( void )
 {
-   printThemedMnemonicText( "\r\n[<K>] Black           [<R>] Red             [<G>] Green           [<Y>] Yellow\r\n", color.number );
-   printThemedMnemonicText( "[<B>] Blue            [<M>] Magenta         [<C>] Cyan            [<W>] White\r\n", color.number );
-   printThemedMnemonicText( "[<1>] Bright black   [<2>] Bright red      [<3>] Bright green    [<4>] Bright yellow\r\n", color.number );
-   printThemedMnemonicText( "[<5>] Bright blue    [<6>] Bright magenta  [<7>] Bright cyan     [<8>] Bright white\r\n", color.number );
+   printThemedMnemonicText( "\r\n[<K>] Black          [<R>] Red\r\n", color.number );
+   printThemedMnemonicText( "[<G>] Green          [<Y>] Yellow\r\n", color.number );
+   printThemedMnemonicText( "[<B>] Blue           [<M>] Magenta\r\n", color.number );
+   printThemedMnemonicText( "[<C>] Cyan           [<W>] White\r\n", color.number );
+   printThemedMnemonicText( "[<1>] Bright black  [<2>] Bright red\r\n", color.number );
+   printThemedMnemonicText( "[<3>] Bright green  [<4>] Bright yellow\r\n", color.number );
+   printThemedMnemonicText( "[<5>] Bright blue   [<6>] Bright magenta\r\n", color.number );
+   printThemedMnemonicText( "[<7>] Bright cyan   [<8>] Bright white\r\n", color.number );
    printThemedMnemonicText( "[<D>] Default\r\n", color.number );
    printThemedMnemonicText( "Select background -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
@@ -795,10 +793,14 @@ static void printExpressColorPreview( int textColor, int nameColor,
 /// @return This helper does not return a value.
 static void printForegroundPickerMenu( void )
 {
-   printThemedMnemonicText( "\r\n[<K>] Black           [<R>] Red             [<G>] Green           [<Y>] Yellow\r\n", color.number );
-   printThemedMnemonicText( "[<B>] Blue            [<M>] Magenta         [<C>] Cyan            [<W>] White\r\n", color.number );
-   printThemedMnemonicText( "[<1>] Bright black   [<2>] Bright red      [<3>] Bright green    [<4>] Bright yellow\r\n", color.number );
-   printThemedMnemonicText( "[<5>] Bright blue    [<6>] Bright magenta  [<7>] Bright cyan     [<8>] Bright white\r\n", color.number );
+   printThemedMnemonicText( "\r\n[<K>] Black          [<R>] Red\r\n", color.number );
+   printThemedMnemonicText( "[<G>] Green          [<Y>] Yellow\r\n", color.number );
+   printThemedMnemonicText( "[<B>] Blue           [<M>] Magenta\r\n", color.number );
+   printThemedMnemonicText( "[<C>] Cyan           [<W>] White\r\n", color.number );
+   printThemedMnemonicText( "[<1>] Bright black  [<2>] Bright red\r\n", color.number );
+   printThemedMnemonicText( "[<3>] Bright green  [<4>] Bright yellow\r\n", color.number );
+   printThemedMnemonicText( "[<5>] Bright blue   [<6>] Bright magenta\r\n", color.number );
+   printThemedMnemonicText( "[<7>] Bright cyan   [<8>] Bright white\r\n", color.number );
    printThemedMnemonicText( "Select color -> ", color.forum );
    printAnsiForegroundColorValue( color.text );
 }
@@ -892,11 +894,13 @@ static void printPresetSwatches( const PresetMenuOption *ptrOption )
    stdPrintf( " " );
    for ( swatchIndex = 0; swatchIndex < PRESET_SWATCH_COUNT; swatchIndex++ )
    {
+      if ( swatchIndex > 0 )
+      {
+         stdPrintf( " " );
+      }
       printAnsiBackgroundColorValue( ptrOption->arySwatchColors[swatchIndex] );
       stdPrintf( "  " );
       printAnsiDisplayStateValue( color.text, color.background );
-      printAnsiForegroundColorValue( color.text );
-      stdPrintf( " " );
    }
 }
 

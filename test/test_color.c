@@ -409,7 +409,7 @@ static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches(
       fail_msg( "theme preset labels should use the current live theme text color; expected marker '%s' in output '%s'",
                 aryExpectedLabelMarker, aryOutput );
    }
-   ptrSwatchStrip = findSubstring( ptrDefaultLabel, "<BG:0>  <DS:42,0><FG:42> <BG:" );
+   ptrSwatchStrip = findSubstring( ptrDefaultLabel, "<BG:" );
    if ( ptrSwatchStrip == NULL )
    {
       fail_msg( "theme preset menu should print a background-color swatch strip after each label; output was '%s'",

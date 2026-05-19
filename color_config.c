@@ -14,7 +14,7 @@ static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
 static const char *COLOR_POST_MENU_KEYS = "dntq \n";
 static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
 static const char *COLOR_OUTPUT_MODE_KEYS = "at2 \n";
-static const char *COLOR_RESET_MENU_KEYS = "0123456789qQ \n";
+static const char *COLOR_RESET_MENU_KEYS = "abcdefghijkq \n";
 static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
@@ -81,49 +81,53 @@ static const PresetMenuOption aryPresetMenuOptions[] =
    {
       { { 0, RGB_CONST( 0x5f, 0xff, 0x87 ), RGB_CONST( 0xff, 0xd7, 0x5f ),
           RGB_CONST( 0x5f, 0xd7, 0xff ), RGB_CONST( 0xff, 0x5f, 0x5f ) },
-        '0',
+        'A',
         "Default" },
       { { 0, RGB_CONST( 0x00, 0xff, 0x00 ), RGB_CONST( 0xff, 0xff, 0x00 ),
           RGB_CONST( 0x00, 0xff, 0xff ), RGB_CONST( 0xff, 0x00, 0x00 ) },
-        '1',
+        'B',
         "Brilliant" },
       { { RGB_CONST( 0x2f, 0x38, 0x3e ), RGB_CONST( 0xd3, 0xc6, 0xaa ),
           RGB_CONST( 0x7f, 0xbb, 0xb3 ), RGB_CONST( 0x83, 0xc0, 0x92 ),
           RGB_CONST( 0xe6, 0x7e, 0x80 ) },
-        '2',
+        'C',
         "Everforest Dark" },
       { { RGB_CONST( 0xfd, 0xf6, 0xe3 ), RGB_CONST( 0x5c, 0x6a, 0x72 ),
           RGB_CONST( 0x35, 0x8f, 0xa2 ), RGB_CONST( 0x3a, 0x94, 0x84 ),
           RGB_CONST( 0xf8, 0x55, 0x52 ) },
-        '3',
+        'D',
         "Everforest Light" },
       { { RGB_CONST( 0x1d, 0x20, 0x21 ), RGB_CONST( 0xeb, 0xdb, 0xb2 ),
           RGB_CONST( 0x83, 0xa5, 0x98 ), RGB_CONST( 0x8e, 0xc0, 0x7c ),
           RGB_CONST( 0xfe, 0x80, 0x19 ) },
-        '4',
+        'E',
         "Gruvbox Dark" },
       { { RGB_CONST( 0xfb, 0xf1, 0xc7 ), RGB_CONST( 0x3c, 0x38, 0x36 ),
           RGB_CONST( 0x45, 0x85, 0x88 ), RGB_CONST( 0x79, 0x74, 0x0e ),
           RGB_CONST( 0x9d, 0x00, 0x06 ) },
-        '5',
+        'F',
         "Gruvbox Light" },
+      { { 0, RGB_CONST( 0xe3, 0xe2, 0xe9 ), RGB_CONST( 0x73, 0x59, 0xf8 ),
+          RGB_CONST( 0x5c, 0xf5, 0xdb ), RGB_CONST( 0xf8, 0x73, 0x59 ) },
+        'G',
+        "Dracula" },
       { { RGB_CONST( 0xef, 0xf1, 0xf5 ), RGB_CONST( 0x4c, 0x4f, 0x69 ),
           RGB_CONST( 0x1e, 0x66, 0xf5 ), RGB_CONST( 0x20, 0x9f, 0xb5 ),
           RGB_CONST( 0xd2, 0x0f, 0x39 ) },
-        '6',
+        'H',
         "Latte (Catppuccin)" },
       { { RGB_CONST( 0x24, 0x27, 0x3a ), RGB_CONST( 0xca, 0xd3, 0xf5 ),
           RGB_CONST( 0x8a, 0xad, 0xf4 ), RGB_CONST( 0x7d, 0xc4, 0xe4 ),
           RGB_CONST( 0xed, 0x87, 0x96 ) },
-        '7',
+        'I',
         "Macchiato (Catppuccin)" },
       { { 0, RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0x5f, 0xaf, 0xff ),
           RGB_CONST( 0xff, 0xaf, 0x00 ), RGB_CONST( 0xd7, 0x5f, 0x00 ) },
-        '8',
+        'J',
         "Colorblind" },
       { { 0, RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
           RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0xff, 0xd7, 0x00 ) },
-        '9',
+        'K',
         "Hotdog stand" } };
 
 static const char *A_FRIEND = "Example Friend";
@@ -686,53 +690,56 @@ static void presetColorConfig( void )
       printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
       printThemedMnemonicText( " Q.) Quit\r\n", color.number );
-      printThemedMnemonicText( "Select preset (0-9 or Q) -> ", color.forum );
+      printThemedMnemonicText( "Select preset (A-K or Q) -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
 
       switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )
       {
-         case '0':
+         case 'a':
             stdPrintf( "Default\r\n\n" );
             defaultColors( 1 );
             break;
-         case '1':
+         case 'b':
             stdPrintf( "Brilliant\r\n\n" );
             brilliantColors();
             break;
-         case '2':
+         case 'c':
             stdPrintf( "Everforest Dark\r\n\n" );
             everforestDarkColors();
             break;
-         case '3':
+         case 'd':
             stdPrintf( "Everforest Light\r\n\n" );
             everforestLightColors();
             break;
-         case '4':
+         case 'e':
             stdPrintf( "Gruvbox Dark\r\n\n" );
             gruvboxDarkColors();
             break;
-         case '5':
+         case 'f':
             stdPrintf( "Gruvbox Light\r\n\n" );
             gruvboxLightColors();
             break;
-         case '6':
+         case 'g':
+            stdPrintf( "Dracula\r\n\n" );
+            draculaProColors();
+            break;
+         case 'h':
             stdPrintf( "Catppuccin Latte\r\n\n" );
             catppuccinLatteColors();
             break;
-         case '7':
+         case 'i':
             stdPrintf( "Catppuccin Macchiato\r\n\n" );
             catppuccinMacchiatoColors();
             break;
-         case '8':
+         case 'j':
             stdPrintf( "Colorblind\r\n\n" );
             colorblindColors();
             break;
-         case '9':
+         case 'k':
             stdPrintf( "Hotdog Stand\r\n\n" );
             hotDogColors();
             break;
          case 'q':
-         case 'Q':
          case ' ':
          case '\n':
             stdPrintf( "Quit\r\n" );

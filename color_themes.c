@@ -175,6 +175,38 @@ void defaultColors( int clearall )
    ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x5f, 0xff, 0x87 );
 }
 
+/// @brief Apply the Dracula Pro dark palette to the current color settings.
+///
+/// @return This function does not return a value.
+void draculaProColors( void )
+{
+   useBlackThemeBackgrounds = true;
+   color.text = RGB( 0xe3, 0xe2, 0xe9 );
+   color.forum = RGB( 0x73, 0x59, 0xf8 );
+   color.number = RGB( 0x5c, 0xf5, 0xdb );
+   color.errorTextColor = RGB( 0xf8, 0x73, 0x59 );
+   color.ansiBlackTextColor = RGB( 0x73, 0x59, 0xf8 );
+   color.ansiBlueTextColor = RGB( 0x5c, 0xf5, 0xdb );
+   color.ansiMagentaTextColor = RGB( 0xf8, 0x59, 0xa8 );
+   color.postDate = RGB( 0x5c, 0xf5, 0xdb );
+   color.postName = RGB( 0xf8, 0x59, 0xa8 );
+   color.postText = RGB( 0xe3, 0xe2, 0xe9 );
+   color.postFriendDate = RGB( 0x73, 0x59, 0xf8 );
+   color.postFriendName = RGB( 0x66, 0xf8, 0x59 );
+   color.postFriendText = RGB( 0xe3, 0xe2, 0xe9 );
+   color.anonymous = RGB( 0xf8, 0xf8, 0x59 );
+   color.morePrompt = RGB( 0xf8, 0xf8, 0x59 );
+   color.ansiWhiteTextColor = RGB( 0xe3, 0xe2, 0xe9 );
+   color.reserved5 = RGB( 0xe3, 0xe2, 0xe9 );
+   color.background = 0;
+   color.inputText = RGB( 0xe3, 0xe2, 0xe9 );
+   color.inputHighlight = RGB( 0x5c, 0xf5, 0xdb );
+   color.expressText = RGB( 0xe3, 0xe2, 0xe9 );
+   color.expressName = RGB( 0xf8, 0x59, 0xa8 );
+   color.expressFriendName = RGB( 0x66, 0xf8, 0x59 );
+   color.expressFriendText = RGB( 0xe3, 0xe2, 0xe9 );
+}
+
 /// @brief Apply the Everforest dark medium palette to the current color settings.
 ///
 /// @return This function does not return a value.

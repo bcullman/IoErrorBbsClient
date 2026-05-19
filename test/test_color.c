@@ -343,7 +343,7 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
 
 static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately( void **state )
 {
-   const int aryKeys[] = { 't', '6', 'q' };
+   const int aryKeys[] = { 't', 'h', 'q' };
 
    // Arrange
    (void)state;
@@ -415,7 +415,7 @@ static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches(
       fail_msg( "theme preset menu should print a background-color swatch strip after each label; output was '%s'",
                 aryOutput );
    }
-   ptrRightColumnLabel = findSubstring( ptrDefaultLabel, "Gruvbox Light" );
+   ptrRightColumnLabel = findSubstring( ptrDefaultLabel, "Dracula" );
    ptrEndOfRow = findSubstring( ptrDefaultLabel, "\r\n" );
    if ( ptrRightColumnLabel == NULL || ptrEndOfRow == NULL || ptrRightColumnLabel > ptrEndOfRow )
    {
@@ -467,6 +467,48 @@ static void defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged( void *
    if ( color.background != 4 )
    {
       fail_msg( "defaultColors(0) should not overwrite existing background; got %d", color.background );
+   }
+}
+
+static void draculaProColors_WhenApplied_SetsDarkPalette( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   memset( &color, 0, sizeof( color ) );
+
+   // Act
+   draculaProColors();
+
+   // Assert
+   if ( color.text != colorValueFromRgb( 0xe3, 0xe2, 0xe9 ) ||
+        color.forum != colorValueFromRgb( 0x73, 0x59, 0xf8 ) ||
+        color.number != colorValueFromRgb( 0x5c, 0xf5, 0xdb ) ||
+        color.errorTextColor != colorValueFromRgb( 0xf8, 0x73, 0x59 ) )
+   {
+      fail_msg( "draculaProColors should set the general palette colors; got text=%d forum=%d number=%d error=%d",
+                color.text, color.forum, color.number, color.errorTextColor );
+   }
+   if ( color.background != 0 )
+   {
+      fail_msg( "draculaProColors should keep a black background; got %d",
+                color.background );
+   }
+   if ( !useBlackThemeBackgrounds )
+   {
+      fail_msg( "draculaProColors should enable black theme background fallback" );
+   }
+   if ( color.postDate != colorValueFromRgb( 0x5c, 0xf5, 0xdb ) ||
+        color.postName != colorValueFromRgb( 0xf8, 0x59, 0xa8 ) ||
+        color.postFriendName != colorValueFromRgb( 0x66, 0xf8, 0x59 ) ||
+        color.morePrompt != colorValueFromRgb( 0xf8, 0xf8, 0x59 ) ||
+        color.expressName != colorValueFromRgb( 0xf8, 0x59, 0xa8 ) ||
+        color.expressFriendName != colorValueFromRgb( 0x66, 0xf8, 0x59 ) )
+   {
+      fail_msg( "draculaProColors should map post, prompt, and express roles onto the palette; got postDate=%d postName=%d postFriendName=%d morePrompt=%d expressName=%d expressFriendName=%d",
+                color.postDate, color.postName, color.postFriendName,
+                color.morePrompt, color.expressName, color.expressFriendName );
    }
 }
 
@@ -1570,6 +1612,7 @@ int main( void )
       cmocka_unit_test( colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
+      cmocka_unit_test( draculaProColors_WhenApplied_SetsDarkPalette ),
       cmocka_unit_test( colorValueFromName_WhenCanonicalNameProvided_ReturnsNamedPaletteValue ),
       cmocka_unit_test( colorValueFromName_WhenAliasProvided_ReturnsCanonicalPaletteValue ),
       cmocka_unit_test( colorValueFromName_WhenBrightAnsiNameProvided_ReturnsBrightAnsiValue ),

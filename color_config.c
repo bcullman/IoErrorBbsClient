@@ -20,6 +20,8 @@ static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
 #define RGB_CONST( red, green, blue ) \
    ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
+#define PRESET_LABEL_WIDTH 24
+#define PRESET_SWATCH_COUNT 5
 
 typedef struct
 {
@@ -30,9 +32,9 @@ typedef struct
 
 typedef struct
 {
+   int arySwatchColors[PRESET_SWATCH_COUNT];
    int keyChar;
    const char *ptrLabel;
-   int textColor;
 } PresetMenuOption;
 
 static const PickerColorOption aryForegroundPickerOptions[] =
@@ -76,16 +78,52 @@ static const PickerColorOption aryBackgroundPickerOptions[] =
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { '0', "Default", RGB_CONST( 0x5f, 0xff, 0x87 ) },
-      { '1', "Brilliant", RGB_CONST( 0x00, 0xff, 0x00 ) },
-      { '2', "Everforest Dark", RGB_CONST( 0xd3, 0xc6, 0xaa ) },
-      { '3', "Everforest Light", RGB_CONST( 0x5c, 0x6a, 0x72 ) },
-      { '4', "Gruvbox Dark", RGB_CONST( 0xeb, 0xdb, 0xb2 ) },
-      { '5', "Gruvbox Light", RGB_CONST( 0x3c, 0x38, 0x36 ) },
-      { '6', "Latte (Catppuccin)", RGB_CONST( 0x4c, 0x4f, 0x69 ) },
-      { '7', "Macchiato (Catppuccin)", RGB_CONST( 0xca, 0xd3, 0xf5 ) },
-      { '8', "Colorblind", RGB_CONST( 0xff, 0xff, 0xff ) },
-      { '9', "Hotdog stand", RGB_CONST( 0xff, 0xd7, 0x00 ) } };
+      { { 0, RGB_CONST( 0x5f, 0xff, 0x87 ), RGB_CONST( 0xff, 0xd7, 0x5f ),
+          RGB_CONST( 0x5f, 0xd7, 0xff ), RGB_CONST( 0xff, 0x5f, 0x5f ) },
+        '0',
+        "Default" },
+      { { 0, RGB_CONST( 0x00, 0xff, 0x00 ), RGB_CONST( 0xff, 0xff, 0x00 ),
+          RGB_CONST( 0x00, 0xff, 0xff ), RGB_CONST( 0xff, 0x00, 0x00 ) },
+        '1',
+        "Brilliant" },
+      { { RGB_CONST( 0x2f, 0x38, 0x3e ), RGB_CONST( 0xd3, 0xc6, 0xaa ),
+          RGB_CONST( 0x7f, 0xbb, 0xb3 ), RGB_CONST( 0x83, 0xc0, 0x92 ),
+          RGB_CONST( 0xe6, 0x7e, 0x80 ) },
+        '2',
+        "Everforest Dark" },
+      { { RGB_CONST( 0xfd, 0xf6, 0xe3 ), RGB_CONST( 0x5c, 0x6a, 0x72 ),
+          RGB_CONST( 0x35, 0x8f, 0xa2 ), RGB_CONST( 0x3a, 0x94, 0x84 ),
+          RGB_CONST( 0xf8, 0x55, 0x52 ) },
+        '3',
+        "Everforest Light" },
+      { { RGB_CONST( 0x1d, 0x20, 0x21 ), RGB_CONST( 0xeb, 0xdb, 0xb2 ),
+          RGB_CONST( 0x83, 0xa5, 0x98 ), RGB_CONST( 0x8e, 0xc0, 0x7c ),
+          RGB_CONST( 0xfe, 0x80, 0x19 ) },
+        '4',
+        "Gruvbox Dark" },
+      { { RGB_CONST( 0xfb, 0xf1, 0xc7 ), RGB_CONST( 0x3c, 0x38, 0x36 ),
+          RGB_CONST( 0x45, 0x85, 0x88 ), RGB_CONST( 0x79, 0x74, 0x0e ),
+          RGB_CONST( 0x9d, 0x00, 0x06 ) },
+        '5',
+        "Gruvbox Light" },
+      { { RGB_CONST( 0xef, 0xf1, 0xf5 ), RGB_CONST( 0x4c, 0x4f, 0x69 ),
+          RGB_CONST( 0x1e, 0x66, 0xf5 ), RGB_CONST( 0x20, 0x9f, 0xb5 ),
+          RGB_CONST( 0xd2, 0x0f, 0x39 ) },
+        '6',
+        "Latte (Catppuccin)" },
+      { { RGB_CONST( 0x24, 0x27, 0x3a ), RGB_CONST( 0xca, 0xd3, 0xf5 ),
+          RGB_CONST( 0x8a, 0xad, 0xf4 ), RGB_CONST( 0x7d, 0xc4, 0xe4 ),
+          RGB_CONST( 0xed, 0x87, 0x96 ) },
+        '7',
+        "Macchiato (Catppuccin)" },
+      { { 0, RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0x5f, 0xaf, 0xff ),
+          RGB_CONST( 0xff, 0xaf, 0x00 ), RGB_CONST( 0xd7, 0x5f, 0x00 ) },
+        '8',
+        "Colorblind" },
+      { { 0, RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
+          RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0xff, 0xd7, 0x00 ) },
+        '9',
+        "Hotdog stand" } };
 
 static const char *A_FRIEND = "Example Friend";
 static const char *A_USER = "Example User";
@@ -109,6 +147,7 @@ static void printForegroundPickerMenu( void );
 static void printGeneralColorPreview( void );
 static void printInputColorPreview( void );
 static void printPresetMenuItem( const PresetMenuOption *ptrOption );
+static void printPresetSwatches( const PresetMenuOption *ptrOption );
 static const PickerColorOption *readPickerSelection( const char *ptrAllowedKeys,
                                                      const PickerColorOption *ptrOptions,
                                                      size_t itemCount,
@@ -785,10 +824,31 @@ static void printPresetMenuItem( const PresetMenuOption *ptrOption )
 {
    printAnsiDisplayStateValue( color.number, color.background );
    stdPrintf( " %c.) ", ptrOption->keyChar );
-   printAnsiDisplayStateValue( ptrOption->textColor, color.background );
-   printAnsiForegroundColorValue( ptrOption->textColor );
-   stdPrintf( "%s", ptrOption->ptrLabel );
+   printAnsiDisplayStateValue( color.text, color.background );
+   printAnsiForegroundColorValue( color.text );
+   stdPrintf( "%-*s", PRESET_LABEL_WIDTH, ptrOption->ptrLabel );
+   printPresetSwatches( ptrOption );
    stdPrintf( "\r\n" );
+}
+
+/// @brief Print representative color swatches for a preset theme.
+///
+/// @param ptrOption Preset option whose palette strip should be shown.
+///
+/// @return This helper does not return a value.
+static void printPresetSwatches( const PresetMenuOption *ptrOption )
+{
+   size_t swatchIndex;
+
+   stdPrintf( " " );
+   for ( swatchIndex = 0; swatchIndex < PRESET_SWATCH_COUNT; swatchIndex++ )
+   {
+      printAnsiBackgroundColorValue( ptrOption->arySwatchColors[swatchIndex] );
+      stdPrintf( "  " );
+      printAnsiDisplayStateValue( color.text, color.background );
+      printAnsiForegroundColorValue( color.text );
+      stdPrintf( " " );
+   }
 }
 
 /// @brief Print a themed preview pane for the current preset colors.

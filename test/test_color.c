@@ -28,6 +28,64 @@ static unsigned int lastFlushValue;
 static int lastDisplayStateBackground;
 static int lastDisplayStateForeground;
 static unsigned int printAnsiDisplayStateCallCount;
+static char aryOutput[65536];
+static size_t outputLength;
+
+static void appendOutputCharacter( char outputChar )
+{
+   if ( outputLength >= sizeof( aryOutput ) - 1 )
+   {
+      return;
+   }
+
+   aryOutput[outputLength++] = outputChar;
+   aryOutput[outputLength] = '\0';
+}
+
+static void appendOutputInteger( int value )
+{
+   char aryValue[32];
+
+   snprintf( aryValue, sizeof( aryValue ), "%d", value );
+   if ( outputLength >= sizeof( aryOutput ) - 1 )
+   {
+      return;
+   }
+   strncat( aryOutput, aryValue, sizeof( aryOutput ) - outputLength - 1 );
+   outputLength = strlen( aryOutput );
+}
+
+static void appendOutputPaddedString( const char *ptrText, int width )
+{
+   size_t paddingCount;
+   size_t textLength;
+
+   textLength = strlen( ptrText );
+   if ( outputLength < sizeof( aryOutput ) - 1 )
+   {
+      strncat( aryOutput, ptrText, sizeof( aryOutput ) - outputLength - 1 );
+      outputLength = strlen( aryOutput );
+   }
+   if ( width <= 0 || (size_t)width <= textLength )
+   {
+      return;
+   }
+   paddingCount = (size_t)width - textLength;
+   while ( paddingCount-- > 0 )
+   {
+      appendOutputCharacter( ' ' );
+   }
+}
+
+static void appendOutputText( const char *ptrText )
+{
+   if ( outputLength >= sizeof( aryOutput ) - 1 )
+   {
+      return;
+   }
+   strncat( aryOutput, ptrText, sizeof( aryOutput ) - outputLength - 1 );
+   outputLength = strlen( aryOutput );
+}
 
 static void resetState( void )
 {
@@ -38,6 +96,8 @@ static void resetState( void )
    lastDisplayStateBackground = -2;
    lastDisplayStateForeground = -2;
    printAnsiDisplayStateCallCount = 0;
+   outputLength = 0;
+   aryOutput[0] = '\0';
 
    flagsConfiguration.shouldUseAnsi = 0;
    configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
@@ -101,12 +161,16 @@ int colorize( const char *ptrText )
 
 void printAnsiForegroundColorValue( int colorValue )
 {
-   (void)colorValue;
+   appendOutputText( "<FG:" );
+   appendOutputInteger( colorValue );
+   appendOutputText( ">" );
 }
 
 void printAnsiBackgroundColorValue( int colorValue )
 {
-   (void)colorValue;
+   appendOutputText( "<BG:" );
+   appendOutputInteger( colorValue );
+   appendOutputText( ">" );
 }
 
 void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
@@ -114,12 +178,17 @@ void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor )
    lastDisplayStateForeground = foregroundColor;
    lastDisplayStateBackground = backgroundColor;
    printAnsiDisplayStateCallCount++;
+   appendOutputText( "<DS:" );
+   appendOutputInteger( foregroundColor );
+   appendOutputText( "," );
+   appendOutputInteger( backgroundColor );
+   appendOutputText( ">" );
 }
 
 void printThemedMnemonicText( const char *ptrText, int defaultColor )
 {
-   (void)ptrText;
    (void)defaultColor;
+   appendOutputText( ptrText );
 }
 
 int fSortCompareVoid( const void *ptrLeft, const void *ptrRight )
@@ -194,8 +263,29 @@ int readValidatedMenuKey( const char *allowedCharsLowercase )
 int stdPrintf( const char *format, ... )
 {
    va_list argList;
+   const char *ptrText;
+   int width;
 
    va_start( argList, format );
+   if ( strchr( format, '%' ) == NULL )
+   {
+      appendOutputText( format );
+   }
+   else if ( strcmp( format, "%s" ) == 0 )
+   {
+      ptrText = va_arg( argList, const char * );
+      appendOutputText( ptrText );
+   }
+   else if ( strcmp( format, "%-*s" ) == 0 )
+   {
+      width = va_arg( argList, int );
+      ptrText = va_arg( argList, const char * );
+      appendOutputPaddedString( ptrText, width );
+   }
+   else if ( strcmp( format, "%c" ) == 0 )
+   {
+      appendOutputCharacter( (char)va_arg( argList, int ) );
+   }
    va_end( argList );
    return 1;
 }
@@ -286,6 +376,42 @@ static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmedia
    {
       fail_msg( "colorConfig should refresh the terminal using the active text color; got %d expected %d",
                 lastDisplayStateForeground, color.text );
+   }
+}
+
+static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches( void **state )
+{
+   const int aryKeys[] = { 't', 'q' };
+   char aryExpectedLabelMarker[32];
+   const char *ptrDefaultLabel;
+   const char *ptrSwatchStrip;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   color.background = 0;
+   color.number = 14;
+   color.text = 42;
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+   snprintf( aryExpectedLabelMarker, sizeof( aryExpectedLabelMarker ), "<FG:%d>Default", color.text );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   ptrDefaultLabel = findSubstring( aryOutput, aryExpectedLabelMarker );
+   if ( ptrDefaultLabel == NULL )
+   {
+      fail_msg( "theme preset labels should use the current live theme text color; expected marker '%s' in output '%s'",
+                aryExpectedLabelMarker, aryOutput );
+   }
+   ptrSwatchStrip = findSubstring( ptrDefaultLabel, "<BG:0>  <DS:42,0><FG:42> <BG:" );
+   if ( ptrSwatchStrip == NULL )
+   {
+      fail_msg( "theme preset menu should print a background-color swatch strip after each label; output was '%s'",
+                aryOutput );
    }
 }
 
@@ -1432,6 +1558,7 @@ int main( void )
 {
    const struct CMUnitTest aryTests[] = {
       cmocka_unit_test( colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately ),
+      cmocka_unit_test( colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( colorValueFromName_WhenCanonicalNameProvided_ReturnsNamedPaletteValue ),

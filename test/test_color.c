@@ -384,6 +384,8 @@ static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches(
    const int aryKeys[] = { 't', 'q' };
    char aryExpectedLabelMarker[32];
    const char *ptrDefaultLabel;
+   const char *ptrEndOfRow;
+   const char *ptrRightColumnLabel;
    const char *ptrSwatchStrip;
 
    // Arrange
@@ -411,6 +413,13 @@ static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches(
    if ( ptrSwatchStrip == NULL )
    {
       fail_msg( "theme preset menu should print a background-color swatch strip after each label; output was '%s'",
+                aryOutput );
+   }
+   ptrRightColumnLabel = findSubstring( ptrDefaultLabel, "Gruvbox Light" );
+   ptrEndOfRow = findSubstring( ptrDefaultLabel, "\r\n" );
+   if ( ptrRightColumnLabel == NULL || ptrEndOfRow == NULL || ptrRightColumnLabel > ptrEndOfRow )
+   {
+      fail_msg( "theme preset menu should render a second preset in the same row for the two-column layout; output was '%s'",
                 aryOutput );
    }
 }

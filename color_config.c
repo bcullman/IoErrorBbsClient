@@ -20,6 +20,7 @@ static const char *COLOR_FOREGROUND_KEYS = "krgybmcw12345678";
 static const char *COLOR_BACKGROUND_KEYS = "krgybmcwd12345678";
 #define RGB_CONST( red, green, blue ) \
    ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
+#define PRESET_COLUMN_GAP "   "
 #define PRESET_LABEL_WIDTH 24
 #define PRESET_SWATCH_COUNT 5
 
@@ -147,6 +148,8 @@ static void printForegroundPickerMenu( void );
 static void printGeneralColorPreview( void );
 static void printInputColorPreview( void );
 static void printPresetMenuItem( const PresetMenuOption *ptrOption );
+static void printPresetMenuRow( const PresetMenuOption *ptrLeftOption,
+                                const PresetMenuOption *ptrRightOption );
 static void printPresetSwatches( const PresetMenuOption *ptrOption );
 static const PickerColorOption *readPickerSelection( const char *ptrAllowedKeys,
                                                      const PickerColorOption *ptrOptions,
@@ -657,14 +660,28 @@ static void presetColorConfig( void )
 
    while ( true )
    {
+      size_t columnBreakIndex;
+      size_t optionCount;
+
+      optionCount = sizeof( aryPresetMenuOptions ) / sizeof( aryPresetMenuOptions[0] );
+      columnBreakIndex = ( optionCount + 1 ) / 2;
+
       printAnsiDisplayStateValue( color.text, color.background );
       stdPrintf( "\033[H\033[2J" );
       stdPrintf( "Color presets\r\n\n" );
       for ( optionIndex = 0;
-            optionIndex < sizeof( aryPresetMenuOptions ) / sizeof( aryPresetMenuOptions[0] );
+            optionIndex < columnBreakIndex;
             optionIndex++ )
       {
-         printPresetMenuItem( &aryPresetMenuOptions[optionIndex] );
+         if ( optionIndex + columnBreakIndex < optionCount )
+         {
+            printPresetMenuRow( &aryPresetMenuOptions[optionIndex],
+                                &aryPresetMenuOptions[optionIndex + columnBreakIndex] );
+         }
+         else
+         {
+            printPresetMenuRow( &aryPresetMenuOptions[optionIndex], NULL );
+         }
       }
       printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
@@ -828,6 +845,23 @@ static void printPresetMenuItem( const PresetMenuOption *ptrOption )
    printAnsiForegroundColorValue( color.text );
    stdPrintf( "%-*s", PRESET_LABEL_WIDTH, ptrOption->ptrLabel );
    printPresetSwatches( ptrOption );
+}
+
+/// @brief Print one or two preset theme menu entries on a single row.
+///
+/// @param ptrLeftOption Left-column preset option.
+/// @param ptrRightOption Right-column preset option, or `NULL` when absent.
+///
+/// @return This helper does not return a value.
+static void printPresetMenuRow( const PresetMenuOption *ptrLeftOption,
+                                const PresetMenuOption *ptrRightOption )
+{
+   printPresetMenuItem( ptrLeftOption );
+   if ( ptrRightOption != NULL )
+   {
+      stdPrintf( PRESET_COLUMN_GAP );
+      printPresetMenuItem( ptrRightOption );
+   }
    stdPrintf( "\r\n" );
 }
 

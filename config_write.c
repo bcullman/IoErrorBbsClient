@@ -21,7 +21,8 @@ static void printTomlEscapedString( const char *ptrText );
 static void printTomlHexColor( int colorValue );
 static void writeAwaySettings( void );
 static void writeBehaviorSettings( void );
-static void writeColorSettings( void );
+static void writeColorSettings( const char *ptrSectionName,
+                                const Color *ptrColorTable );
 static void writeConnectionSettings( void );
 static void writeContactSettings( void );
 static void writeDefaultSettings( void );
@@ -212,11 +213,12 @@ static void writeBehaviorSettings( void )
 /// @brief Write the themed color settings using stable TOML keys.
 ///
 /// @return This helper does not return a value.
-static void writeColorSettings( void )
+static void writeColorSettings( const char *ptrSectionName,
+                                const Color *ptrColorTable )
 {
    int colorFieldIndex;
 
-   fprintf( ptrConfigFile, "[colors]\n" );
+   fprintf( ptrConfigFile, "[%s]\n", ptrSectionName );
    for ( colorFieldIndex = 0; colorFieldIndex < COLOR_FIELD_COUNT; colorFieldIndex++ )
    {
       const char *ptrColorKeyName;
@@ -229,7 +231,7 @@ static void writeColorSettings( void )
          continue;
       }
 
-      colorValue = colorFieldValue( colorFieldIndex );
+      colorValue = colorFieldValueForColor( ptrColorTable, colorFieldIndex );
       fprintf( ptrConfigFile, "%s = ", ptrColorKeyName );
       ptrColorName = colorNameFromValue( colorValue );
       if ( colorValueIsRgb( colorValue ) )
@@ -365,7 +367,8 @@ void writeConfig( void )
    writeBehaviorSettings();
    writeAwaySettings();
    writeContactSettings();
-   writeColorSettings();
+   writeColorSettings( "colors_256", &color256 );
+   writeColorSettings( "colors_truecolor", &colorTruecolor );
 
    fflush( ptrConfigFile );
    truncateConfigFile( ftell( ptrConfigFile ) );

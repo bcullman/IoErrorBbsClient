@@ -9,10 +9,151 @@
 #define ifzero( x ) if ( ( x ) < 0 || clearall )
 #define RGB( red, green, blue ) colorValueFromRgb( ( red ), ( green ), ( blue ) )
 
-/// @brief Apply the bright theme palette to the current color settings.
+static void applyBrilliantColorsToActiveColor( void );
+static void applyCatppuccinLatteColorsToActiveColor( void );
+static void applyCatppuccinMacchiatoColorsToActiveColor( void );
+static void applyColorblindColorsToActiveColor( void );
+static void applyDefaultColorsToActiveColor( int clearall );
+static void applyDraculaProColorsToActiveColor( void );
+static void applyEverforestDarkColorsToActiveColor( void );
+static void applyEverforestLightColorsToActiveColor( void );
+static void applyGruvboxDarkColorsToActiveColor( void );
+static void applyGruvboxLightColorsToActiveColor( void );
+static void applyHotDogColorsToActiveColor( void );
+static void applyThemeAndDerive256( void ( *applyThemeToActiveColor )( void ) );
+static void applyTidalReefColorsToActiveColor( void );
+
+/// @brief Apply the bright theme palette to the configured color tables.
 ///
 /// @return This function does not return a value.
 void brilliantColors( void )
+{
+   applyThemeAndDerive256( applyBrilliantColorsToActiveColor );
+}
+
+/// @brief Apply the Catppuccin Latte palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void catppuccinLatteColors( void )
+{
+   applyThemeAndDerive256( applyCatppuccinLatteColorsToActiveColor );
+}
+
+/// @brief Apply the Catppuccin Macchiato palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void catppuccinMacchiatoColors( void )
+{
+   applyThemeAndDerive256( applyCatppuccinMacchiatoColorsToActiveColor );
+}
+
+/// @brief Apply the colorblind-friendly theme palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void colorblindColors( void )
+{
+   applyThemeAndDerive256( applyColorblindColorsToActiveColor );
+}
+
+/// @brief Fill unset color fields with the built-in default theme values.
+///
+/// @param clearall When non-zero, reinitialize every color field, including the
+/// background color. When zero, only unset fields are filled in.
+///
+/// @return This function does not return a value.
+void defaultColors( int clearall )
+{
+   color = color256;
+   useBlackThemeBackgrounds = useBlackThemeBackgrounds256;
+   applyDefaultColorsToActiveColor( clearall );
+   copyColorTable( &color256, &color );
+   useBlackThemeBackgrounds256 = useBlackThemeBackgrounds;
+
+   color = colorTruecolor;
+   useBlackThemeBackgrounds = useBlackThemeBackgroundsTruecolor;
+   applyDefaultColorsToActiveColor( clearall );
+   copyColorTable( &colorTruecolor, &color );
+   useBlackThemeBackgroundsTruecolor = useBlackThemeBackgrounds;
+
+   refreshActiveColorTable();
+}
+
+/// @brief Apply the Dracula dark palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void draculaProColors( void )
+{
+   applyThemeAndDerive256( applyDraculaProColorsToActiveColor );
+}
+
+/// @brief Apply the Everforest dark medium palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void everforestDarkColors( void )
+{
+   applyThemeAndDerive256( applyEverforestDarkColorsToActiveColor );
+}
+
+/// @brief Apply the Everforest light medium palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void everforestLightColors( void )
+{
+   applyThemeAndDerive256( applyEverforestLightColorsToActiveColor );
+}
+
+/// @brief Apply the Gruvbox dark hard palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void gruvboxDarkColors( void )
+{
+   applyThemeAndDerive256( applyGruvboxDarkColorsToActiveColor );
+}
+
+/// @brief Apply the Gruvbox light hard palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void gruvboxLightColors( void )
+{
+   applyThemeAndDerive256( applyGruvboxLightColorsToActiveColor );
+}
+
+/// @brief Apply the hot dog theme palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void hotDogColors( void )
+{
+   applyThemeAndDerive256( applyHotDogColorsToActiveColor );
+}
+
+/// @brief Apply the Tidal Reef dark palette to the configured color tables.
+///
+/// @return This function does not return a value.
+void tidalReefColors( void )
+{
+   applyThemeAndDerive256( applyTidalReefColorsToActiveColor );
+}
+
+/// @brief Apply one preset to the truecolor table and derive its 256-color table.
+///
+/// @param applyThemeToActiveColor Callback that fills the active `color` palette.
+///
+/// @return This helper does not return a value.
+static void applyThemeAndDerive256( void ( *applyThemeToActiveColor )( void ) )
+{
+   applyThemeToActiveColor();
+   copyColorTable( &colorTruecolor, &color );
+   useBlackThemeBackgroundsTruecolor = useBlackThemeBackgrounds;
+
+   rebuildConfiguredColorTables( false, true, NULL );
+   useBlackThemeBackgrounds256 = useBlackThemeBackgroundsTruecolor;
+   refreshActiveColorTable();
+}
+
+/// @brief Fill the live palette with the bright theme colors.
+///
+/// @return This helper does not return a value.
+static void applyBrilliantColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = false;
    color.text = RGB( 0x00, 0xff, 0x00 );
@@ -41,10 +182,10 @@ void brilliantColors( void )
    color.expressFriendText = RGB( 0x00, 0xff, 0x00 );
 }
 
-/// @brief Apply the Catppuccin Latte palette to the current color settings.
+/// @brief Fill the live palette with the Catppuccin Latte colors.
 ///
-/// @return This function does not return a value.
-void catppuccinLatteColors( void )
+/// @return This helper does not return a value.
+static void applyCatppuccinLatteColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = false;
    color.text = RGB( 0x4c, 0x4f, 0x69 );
@@ -73,10 +214,10 @@ void catppuccinLatteColors( void )
    color.expressFriendText = RGB( 0x4c, 0x4f, 0x69 );
 }
 
-/// @brief Apply the Catppuccin Macchiato palette to the current colors.
+/// @brief Fill the live palette with the Catppuccin Macchiato colors.
 ///
-/// @return This function does not return a value.
-void catppuccinMacchiatoColors( void )
+/// @return This helper does not return a value.
+static void applyCatppuccinMacchiatoColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = true;
    color.text = RGB( 0xca, 0xd3, 0xf5 );
@@ -105,10 +246,10 @@ void catppuccinMacchiatoColors( void )
    color.expressFriendText = RGB( 0xca, 0xd3, 0xf5 );
 }
 
-/// @brief Apply the colorblind-friendly theme palette to the current colors.
+/// @brief Fill the live palette with the colorblind-friendly colors.
 ///
-/// @return This function does not return a value.
-void colorblindColors( void )
+/// @return This helper does not return a value.
+static void applyColorblindColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = false;
    color.text = RGB( 0xff, 0xff, 0xff );
@@ -137,13 +278,12 @@ void colorblindColors( void )
    color.expressFriendText = RGB( 0xff, 0xff, 0xff );
 }
 
-/// @brief Fill unset color fields with the built-in default theme values.
+/// @brief Fill missing live-palette fields with the built-in default colors.
 ///
-/// @param clearall When non-zero, reinitialize every color field, including the
-/// background color. When zero, only unset fields are filled in.
+/// @param clearall When non-zero, reinitialize every color field.
 ///
-/// @return This function does not return a value.
-void defaultColors( int clearall )
+/// @return This helper does not return a value.
+static void applyDefaultColorsToActiveColor( int clearall )
 {
    useBlackThemeBackgrounds = false;
    ifzero( color.text ) color.text = RGB( 0x00, 0x80, 0x00 );
@@ -175,10 +315,10 @@ void defaultColors( int clearall )
    ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x00, 0x80, 0x00 );
 }
 
-/// @brief Apply the Dracula Pro dark palette to the current color settings.
+/// @brief Fill the live palette with the Dracula colors.
 ///
-/// @return This function does not return a value.
-void draculaProColors( void )
+/// @return This helper does not return a value.
+static void applyDraculaProColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = true;
    color.text = RGB( 0xe3, 0xe2, 0xe9 );
@@ -207,10 +347,10 @@ void draculaProColors( void )
    color.expressFriendText = RGB( 0xe3, 0xe2, 0xe9 );
 }
 
-/// @brief Apply the Everforest dark medium palette to the current color settings.
+/// @brief Fill the live palette with the Everforest dark colors.
 ///
-/// @return This function does not return a value.
-void everforestDarkColors( void )
+/// @return This helper does not return a value.
+static void applyEverforestDarkColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = true;
    color.text = RGB( 0xd3, 0xc6, 0xaa );
@@ -239,10 +379,10 @@ void everforestDarkColors( void )
    color.expressFriendText = RGB( 0xd3, 0xc6, 0xaa );
 }
 
-/// @brief Apply the Everforest light medium palette to the current color settings.
+/// @brief Fill the live palette with the Everforest light colors.
 ///
-/// @return This function does not return a value.
-void everforestLightColors( void )
+/// @return This helper does not return a value.
+static void applyEverforestLightColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = false;
    color.text = RGB( 0x5c, 0x6a, 0x72 );
@@ -271,13 +411,10 @@ void everforestLightColors( void )
    color.expressFriendText = RGB( 0x5c, 0x6a, 0x72 );
 }
 
-/// @brief Apply the Gruvbox dark hard palette to the current color settings.
+/// @brief Fill the live palette with the Gruvbox dark colors.
 ///
-/// This preset intentionally leans on Gruvbox's softer aqua, purple, yellow,
-/// and olive-green tones instead of the more aggressive red/orange accents.
-///
-/// @return This function does not return a value.
-void gruvboxDarkColors( void )
+/// @return This helper does not return a value.
+static void applyGruvboxDarkColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = true;
    color.text = RGB( 0xeb, 0xdb, 0xb2 );
@@ -306,13 +443,10 @@ void gruvboxDarkColors( void )
    color.expressFriendText = RGB( 0xeb, 0xdb, 0xb2 );
 }
 
-/// @brief Apply the Gruvbox light hard palette to the current color settings.
+/// @brief Fill the live palette with the Gruvbox light colors.
 ///
-/// This preset keeps the same quieter accent bias as the dark palette while
-/// switching to Gruvbox's light background and softer neutral text.
-///
-/// @return This function does not return a value.
-void gruvboxLightColors( void )
+/// @return This helper does not return a value.
+static void applyGruvboxLightColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = false;
    color.text = RGB( 0x3c, 0x38, 0x36 );
@@ -341,10 +475,10 @@ void gruvboxLightColors( void )
    color.expressFriendText = RGB( 0x3c, 0x38, 0x36 );
 }
 
-/// @brief Apply the hot dog theme palette to the current color settings.
+/// @brief Fill the live palette with the hot dog colors.
 ///
-/// @return This function does not return a value.
-void hotDogColors( void )
+/// @return This helper does not return a value.
+static void applyHotDogColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = false;
    color.text = RGB( 0xff, 0xd7, 0x00 );
@@ -373,10 +507,10 @@ void hotDogColors( void )
    color.expressFriendText = RGB( 0xff, 0xaf, 0x00 );
 }
 
-/// @brief Apply the Tidal Reef dark palette to the current color settings.
+/// @brief Fill the live palette with the Tidal Reef colors.
 ///
-/// @return This function does not return a value.
-void tidalReefColors( void )
+/// @return This helper does not return a value.
+static void applyTidalReefColorsToActiveColor( void )
 {
    useBlackThemeBackgrounds = true;
    color.text = RGB( 0xea, 0xf6, 0xad );

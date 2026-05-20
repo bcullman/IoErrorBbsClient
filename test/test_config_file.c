@@ -95,6 +95,11 @@ void defaultColors( int setall )
    (void)setall;
 }
 
+void copyColorTable( Color *ptrDestination, const Color *ptrSource )
+{
+   *ptrDestination = *ptrSource;
+}
+
 int colorValueFromName( const char *ptrColorName )
 {
    if ( ptrColorName == NULL )
@@ -214,6 +219,18 @@ void setColorFieldValue( int colorIndex, int colorValue )
    *aryTestColorFields[colorIndex] = colorValue;
 }
 
+void setColorFieldValueForColor( Color *ptrColor, int colorIndex, int colorValue )
+{
+   int *ptrColorFields;
+
+   assert( ptrColor != NULL );
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+
+   ptrColorFields = (int *)ptrColor;
+   ptrColorFields[colorIndex] = colorValue;
+}
+
 bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
                                           int *ptrOutColorIndex )
 {
@@ -261,6 +278,57 @@ bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
    }
 
    return false;
+}
+
+void rebuildConfiguredColorTables( bool has256Table, bool hasTruecolorTable,
+                                   bool *ptrShouldRewriteConfig )
+{
+   if ( has256Table && !hasTruecolorTable )
+   {
+      copyColorTable( &colorTruecolor, &color256 );
+      if ( ptrShouldRewriteConfig != NULL )
+      {
+         *ptrShouldRewriteConfig = true;
+      }
+   }
+   else if ( !has256Table && hasTruecolorTable )
+   {
+      copyColorTable( &color256, &colorTruecolor );
+      if ( ptrShouldRewriteConfig != NULL )
+      {
+         *ptrShouldRewriteConfig = true;
+      }
+   }
+
+   refreshActiveColorTable();
+}
+
+void refreshActiveColorTable( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      copyColorTable( &color, &colorTruecolor );
+      useBlackThemeBackgrounds = useBlackThemeBackgroundsTruecolor;
+   }
+   else
+   {
+      copyColorTable( &color, &color256 );
+      useBlackThemeBackgrounds = useBlackThemeBackgrounds256;
+   }
+}
+
+void syncActiveColorTable( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      copyColorTable( &colorTruecolor, &color );
+      useBlackThemeBackgroundsTruecolor = useBlackThemeBackgrounds;
+   }
+   else
+   {
+      copyColorTable( &color256, &color );
+      useBlackThemeBackgrounds256 = useBlackThemeBackgrounds;
+   }
 }
 
 bool tryFindColorOutputMode( const char *ptrModeName,
@@ -971,7 +1039,13 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "enemies = [\"Mallory\", \"Eve\"]\n"
            "friends = [{ name = \"Bob\", info = \"A buddy\" }, { name = \"Carol\" }]\n"
            "\n"
-           "[colors]\n"
+           "[colors_256]\n"
+           "text = \"brightgreen\"\n"
+           "background = \"default\"\n"
+           "post_name = 201\n"
+           "incoming_ansi_white = \"yellow\"\n"
+           "\n"
+           "[colors_truecolor]\n"
            "text = \"brightgreen\"\n"
            "background = \"default\"\n"
            "post_name = 201\n"
@@ -1178,7 +1252,7 @@ static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefaul
    }
    if ( !tryWriteFileContents(
            aryPath,
-           "[colors]\n"
+           "[colors_256]\n"
            "text = \"banana\"\n" ) )
    {
       unlink( aryPath );
@@ -1188,6 +1262,7 @@ static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefaul
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
    color.text = 2;
+   color256.text = 2;
    isConfigFileReadOnly = false;
    isLoginShell = false;
 
@@ -1224,7 +1299,10 @@ static void readConfig_WhenColorsContainHexValue_ParsesRgbColor( void **state )
    }
    if ( !tryWriteFileContents(
            aryPath,
-           "[colors]\n"
+           "[behavior]\n"
+           "color_output_mode = \"truecolor\"\n"
+           "\n"
+           "[colors_truecolor]\n"
            "text = \"#8aadf4\"\n" ) )
    {
       unlink( aryPath );
@@ -1240,9 +1318,11 @@ static void readConfig_WhenColorsContainHexValue_ParsesRgbColor( void **state )
    readConfig();
 
    // Assert
-   if ( color.text != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) )
+   if ( color.text != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) ||
+        colorTruecolor.text != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) )
    {
-      fail_msg( "hex color should parse into the encoded RGB value; got %d", color.text );
+      fail_msg( "hex color should parse into the encoded RGB value; got active=%d truecolor=%d",
+                color.text, colorTruecolor.text );
    }
 
    cleanupReadState();
@@ -1265,7 +1345,10 @@ static void readConfig_WhenColorsContainMalformedHexValue_PrintsWarningAndKeepsD
    }
    if ( !tryWriteFileContents(
            aryPath,
-           "[colors]\n"
+           "[behavior]\n"
+           "color_output_mode = \"truecolor\"\n"
+           "\n"
+           "[colors_truecolor]\n"
            "text = \"#8aadfg\"\n" ) )
    {
       unlink( aryPath );
@@ -1275,6 +1358,7 @@ static void readConfig_WhenColorsContainMalformedHexValue_PrintsWarningAndKeepsD
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
    color.text = 2;
+   colorTruecolor.text = 2;
    isConfigFileReadOnly = false;
    isLoginShell = false;
 
@@ -1286,9 +1370,10 @@ static void readConfig_WhenColorsContainMalformedHexValue_PrintsWarningAndKeepsD
    {
       fail_msg( "malformed hex color should emit warning; log was: %s", aryStdPrintfLog );
    }
-   if ( color.text != 2 )
+   if ( color.text != 2 || colorTruecolor.text != 2 )
    {
-      fail_msg( "malformed hex color should keep the default text color; got %d", color.text );
+      fail_msg( "malformed hex color should keep the default text color; got active=%d truecolor=%d",
+                color.text, colorTruecolor.text );
    }
 
    cleanupReadState();

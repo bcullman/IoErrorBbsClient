@@ -101,7 +101,12 @@ static void resetState( void )
 
    flagsConfiguration.shouldUseAnsi = 0;
    configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   memset( &color, 0, sizeof( color ) );
+   memset( &color256, 0, sizeof( color256 ) );
+   memset( &colorTruecolor, 0, sizeof( colorTruecolor ) );
    useBlackThemeBackgrounds = false;
+   useBlackThemeBackgrounds256 = false;
+   useBlackThemeBackgroundsTruecolor = false;
    lastColor = 0;
    unsetenv( "COLORTERM" );
    unsetenv( "TERM" );
@@ -306,6 +311,7 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
    color.background = 7;
 
@@ -350,6 +356,7 @@ static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmedia
 
    resetState();
    flagsConfiguration.shouldUseAnsi = 1;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    color.background = 0;
    color.text = 2;
    setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
@@ -475,9 +482,16 @@ static void defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged( void *
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
+   memset( &color256, 0, sizeof( color256 ) );
+   memset( &colorTruecolor, 0, sizeof( colorTruecolor ) );
    color.text = -1;
    color.background = 4;
+   color256.text = -1;
+   color256.background = 4;
+   colorTruecolor.text = -1;
+   colorTruecolor.background = 4;
 
    // Act
    defaultColors( 0 );
@@ -499,6 +513,7 @@ static void draculaProColors_WhenApplied_SetsDarkPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -541,6 +556,7 @@ static void tidalReefColors_WhenApplied_SetsDarkPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -973,6 +989,7 @@ static void colorblindColors_WhenApplied_SetsAccessiblePalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1022,6 +1039,7 @@ static void brilliantColors_WhenApplied_SetsBrightDefaultPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1079,6 +1097,7 @@ static void catppuccinLatteColors_WhenApplied_SetsLightPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1136,6 +1155,7 @@ static void catppuccinMacchiatoColors_WhenApplied_SetsDarkPalette( void **state 
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1197,6 +1217,7 @@ static void everforestDarkColors_WhenApplied_SetsDarkPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1258,6 +1279,7 @@ static void everforestLightColors_WhenApplied_SetsLightPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1315,6 +1337,7 @@ static void hotDogColors_WhenApplied_SetsClassicHotDogPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1375,6 +1398,7 @@ static void gruvboxDarkColors_WhenApplied_SetsDarkPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1436,6 +1460,7 @@ static void gruvboxLightColors_WhenApplied_SetsLightPalette( void **state )
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    memset( &color, 0, sizeof( color ) );
 
    // Act
@@ -1498,6 +1523,7 @@ static void ansiTransform_WhenHotDogPaletteApplied_UsesThemeColorsForAllAnsiDigi
    (void)state;
 
    resetState();
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
    hotDogColors();
 
    // Act

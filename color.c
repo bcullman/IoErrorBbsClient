@@ -15,33 +15,6 @@ typedef struct
    int colorValue;
 } NamedColorSpec;
 
-static int *const aryColorFields[COLOR_FIELD_COUNT] =
-   {
-      &color.text,
-      &color.forum,
-      &color.number,
-      &color.errorTextColor,
-      &color.ansiBlackTextColor,
-      &color.ansiBlueTextColor,
-      &color.ansiMagentaTextColor,
-      &color.postDate,
-      &color.postName,
-      &color.postText,
-      &color.postFriendDate,
-      &color.postFriendName,
-      &color.postFriendText,
-      &color.anonymous,
-      &color.morePrompt,
-      &color.ansiWhiteTextColor,
-      &color.reserved5,
-      &color.background,
-      &color.inputText,
-      &color.inputHighlight,
-      &color.expressText,
-      &color.expressName,
-      &color.expressFriendText,
-      &color.expressFriendName };
-
 static const char *const aryColorTomlKeys[COLOR_FIELD_COUNT] =
    {
       "text",
@@ -93,6 +66,14 @@ static const NamedColorSpec aryNamedColors[] =
 
 static bool isColorNameMatch( const char *ptrLeft, const char *ptrRight );
 static int hexDigitValue( int inputChar );
+static Color *activeConfiguredColorTable( void );
+static const Color *activeConfiguredColorTableConst( void );
+static bool *activeUseBlackThemeBackgroundsFlag( void );
+static const bool *activeUseBlackThemeBackgroundsFlagConst( void );
+static int *colorFieldPointer( Color *ptrColor, int colorIndex );
+static const int *colorFieldPointerConst( const Color *ptrColor, int colorIndex );
+static void derive256ColorTable( Color *ptrDestination, const Color *ptrSource,
+                                 bool useBlackBackgroundsForTheme );
 static int transformIncomingAnsiColor( int inputChar );
 static int transformPostHeaderColor( int inputChar, int isFriend );
 
@@ -256,10 +237,22 @@ void ansiTransformPostHeader( char *ptrText, size_t bufferSize, int isFriend )
 /// @return Configured color value at the requested index.
 int colorFieldValue( int colorIndex )
 {
+   return colorFieldValueForColor( &color, colorIndex );
+}
+
+/// @brief Return one color field from the supplied color table.
+///
+/// @param ptrColor Color table to inspect.
+/// @param colorIndex Field index in the internal color array.
+///
+/// @return Configured color value at the requested index.
+int colorFieldValueForColor( const Color *ptrColor, int colorIndex )
+{
+   assert( ptrColor != NULL );
    assert( colorIndex >= 0 );
    assert( colorIndex < COLOR_FIELD_COUNT );
 
-   return *aryColorFields[colorIndex];
+   return *colorFieldPointerConst( ptrColor, colorIndex );
 }
 
 /// @brief Return the canonical TOML key name for one persisted color field.
@@ -510,10 +503,23 @@ static int hexDigitValue( int inputChar )
 /// @return This function does not return a value.
 void setColorFieldValue( int colorIndex, int colorValue )
 {
+   setColorFieldValueForColor( &color, colorIndex, colorValue );
+}
+
+/// @brief Set one color field in the supplied color table.
+///
+/// @param ptrColor Color table to modify.
+/// @param colorIndex Field index in the internal color array.
+/// @param colorValue New color value.
+///
+/// @return This function does not return a value.
+void setColorFieldValueForColor( Color *ptrColor, int colorIndex, int colorValue )
+{
+   assert( ptrColor != NULL );
    assert( colorIndex >= 0 );
    assert( colorIndex < COLOR_FIELD_COUNT );
 
-   *aryColorFields[colorIndex] = colorValue;
+   *colorFieldPointer( ptrColor, colorIndex ) = colorValue;
 }
 
 /// @brief Resolve one TOML color key to its internal field index.
@@ -545,6 +551,71 @@ bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
    return false;
 }
 
+/// @brief Copy one full color table to another.
+///
+/// @param ptrDestination Destination color table.
+/// @param ptrSource Source color table.
+///
+/// @return This function does not return a value.
+void copyColorTable( Color *ptrDestination, const Color *ptrSource )
+{
+   assert( ptrDestination != NULL );
+   assert( ptrSource != NULL );
+
+   *ptrDestination = *ptrSource;
+}
+
+/// @brief Refresh the live runtime palette from the configured active table.
+///
+/// @return This function does not return a value.
+void refreshActiveColorTable( void )
+{
+   copyColorTable( &color, activeConfiguredColorTableConst() );
+   useBlackThemeBackgrounds = *activeUseBlackThemeBackgroundsFlagConst();
+}
+
+/// @brief Copy the live runtime palette back into the active configured table.
+///
+/// @return This function does not return a value.
+void syncActiveColorTable( void )
+{
+   copyColorTable( activeConfiguredColorTable(), &color );
+   *activeUseBlackThemeBackgroundsFlag() = useBlackThemeBackgrounds;
+}
+
+/// @brief Rebuild missing configured color tables and refresh the live palette.
+///
+/// @param has256Table Non-zero when `[colors_256]` was present in config.
+/// @param hasTruecolorTable Non-zero when `[colors_truecolor]` was present.
+/// @param ptrShouldRewriteConfig Optional destination toggled when a section was derived.
+///
+/// @return This function does not return a value.
+void rebuildConfiguredColorTables( bool has256Table, bool hasTruecolorTable,
+                                   bool *ptrShouldRewriteConfig )
+{
+   if ( has256Table && !hasTruecolorTable )
+   {
+      copyColorTable( &colorTruecolor, &color256 );
+      useBlackThemeBackgroundsTruecolor = useBlackThemeBackgrounds256;
+      if ( ptrShouldRewriteConfig != NULL )
+      {
+         *ptrShouldRewriteConfig = true;
+      }
+   }
+   else if ( !has256Table && hasTruecolorTable )
+   {
+      derive256ColorTable( &color256, &colorTruecolor,
+                           useBlackThemeBackgroundsTruecolor );
+      useBlackThemeBackgrounds256 = useBlackThemeBackgroundsTruecolor;
+      if ( ptrShouldRewriteConfig != NULL )
+      {
+         *ptrShouldRewriteConfig = true;
+      }
+   }
+
+   refreshActiveColorTable();
+}
+
 /// @brief Translate a general incoming ANSI color digit to the configured palette.
 ///
 /// @param inputChar Incoming ANSI color digit.
@@ -572,6 +643,118 @@ static int transformIncomingAnsiColor( int inputChar )
          return color.ansiWhiteTextColor;
       default:
          return colorValueFromLegacyDigit( inputChar );
+   }
+}
+
+/// @brief Return the configured table active for the current output mode.
+///
+/// @return Pointer to the active configured color table.
+static Color *activeConfiguredColorTable( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      return &colorTruecolor;
+   }
+
+   return &color256;
+}
+
+/// @brief Return the active configured color table as a constant pointer.
+///
+/// @return Constant pointer to the active configured color table.
+static const Color *activeConfiguredColorTableConst( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      return &colorTruecolor;
+   }
+
+   return &color256;
+}
+
+/// @brief Return the black-background fallback flag for the active table.
+///
+/// @return Pointer to the active table's fallback flag.
+static bool *activeUseBlackThemeBackgroundsFlag( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      return &useBlackThemeBackgroundsTruecolor;
+   }
+
+   return &useBlackThemeBackgrounds256;
+}
+
+/// @brief Return the active table black-background fallback flag as a constant pointer.
+///
+/// @return Constant pointer to the active table's fallback flag.
+static const bool *activeUseBlackThemeBackgroundsFlagConst( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      return &useBlackThemeBackgroundsTruecolor;
+   }
+
+   return &useBlackThemeBackgrounds256;
+}
+
+/// @brief Return a mutable pointer to one indexed field in a color table.
+///
+/// @param ptrColor Color table to inspect.
+/// @param colorIndex Field index.
+///
+/// @return Pointer to the indexed field.
+static int *colorFieldPointer( Color *ptrColor, int colorIndex )
+{
+   return &( ( (int *)ptrColor )[colorIndex] );
+}
+
+/// @brief Return a constant pointer to one indexed field in a color table.
+///
+/// @param ptrColor Color table to inspect.
+/// @param colorIndex Field index.
+///
+/// @return Constant pointer to the indexed field.
+static const int *colorFieldPointerConst( const Color *ptrColor, int colorIndex )
+{
+   return &( ( (const int *)ptrColor )[colorIndex] );
+}
+
+/// @brief Build a 256-color approximation table from a source color table.
+///
+/// @param ptrDestination Destination 256-color table.
+/// @param ptrSource Source color table.
+/// @param useBlackBackgroundsForTheme Non-zero to force RGB backgrounds to black.
+///
+/// @return This function does not return a value.
+static void derive256ColorTable( Color *ptrDestination, const Color *ptrSource,
+                                 bool useBlackBackgroundsForTheme )
+{
+   int colorFieldIndex;
+
+   assert( ptrDestination != NULL );
+   assert( ptrSource != NULL );
+
+   for ( colorFieldIndex = 0; colorFieldIndex < COLOR_FIELD_COUNT; colorFieldIndex++ )
+   {
+      int colorValue;
+
+      colorValue = colorFieldValueForColor( ptrSource, colorFieldIndex );
+      if ( colorValueIsRgb( colorValue ) )
+      {
+         if ( colorFieldIndex == COLOR_BACKGROUND_INDEX &&
+              useBlackBackgroundsForTheme )
+         {
+            colorValue = 0;
+         }
+         else
+         {
+            colorValue = xterm256ValueFromRgb( colorValueRed( colorValue ),
+                                               colorValueGreen( colorValue ),
+                                               colorValueBlue( colorValue ) );
+         }
+      }
+      setColorFieldValueForColor( ptrDestination, colorFieldIndex, colorValue );
    }
 }
 

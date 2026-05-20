@@ -19,7 +19,9 @@ void catppuccinLatteColors( void );
 void catppuccinMacchiatoColors( void );
 void colorblindColors( void );
 void colorConfig( void );
+void copyColorTable( Color *ptrDestination, const Color *ptrSource );
 int colorFieldValue( int colorIndex );
+int colorFieldValueForColor( const Color *ptrColor, int colorIndex );
 const char *colorFieldTomlKeyName( int colorIndex );
 int colorize( const char *str );
 const char *colorNameFromValue( int colorValue );
@@ -56,7 +58,12 @@ void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor );
 void printAnsiForegroundColorValue( int colorValue );
 void printAnsiResetValue( void );
 void printThemedMnemonicText( const char *ptrText, int defaultColor );
+void rebuildConfiguredColorTables( bool has256Table, bool hasTruecolorTable,
+                                   bool *ptrShouldRewriteConfig );
+void refreshActiveColorTable( void );
 void setColorFieldValue( int colorIndex, int colorValue );
+void setColorFieldValueForColor( Color *ptrColor, int colorIndex, int colorValue );
+void syncActiveColorTable( void );
 void tidalReefColors( void );
 bool tryFindColorOutputMode( const char *ptrModeName,
                              ColorOutputMode *ptrOutMode );

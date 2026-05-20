@@ -252,6 +252,7 @@ void colorOptions( void )
    stdPrintf( "Color output mode [A]uto/[T]ruecolor/[2]56 (%s) -> ",
               colorOutputModeName( configuredColorOutputMode ) );
    configuredColorOutputMode = pickColorOutputMode();
+   refreshActiveColorTable();
    if ( flagsConfiguration.shouldUseAnsi )
    {
       printAnsiDisplayStateValue( lastColor, color.background );
@@ -326,9 +327,11 @@ static void configureExpressColors( int *ptrTextColor, int *ptrNameColor,
             return;
          case 'n':
             *ptrNameColor = colorPicker();
+            syncActiveColorTable();
             break;
          case 't':
             *ptrTextColor = colorPicker();
+            syncActiveColorTable();
             break;
          default:
             break;
@@ -360,12 +363,15 @@ static void configurePostColors( int *ptrDateColor, int *ptrTextColor,
             return;
          case 'd':
             *ptrDateColor = colorPicker();
+            syncActiveColorTable();
             break;
          case 'n':
             *ptrNameColor = colorPicker();
+            syncActiveColorTable();
             break;
          case 't':
             *ptrTextColor = colorPicker();
+            syncActiveColorTable();
             break;
          default:
             break;
@@ -495,22 +501,27 @@ void generalColorConfig( void )
             stdPrintf( "Background\r\n\n" );
             color.background = backgroundPicker();
             useBlackThemeBackgrounds = false;
+            syncActiveColorTable();
             break;
          case 'e':
             stdPrintf( "Error\r\n\n" );
             color.errorTextColor = colorPicker();
+            syncActiveColorTable();
             break;
          case 'f':
             stdPrintf( "Forum\r\n\n" );
             color.forum = colorPicker();
+            syncActiveColorTable();
             break;
          case 'n':
             stdPrintf( "Number\r\n\n" );
             color.number = colorPicker();
+            syncActiveColorTable();
             break;
          case 't':
             stdPrintf( "Text\r\n\n" );
             color.text = colorPicker();
+            syncActiveColorTable();
             break;
          default:
             break;
@@ -543,10 +554,12 @@ void inputColorConfig( void )
          case 'c':
             stdPrintf( "Completion\r\n\n" );
             color.inputHighlight = colorPicker();
+            syncActiveColorTable();
             break;
          case 't':
             stdPrintf( "Text\r\n\n" );
             color.inputText = colorPicker();
+            syncActiveColorTable();
             break;
          default:
             break;

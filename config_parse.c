@@ -26,7 +26,8 @@ typedef enum
    TOML_SECTION_NONE = 0,
    TOML_SECTION_AWAY,
    TOML_SECTION_BEHAVIOR,
-   TOML_SECTION_COLORS,
+   TOML_SECTION_COLORS_256,
+   TOML_SECTION_COLORS_TRUECOLOR,
    TOML_SECTION_CONNECTION,
    TOML_SECTION_CONTACTS,
    TOML_SECTION_DEFAULTS,
@@ -37,6 +38,8 @@ typedef enum
 
 typedef struct
 {
+   bool hasColors256Section;
+   bool hasColorsTruecolorSection;
    bool hasVersionSetting;
    int lineNumber;
    int reads;
@@ -66,6 +69,7 @@ static bool tryParseContactEnemiesValue( const char *ptrValue );
 static bool tryParseContactFriendsValue( const char *ptrValue );
 static bool tryParseColorValue( const char *ptrValue,
                                 const char *ptrKeyName,
+                                bool shouldAllowRgb,
                                 int *ptrOutValue );
 static bool tryParseColorOutputModeValue( const char *ptrValue,
                                           ColorOutputMode *ptrOutMode );
@@ -186,6 +190,9 @@ static bool tryFinalizeConfigRead( ConfigReadState *ptrState )
    applyConfigKeyDefaults();
    ensureDefaultAwayMessage();
    defaultColors( 0 );
+   rebuildConfiguredColorTables( ptrState->hasColors256Section,
+                                 ptrState->hasColorsTruecolorSection,
+                                 &ptrState->shouldRewriteConfig );
    warnAboutConfigConflicts();
 
    slistSort( friendList );
@@ -306,6 +313,8 @@ static void initializeConfigDefaults( void )
    flagsConfiguration.shouldUseTcpKeepalive = 1;
    configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
    useBlackThemeBackgrounds = false;
+   useBlackThemeBackgrounds256 = false;
+   useBlackThemeBackgroundsTruecolor = false;
 
    defaultColors( 1 );
 
@@ -856,6 +865,7 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
 /// @return `true` on success, otherwise `false`.
 static bool tryParseColorValue( const char *ptrValue,
                                 const char *ptrKeyName,
+                                bool shouldAllowRgb,
                                 int *ptrOutValue )
 {
    int parsedColorValue;
@@ -867,7 +877,7 @@ static bool tryParseColorValue( const char *ptrValue,
       if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) )
       {
          parsedColorValue = colorValueFromHexString( aryParsedText );
-         if ( parsedColorValue >= 0 )
+         if ( shouldAllowRgb && parsedColorValue >= 0 )
          {
             *ptrOutValue = parsedColorValue;
             return true;
@@ -1279,13 +1289,17 @@ static TomlSectionId parseTomlSectionLine( const char *ptrLine,
    {
       return TOML_SECTION_BEHAVIOR;
    }
-   if ( strcmp( arySectionName, "colors" ) == 0 )
-   {
-      return TOML_SECTION_COLORS;
-   }
    if ( strcmp( arySectionName, "away" ) == 0 )
    {
       return TOML_SECTION_AWAY;
+   }
+   if ( strcmp( arySectionName, "colors_256" ) == 0 )
+   {
+      return TOML_SECTION_COLORS_256;
+   }
+   if ( strcmp( arySectionName, "colors_truecolor" ) == 0 )
+   {
+      return TOML_SECTION_COLORS_TRUECOLOR;
    }
    if ( strcmp( arySectionName, "connection" ) == 0 )
    {
@@ -1380,6 +1394,8 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
             if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
             {
                useBlackThemeBackgrounds = parsedBooleanValue;
+               useBlackThemeBackgrounds256 = parsedBooleanValue;
+               useBlackThemeBackgroundsTruecolor = parsedBooleanValue;
             }
             return true;
          }
@@ -1453,15 +1469,36 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
          }
          return false;
 
-      case TOML_SECTION_COLORS:
+      case TOML_SECTION_COLORS_256:
          {
             int colorFieldIndex;
 
             if ( tryFindColorFieldIndexByTomlKeyName( ptrKeyName, &colorFieldIndex ) )
             {
-               if ( tryParseColorValue( ptrValue, ptrKeyName, &parsedIntegerValue ) )
+               if ( tryParseColorValue( ptrValue, ptrKeyName, false,
+                                        &parsedIntegerValue ) )
                {
-                  setColorFieldValue( colorFieldIndex, parsedIntegerValue );
+                  setColorFieldValueForColor( &color256, colorFieldIndex,
+                                              parsedIntegerValue );
+                  ptrState->hasColors256Section = true;
+               }
+               return true;
+            }
+            return false;
+         }
+
+      case TOML_SECTION_COLORS_TRUECOLOR:
+         {
+            int colorFieldIndex;
+
+            if ( tryFindColorFieldIndexByTomlKeyName( ptrKeyName, &colorFieldIndex ) )
+            {
+               if ( tryParseColorValue( ptrValue, ptrKeyName, true,
+                                        &parsedIntegerValue ) )
+               {
+                  setColorFieldValueForColor( &colorTruecolor, colorFieldIndex,
+                                              parsedIntegerValue );
+                  ptrState->hasColorsTruecolorSection = true;
                }
                return true;
             }

@@ -49,6 +49,8 @@ static void resetState( void )
    flagsConfiguration.shouldUseBold = 0;
    flagsConfiguration.shouldEnableClickableUrls = 1;
    flagsConfiguration.isScreenReaderModeEnabled = 0;
+   unsetenv( "TERM" );
+   unsetenv( "TERM_PROGRAM" );
 
    aryExpressMessageBuffer[0] = '\0';
    ptrExpressMessageBuffer = aryExpressMessageBuffer;
@@ -661,6 +663,81 @@ static void filterUrl_WhenHttpOrFtpPresent_DoesNotQueueUnsupportedSchemes( void 
    resetLists();
 }
 
+static void filterUrl_WhenHttpsSchemeWrapsAfterSlashes_CombinesIntoSingleUrl( void **state )
+{
+   // Arrange
+   char aryUrl[1024];
+   int firstPopResult;
+   int secondPopResult;
+
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for split HTTPS scheme test setup" );
+   }
+
+   // Act
+   filterUrl( "Read this https://" );
+   filterUrl( "www.whatever.com/" );
+   filterUrl( "Done." );
+
+   // Assert
+   memset( aryUrl, 0, sizeof( aryUrl ) );
+   firstPopResult = popQueue( aryUrl, urlQueue );
+   secondPopResult = popQueue( aryUrl, urlQueue );
+   if ( firstPopResult != 1 || secondPopResult != 0 )
+   {
+      fail_msg( "split HTTPS scheme should queue exactly one URL; pop results were %d then %d",
+                firstPopResult, secondPopResult );
+   }
+   if ( strcmp( aryUrl, "https://www.whatever.com/" ) != 0 )
+   {
+      fail_msg( "split HTTPS scheme should reconstruct one URL; got '%s'", aryUrl );
+   }
+
+   resetLists();
+}
+
+static void filterUrl_WhenHttpsSchemeWrapsBeforeSlashes_CombinesIntoSingleUrl( void **state )
+{
+   // Arrange
+   char aryUrl[1024];
+   int popResult;
+
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for split HTTPS scheme test setup" );
+   }
+
+   // Act
+   filterUrl( "Read this https:" );
+   filterUrl( "//www.whatever.com/" );
+   filterUrl( "Done." );
+
+   // Assert
+   memset( aryUrl, 0, sizeof( aryUrl ) );
+   popResult = popQueue( aryUrl, urlQueue );
+   if ( popResult != 1 )
+   {
+      fail_msg( "split HTTPS scheme should be queued once; pop returned %d", popResult );
+   }
+   if ( strcmp( aryUrl, "https://www.whatever.com/" ) != 0 )
+   {
+      fail_msg( "split HTTPS scheme should reconstruct one URL; got '%s'", aryUrl );
+   }
+
+   resetLists();
+}
+
 static void filterUrl_WhenHttpsWrapsAcrossLines_CombinesIntoSingleUrl( void **state )
 {
    // Arrange
@@ -697,47 +774,220 @@ static void filterUrl_WhenHttpsWrapsAcrossLines_CombinesIntoSingleUrl( void **st
    resetLists();
 }
 
+static void filterUrl_WhenHttpsWrapsAcrossLinesWithShortFirstFragment_CombinesIntoSingleUrl( void **state )
+{
+   // Arrange
+   char aryUrl[1024];
+   int popResult;
+
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for shorter wrapped URL test setup" );
+   }
+
+   // Act
+   filterUrl( "Read this: https://cybernews.com/security/google-chrome-ai-model-" );
+   filterUrl( "device-no-consent/" );
+   filterUrl( "This is the rest of the sentence." );
+
+   // Assert
+   memset( aryUrl, 0, sizeof( aryUrl ) );
+   popResult = popQueue( aryUrl, urlQueue );
+   if ( popResult != 1 )
+   {
+      fail_msg( "wrapped Cybernews URL should be queued once; pop returned %d", popResult );
+   }
+   if ( strcmp( aryUrl, "https://cybernews.com/security/google-chrome-ai-model-device-no-consent/" ) != 0 )
+   {
+      fail_msg( "wrapped Cybernews URL should be reconstructed into one URL; got '%s'", aryUrl );
+   }
+
+   resetLists();
+}
+
+static void filterUrl_WhenIncompleteHttpsSchemeDoesNotContinue_QueuesNoUrl( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for incomplete HTTPS scheme test setup" );
+   }
+
+   // Act
+   filterUrl( "This line ends with https:" );
+   filterUrl( "but the next line is normal text." );
+   filterUrl( " " );
+
+   // Assert
+   if ( urlQueue->itemCount != 0 )
+   {
+      fail_msg( "incomplete HTTPS scheme should not be queued; queue count is %d",
+                urlQueue->itemCount );
+   }
+
+   resetLists();
+}
+
 static void printWithOsc8Links_WhenTextContainsHttpsUrl_EmitsHyperlinkEscapes( void **state )
 {
    // Arrange
+   const char *ptrExpectedTarget;
    const char *ptrMessage;
 
    (void)state;
 
    resetState();
    ptrMessage = "Read this https://example.dev/path?q=1 now";
+   ptrExpectedTarget = ";https://example.dev/path?q=1\033\\";
 
    // Act
    printWithOsc8Links( ptrMessage );
 
    // Assert
-   if ( strstr( aryPrintLog, "\033]8;;https://example.dev/path?q=1\033\\" ) == NULL )
+   if ( strstr( aryPrintLog, "\033]8;id=" ) == NULL )
    {
-      fail_msg( "OSC-8 opening sequence for HTTPS URL was not emitted; log was: %s", aryPrintLog );
+      fail_msg( "OSC-8 opening sequence should include an explicit hyperlink ID; log was: %s", aryPrintLog );
+   }
+   if ( strstr( aryPrintLog, ptrExpectedTarget ) == NULL )
+   {
+      fail_msg( "OSC-8 opening sequence for HTTPS URL should include the full target and ST terminator; log was: %s", aryPrintLog );
    }
    if ( strstr( aryPrintLog, "\033]8;;\033\\" ) == NULL )
    {
-      fail_msg( "OSC-8 closing sequence was not emitted; log was: %s", aryPrintLog );
+      fail_msg( "OSC-8 closing sequence should use the ST terminator; log was: %s", aryPrintLog );
    }
 }
 
 static void printWithOsc8Links_WhenTextContainsWwwUrl_UsesHttpsTarget( void **state )
 {
    // Arrange
+   const char *ptrExpectedTarget;
    const char *ptrMessage;
 
    (void)state;
 
    resetState();
    ptrMessage = "Mirror: www.example.photography/alpha";
+   ptrExpectedTarget = ";https://www.example.photography/alpha\033\\";
 
    // Act
    printWithOsc8Links( ptrMessage );
 
    // Assert
-   if ( strstr( aryPrintLog, "\033]8;;https://www.example.photography/alpha\033\\" ) == NULL )
+   if ( strstr( aryPrintLog, ptrExpectedTarget ) == NULL )
    {
       fail_msg( "OSC-8 target for www URL should be normalized to https://...; log was: %s", aryPrintLog );
+   }
+}
+
+static void printWithOsc8Links_WhenTextContainsHttpsWwwUrl_EmitsSingleHyperlink( void **state )
+{
+   // Arrange
+   const char *ptrExpectedTarget;
+   const char *ptrMessage;
+   const char *ptrOpeningSequence;
+   const char *ptrVisibleText;
+
+   (void)state;
+
+   resetState();
+   ptrMessage = "Visit https://www.example.com/ now";
+   ptrExpectedTarget = ";https://www.example.com/\033\\";
+
+   // Act
+   printWithOsc8Links( ptrMessage );
+
+   // Assert
+   if ( strstr( aryPrintLog, ptrExpectedTarget ) == NULL )
+   {
+      fail_msg( "OSC-8 target for https://www URL should include the full URL; log was: %s", aryPrintLog );
+   }
+   if ( strstr( aryPrintLog, "https://\033]8;" ) != NULL )
+   {
+      fail_msg( "OSC-8 output should not split https://www URLs at the scheme boundary; log was: %s", aryPrintLog );
+   }
+   ptrOpeningSequence = strstr( aryPrintLog, "\033]8;id=" );
+   if ( ptrOpeningSequence == NULL )
+   {
+      fail_msg( "OSC-8 opening sequence should be present; log was: %s", aryPrintLog );
+   }
+   ptrVisibleText = strstr( ptrOpeningSequence, "\033\\" );
+   if ( ptrVisibleText == NULL )
+   {
+      fail_msg( "OSC-8 opening sequence should end before visible text; log was: %s", aryPrintLog );
+   }
+   ptrVisibleText += 2;
+   if ( strncmp( ptrVisibleText, "https://www.example.com/", 24 ) != 0 )
+   {
+      fail_msg( "OSC-8 visible link text should start with the full HTTPS URL; log was: %s", aryPrintLog );
+   }
+}
+
+static void printWithOsc8Links_WhenHttpsUrlExceedsPrintfBuffer_StillClosesHyperlink( void **state )
+{
+   // Arrange
+   char aryMessage[900];
+   size_t messageLength;
+
+   (void)state;
+
+   resetState();
+   snprintf( aryMessage, sizeof( aryMessage ), "%s", "https://www.example.com/" );
+   messageLength = strlen( aryMessage );
+   while ( messageLength < 700 && messageLength + 1 < sizeof( aryMessage ) )
+   {
+      aryMessage[messageLength++] = 'a';
+      aryMessage[messageLength] = '\0';
+   }
+
+   // Act
+   printWithOsc8Links( aryMessage );
+
+   // Assert
+   if ( strstr( aryPrintLog, "\033]8;id=" ) == NULL )
+   {
+      fail_msg( "long OSC-8 URL should include an opening sequence; log was: %s", aryPrintLog );
+   }
+   if ( strstr( aryPrintLog, "\033]8;;\033\\" ) == NULL )
+   {
+      fail_msg( "long OSC-8 URL should not truncate the closing sequence; log was: %s", aryPrintLog );
+   }
+}
+
+static void printWithOsc8Links_WhenGhosttyAndTextEqualsHttpsTarget_StillEmitsOsc8Hyperlink( void **state )
+{
+   // Arrange
+   const char *ptrExpectedTarget;
+   const char *ptrMessage;
+
+   (void)state;
+
+   resetState();
+   setenv( "TERM_PROGRAM", "ghostty", 1 );
+   ptrMessage = "Visit https://www.example.com/ now";
+   ptrExpectedTarget = ";https://www.example.com/\033\\";
+
+   // Act
+   printWithOsc8Links( ptrMessage );
+
+   // Assert
+   if ( strstr( aryPrintLog, "\033]8;id=" ) == NULL )
+   {
+      fail_msg( "Ghostty should still receive an OSC-8 hyperlink with an explicit ID; log was: %s", aryPrintLog );
+   }
+   if ( strstr( aryPrintLog, ptrExpectedTarget ) == NULL )
+   {
+      fail_msg( "Ghostty OSC-8 hyperlink should include the full HTTPS target with ST terminator; log was: %s", aryPrintLog );
    }
 }
 
@@ -816,11 +1066,11 @@ static void emitUrlDetectionReport_WhenUrlsCollected_PrintsClickableSummary( voi
    {
       fail_msg( "URL detection report header was not emitted; log was: %s", aryPrintLog );
    }
-   if ( strstr( aryPrintLog, "\033]8;;https://example.dev/alpha\033\\" ) == NULL )
+   if ( strstr( aryPrintLog, ";https://example.dev/alpha\033\\" ) == NULL )
    {
       fail_msg( "URL detection report should include clickable HTTPS URL; log was: %s", aryPrintLog );
    }
-   if ( strstr( aryPrintLog, "\033]8;;https://www.example.photography/beta\033\\" ) == NULL )
+   if ( strstr( aryPrintLog, ";https://www.example.photography/beta\033\\" ) == NULL )
    {
       fail_msg( "URL detection report should include clickable normalized www URL; log was: %s", aryPrintLog );
    }
@@ -1182,9 +1432,16 @@ int main( void )
       cmocka_unit_test( filterUrl_WhenHttpsAndTrailingPunctuationPresent_ExtractsCleanUrl ),
       cmocka_unit_test( filterUrl_WhenWwwUrlPresent_QueuesUrlWithoutTldList ),
       cmocka_unit_test( filterUrl_WhenHttpOrFtpPresent_DoesNotQueueUnsupportedSchemes ),
+      cmocka_unit_test( filterUrl_WhenHttpsSchemeWrapsAfterSlashes_CombinesIntoSingleUrl ),
+      cmocka_unit_test( filterUrl_WhenHttpsSchemeWrapsBeforeSlashes_CombinesIntoSingleUrl ),
       cmocka_unit_test( filterUrl_WhenHttpsWrapsAcrossLines_CombinesIntoSingleUrl ),
+      cmocka_unit_test( filterUrl_WhenHttpsWrapsAcrossLinesWithShortFirstFragment_CombinesIntoSingleUrl ),
+      cmocka_unit_test( filterUrl_WhenIncompleteHttpsSchemeDoesNotContinue_QueuesNoUrl ),
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsHttpsUrl_EmitsHyperlinkEscapes ),
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsWwwUrl_UsesHttpsTarget ),
+      cmocka_unit_test( printWithOsc8Links_WhenTextContainsHttpsWwwUrl_EmitsSingleHyperlink ),
+      cmocka_unit_test( printWithOsc8Links_WhenHttpsUrlExceedsPrintfBuffer_StillClosesHyperlink ),
+      cmocka_unit_test( printWithOsc8Links_WhenGhosttyAndTextEqualsHttpsTarget_StillEmitsOsc8Hyperlink ),
       cmocka_unit_test( printWithOsc8Links_WhenClickableUrlsDisabled_PrintsPlainText ),
       cmocka_unit_test( printWithOsc8Links_WhenScreenReaderModeEnabled_PrintsPlainText ),
       cmocka_unit_test( emitUrlDetectionReport_WhenUrlsCollected_PrintsClickableSummary ),

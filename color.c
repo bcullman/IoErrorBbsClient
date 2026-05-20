@@ -565,6 +565,75 @@ void copyColorTable( Color *ptrDestination, const Color *ptrSource )
    *ptrDestination = *ptrSource;
 }
 
+/// @brief Commit the live palette back into the active configured table.
+///
+/// @return This function does not return a value.
+void commitActiveColorEditorState( void )
+{
+   syncActiveColorTable();
+}
+
+/// @brief Return one color-editor channel value forced into the valid RGB range.
+///
+/// @param value Channel value to normalize.
+///
+/// @return Channel value in the inclusive range `0..255`.
+int colorEditorChannelValueWithinRgbRange( int value )
+{
+   if ( value < 0 )
+   {
+      return 0;
+   }
+   if ( value > 255 )
+   {
+      return 255;
+   }
+
+   return value;
+}
+
+/// @brief Cycle one discrete 256-color value for the custom color editor.
+///
+/// @param colorValue Current palette value.
+/// @param delta Signed step to apply.
+/// @param shouldAllowDefaultValue Non-zero to include `default`.
+///
+/// @return New palette value after applying the cycle.
+int cycleColorEditorPaletteValue( int colorValue, int delta,
+                                  bool shouldAllowDefaultValue )
+{
+   int cycleLength;
+   int cycleValue;
+
+   if ( shouldAllowDefaultValue && colorValueIsDefault( colorValue ) )
+   {
+      cycleValue = 256;
+   }
+   else if ( colorValueIsRgb( colorValue ) )
+   {
+      cycleValue = xterm256ValueFromRgb( colorValueRed( colorValue ),
+                                         colorValueGreen( colorValue ),
+                                         colorValueBlue( colorValue ) );
+   }
+   else
+   {
+      cycleValue = colorValue;
+   }
+
+   cycleLength = shouldAllowDefaultValue ? 257 : 256;
+   cycleValue = ( cycleValue + delta ) % cycleLength;
+   if ( cycleValue < 0 )
+   {
+      cycleValue += cycleLength;
+   }
+   if ( shouldAllowDefaultValue && cycleValue == 256 )
+   {
+      return COLOR_VALUE_DEFAULT;
+   }
+
+   return cycleValue;
+}
+
 /// @brief Refresh the live runtime palette from the configured active table.
 ///
 /// @return This function does not return a value.
@@ -581,6 +650,38 @@ void syncActiveColorTable( void )
 {
    copyColorTable( activeConfiguredColorTable(), &color );
    *activeUseBlackThemeBackgroundsFlag() = useBlackThemeBackgrounds;
+}
+
+/// @brief Restore the active configured table and live palette from a snapshot.
+///
+/// @param ptrSnapshot Snapshot color table to restore.
+/// @param useBlackBackgroundsForTheme Snapshot fallback flag to restore.
+///
+/// @return This function does not return a value.
+void restoreActiveColorEditorState( const Color *ptrSnapshot,
+                                    bool useBlackBackgroundsForTheme )
+{
+   assert( ptrSnapshot != NULL );
+
+   copyColorTable( activeConfiguredColorTable(), ptrSnapshot );
+   *activeUseBlackThemeBackgroundsFlag() = useBlackBackgroundsForTheme;
+   refreshActiveColorTable();
+}
+
+/// @brief Snapshot the active configured table and fallback flag for editing.
+///
+/// @param ptrSnapshot Destination color table snapshot.
+/// @param ptrUseBlackBackgroundsForTheme Destination fallback flag snapshot.
+///
+/// @return This function does not return a value.
+void snapshotActiveColorEditorState( Color *ptrSnapshot,
+                                     bool *ptrUseBlackBackgroundsForTheme )
+{
+   assert( ptrSnapshot != NULL );
+   assert( ptrUseBlackBackgroundsForTheme != NULL );
+
+   copyColorTable( ptrSnapshot, activeConfiguredColorTableConst() );
+   *ptrUseBlackBackgroundsForTheme = *activeUseBlackThemeBackgroundsFlagConst();
 }
 
 /// @brief Rebuild missing configured color tables and refresh the live palette.

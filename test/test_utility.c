@@ -301,6 +301,38 @@ static void readValidatedMenuKey_WhenInputIsUppercaseLetter_ReturnsLowercaseMatc
    }
 }
 
+static void readColorEditorAction_WhenArrowSequenceReceived_ReturnsNormalizedAction( void **state )
+{
+   const int arySequence[] = { '\033', '[', 'A' };
+   ColorEditorAction result;
+
+   (void)state;
+   setInputSequence( arySequence, sizeof( arySequence ) / sizeof( arySequence[0] ) );
+
+   result = readColorEditorAction();
+
+   if ( result != COLOR_EDITOR_ACTION_INCREASE_SMALL )
+   {
+      fail_msg( "readColorEditorAction should map up-arrow to increase action; got %d", result );
+   }
+}
+
+static void readColorEditorAction_WhenFallbackCommandReceived_ReturnsNormalizedAction( void **state )
+{
+   const int arySequence[] = { 'P' };
+   ColorEditorAction result;
+
+   (void)state;
+   setInputSequence( arySequence, sizeof( arySequence ) / sizeof( arySequence[0] ) );
+
+   result = readColorEditorAction();
+
+   if ( result != COLOR_EDITOR_ACTION_PREVIOUS_FIELD )
+   {
+      fail_msg( "readColorEditorAction should lowercase fallback commands and map them; got %d", result );
+   }
+}
+
 static void findSubstring_WhenNeedleMissing_ReturnsNull( void **state )
 {
    // Arrange
@@ -500,6 +532,8 @@ int main( void )
       cmocka_unit_test( findSubstring_WhenNeedleMissing_ReturnsNull ),
       cmocka_unit_test( readFoldedKey_WhenInputIsUppercaseLetter_ReturnsLowercaseLetter ),
       cmocka_unit_test( readValidatedMenuKey_WhenInputIsUppercaseLetter_ReturnsLowercaseMatch ),
+      cmocka_unit_test( readColorEditorAction_WhenArrowSequenceReceived_ReturnsNormalizedAction ),
+      cmocka_unit_test( readColorEditorAction_WhenFallbackCommandReceived_ReturnsNormalizedAction ),
       cmocka_unit_test( findChar_WhenTargetExists_ReturnsPointerToCharacter ),
       cmocka_unit_test( findChar_WhenTargetMissing_ReturnsNull ),
       cmocka_unit_test( duplicateString_WhenSourceProvided_ReturnsIndependentCopy ),

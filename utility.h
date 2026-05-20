@@ -9,6 +9,21 @@
 
 #include "defs.h"
 
+typedef enum
+{
+   COLOR_EDITOR_ACTION_CANCEL = 0,
+   COLOR_EDITOR_ACTION_DECREASE_FAST,
+   COLOR_EDITOR_ACTION_DECREASE_SMALL,
+   COLOR_EDITOR_ACTION_INCREASE_FAST,
+   COLOR_EDITOR_ACTION_INCREASE_SMALL,
+   COLOR_EDITOR_ACTION_MOVE_LEFT,
+   COLOR_EDITOR_ACTION_MOVE_RIGHT,
+   COLOR_EDITOR_ACTION_NEXT_FIELD,
+   COLOR_EDITOR_ACTION_PREVIOUS_FIELD,
+   COLOR_EDITOR_ACTION_RESET_FIELD,
+   COLOR_EDITOR_ACTION_SAVE
+} ColorEditorAction;
+
 int capPrintf( const char *format, ... );
 int capPutChar( int inputChar );
 int capPuts( const char *ptrText );
@@ -40,6 +55,7 @@ int readFoldedKey( void );
 int readNormalizedLine( FILE *ptrFileHandle, char *ptrLine, size_t lineSize,
                         int *ptrLineNumber, int *ptrReadCount,
                         const char *ptrSourceName );
+ColorEditorAction readColorEditorAction( void );
 int readValidatedKey( const char *allowedChars );
 int readValidatedMenuKey( const char *allowedCharsLowercase );
 void replyMessage( void );

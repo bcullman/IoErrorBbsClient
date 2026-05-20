@@ -265,6 +265,62 @@ int readValidatedMenuKey( const char *allowedCharsLowercase )
    }
 }
 
+ColorEditorAction readColorEditorAction( void )
+{
+   int inputChar;
+   unsigned int invalid;
+
+   invalid = 0;
+   for ( ;; )
+   {
+      inputChar = inKey();
+      if ( isalpha( inputChar ) )
+      {
+         inputChar = tolower( inputChar );
+      }
+      switch ( inputChar )
+      {
+         case 'a':
+            return COLOR_EDITOR_ACTION_MOVE_LEFT;
+
+         case 'd':
+            return COLOR_EDITOR_ACTION_MOVE_RIGHT;
+
+         case 'n':
+            return COLOR_EDITOR_ACTION_NEXT_FIELD;
+
+         case 'p':
+            return COLOR_EDITOR_ACTION_PREVIOUS_FIELD;
+
+         case 'q':
+            return COLOR_EDITOR_ACTION_CANCEL;
+
+         case 'r':
+            return COLOR_EDITOR_ACTION_RESET_FIELD;
+
+         case 's':
+            return COLOR_EDITOR_ACTION_DECREASE_SMALL;
+
+         case 'w':
+            return COLOR_EDITOR_ACTION_INCREASE_SMALL;
+
+         case '+':
+            return COLOR_EDITOR_ACTION_INCREASE_FAST;
+
+         case '-':
+            return COLOR_EDITOR_ACTION_DECREASE_FAST;
+
+         case ' ':
+         case '\n':
+            return COLOR_EDITOR_ACTION_SAVE;
+
+         default:
+            handleInvalidInput( &invalid );
+            break;
+      }
+   }
+}
+
 int stdPrintf( const char *format, ... )
 {
    va_list argList;
@@ -1630,99 +1686,230 @@ static void ansiTransformPostHeader_WhenFriendPost_RewritesHeaderDigitsAndTracks
    }
 }
 
-static void colorPicker_WhenInvalidThenValidInput_ReturnsMappedColorAndFlushes( void **state )
+static void colorEditorChannelValueWithinRgbRange_WhenValueOutOfRange_ReturnsRgbRangeValue( void **state )
 {
    // Arrange
-   const int aryKeys[] = { 'z', 'x', 'R' };
    int result;
 
    (void)state;
 
    resetState();
-   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
 
    // Act
-   result = colorPicker();
+   result = colorEditorChannelValueWithinRgbRange( 999 );
 
    // Assert
-   if ( result != 1 )
+   if ( result != 255 )
    {
-      fail_msg( "colorPicker should map 'R' to color code 1; got %d", result );
+      fail_msg( "colorEditorChannelValueWithinRgbRange should force large values to 255; got %d", result );
    }
-   if ( flushCount != 1 || lastFlushValue != 2 )
+
+   result = colorEditorChannelValueWithinRgbRange( -7 );
+   if ( result != 0 )
    {
-      fail_msg( "repeated invalid color picker input should flush once with incremented invalid count; got count=%u last=%u",
-                flushCount, lastFlushValue );
+      fail_msg( "colorEditorChannelValueWithinRgbRange should force negative values to 0; got %d", result );
    }
 }
 
-static void colorPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue( void **state )
+static void cycleColorEditorPaletteValue_WhenBackgroundAllowsDefault_WrapsThroughDefault( void **state )
 {
    // Arrange
-   const int aryKeys[] = { '6' };
    int result;
 
    (void)state;
 
    resetState();
-   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
 
    // Act
-   result = colorPicker();
-
-   // Assert
-   if ( result != 13 )
-   {
-      fail_msg( "colorPicker should map '6' to bright magenta value 13; got %d", result );
-   }
-}
-
-static void backgroundPicker_WhenDefaultSelected_ReturnsDefaultCode( void **state )
-{
-   // Arrange
-   const int aryKeys[] = { 'x', 'x', 'D' };
-   int result;
-
-   (void)state;
-
-   resetState();
-   color.background = 2;
-   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
-
-   // Act
-   result = backgroundPicker();
+   result = cycleColorEditorPaletteValue( 255, 1, true );
 
    // Assert
    if ( result != COLOR_VALUE_DEFAULT )
    {
-      fail_msg( "backgroundPicker should map 'D' to the default color sentinel; got %d", result );
+      fail_msg( "cycleColorEditorPaletteValue should wrap 255 to default when background allows it; got %d",
+                result );
    }
-   if ( flushCount != 1 || lastFlushValue != 2 )
+
+   result = cycleColorEditorPaletteValue( COLOR_VALUE_DEFAULT, 1, true );
+   if ( result != 0 )
    {
-      fail_msg( "repeated invalid background input should flush once with incremented invalid count; got count=%u last=%u",
-                flushCount, lastFlushValue );
+      fail_msg( "cycleColorEditorPaletteValue should wrap default forward to 0; got %d",
+                result );
    }
 }
 
-static void backgroundPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue( void **state )
+static void restoreActiveColorEditorState_WhenSnapshotRestored_RebuildsConfiguredAndLivePalette( void **state )
 {
    // Arrange
-   const int aryKeys[] = { '8' };
-   int result;
+   bool savedUseBlackThemeBackgrounds;
+   Color savedColorTable;
 
    (void)state;
 
    resetState();
-   color.background = 2;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   colorTruecolor.text = colorValueFromRgb( 0x11, 0x22, 0x33 );
+   colorTruecolor.background = colorValueFromRgb( 0x00, 0x00, 0x00 );
+   useBlackThemeBackgroundsTruecolor = true;
+   refreshActiveColorTable();
+   snapshotActiveColorEditorState( &savedColorTable, &savedUseBlackThemeBackgrounds );
+   color.text = colorValueFromRgb( 0xaa, 0xbb, 0xcc );
+   color.background = colorValueFromRgb( 0x44, 0x55, 0x66 );
+   useBlackThemeBackgrounds = false;
+   commitActiveColorEditorState();
+
+   // Act
+   restoreActiveColorEditorState( &savedColorTable, savedUseBlackThemeBackgrounds );
+
+   // Assert
+   if ( colorTruecolor.text != colorValueFromRgb( 0x11, 0x22, 0x33 ) ||
+        color.text != colorValueFromRgb( 0x11, 0x22, 0x33 ) )
+   {
+      fail_msg( "restoreActiveColorEditorState should restore both configured and live text values; configured=%d live=%d",
+                colorTruecolor.text, color.text );
+   }
+   if ( !useBlackThemeBackgrounds || !useBlackThemeBackgroundsTruecolor )
+   {
+      fail_msg( "restoreActiveColorEditorState should restore background fallback flags" );
+   }
+}
+
+static void colorConfig_WhenAutoModeUsesTruecolor_EditorSavesIntoTruecolorTable( void **state )
+{
+   const int aryKeys[] = { 'g', 't', 'w', '\n', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   setenv( "COLORTERM", "truecolor", 1 );
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   color256.text = 34;
+   colorTruecolor.text = colorValueFromRgb( 0x01, 0x02, 0x03 );
+   refreshActiveColorTable();
    setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
 
    // Act
-   result = backgroundPicker();
+   colorConfig();
 
    // Assert
-   if ( result != 15 )
+   if ( colorTruecolor.text != colorValueFromRgb( 0x02, 0x02, 0x03 ) )
    {
-      fail_msg( "backgroundPicker should map '8' to bright white value 15; got %d", result );
+      fail_msg( "truecolor auto mode should save edits into colors_truecolor; got %d",
+                colorTruecolor.text );
+   }
+   if ( color256.text != 34 )
+   {
+      fail_msg( "truecolor auto mode should leave colors_256 untouched; got %d",
+                color256.text );
+   }
+}
+
+static void colorConfig_WhenEditorCancelled_RestoresSnapshotExactly( void **state )
+{
+   const int aryKeys[] = { 'g', 't', 'w', 'q', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   colorTruecolor.text = colorValueFromRgb( 0x01, 0x02, 0x03 );
+   refreshActiveColorTable();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( colorTruecolor.text != colorValueFromRgb( 0x01, 0x02, 0x03 ) ||
+        color.text != colorValueFromRgb( 0x01, 0x02, 0x03 ) )
+   {
+      fail_msg( "cancelling the color editor should restore the saved snapshot; configured=%d live=%d",
+                colorTruecolor.text, color.text );
+   }
+}
+
+static void colorConfig_WhenEditingBackground_DisablesBlackThemeBackgroundFallback( void **state )
+{
+   const int aryKeys[] = { 'g', 'b', 'w', '\n', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   colorTruecolor.background = colorValueFromRgb( 0x00, 0x00, 0x00 );
+   useBlackThemeBackgroundsTruecolor = true;
+   refreshActiveColorTable();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( useBlackThemeBackgroundsTruecolor )
+   {
+      fail_msg( "manually editing background should disable black theme background fallback in the active table" );
+   }
+}
+
+static void colorConfig_WhenEditingInputIn256Mode_SavesInto256ColorTable( void **state )
+{
+   const int aryKeys[] = { 'i', 'c', 'w', '\n', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_256;
+   color256.inputHighlight = 34;
+   colorTruecolor.inputHighlight = colorValueFromRgb( 0x0a, 0x0b, 0x0c );
+   refreshActiveColorTable();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( color256.inputHighlight != 35 )
+   {
+      fail_msg( "256-color editor should save palette edits into colors_256; got %d",
+                color256.inputHighlight );
+   }
+   if ( colorTruecolor.inputHighlight != colorValueFromRgb( 0x0a, 0x0b, 0x0c ) )
+   {
+      fail_msg( "256-color editor should leave colors_truecolor untouched; got %d",
+                colorTruecolor.inputHighlight );
+   }
+}
+
+static void colorConfig_WhenResetFieldChosen_RestoresOnlyThatFieldFromSnapshot( void **state )
+{
+   const int aryKeys[] = { 'g', 't', 'w', 'r', '\n', 'q' };
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   colorTruecolor.text = colorValueFromRgb( 0x01, 0x02, 0x03 );
+   refreshActiveColorTable();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( colorTruecolor.text != colorValueFromRgb( 0x01, 0x02, 0x03 ) )
+   {
+      fail_msg( "reset field should restore the active field to its snapshot value; got %d",
+                colorTruecolor.text );
    }
 }
 
@@ -1767,11 +1954,15 @@ int main( void )
       cmocka_unit_test( ansiTransformExpress_WhenFriendSender_UsesFriendColorCodes ),
       cmocka_unit_test( ansiTransformExpress_WhenAnsiDisabled_LeavesTextUnchanged ),
       cmocka_unit_test( ansiTransformPostHeader_WhenFriendPost_RewritesHeaderDigitsAndTracksColor ),
+      cmocka_unit_test( colorEditorChannelValueWithinRgbRange_WhenValueOutOfRange_ReturnsRgbRangeValue ),
+      cmocka_unit_test( cycleColorEditorPaletteValue_WhenBackgroundAllowsDefault_WrapsThroughDefault ),
+      cmocka_unit_test( restoreActiveColorEditorState_WhenSnapshotRestored_RebuildsConfiguredAndLivePalette ),
+      cmocka_unit_test( colorConfig_WhenAutoModeUsesTruecolor_EditorSavesIntoTruecolorTable ),
+      cmocka_unit_test( colorConfig_WhenEditorCancelled_RestoresSnapshotExactly ),
+      cmocka_unit_test( colorConfig_WhenEditingBackground_DisablesBlackThemeBackgroundFallback ),
+      cmocka_unit_test( colorConfig_WhenEditingInputIn256Mode_SavesInto256ColorTable ),
+      cmocka_unit_test( colorConfig_WhenResetFieldChosen_RestoresOnlyThatFieldFromSnapshot ),
       cmocka_unit_test( colorOptions_WhenColorOutputModeSelected_UpdatesConfiguredMode ),
-      cmocka_unit_test( colorPicker_WhenInvalidThenValidInput_ReturnsMappedColorAndFlushes ),
-      cmocka_unit_test( colorPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue ),
-      cmocka_unit_test( backgroundPicker_WhenDefaultSelected_ReturnsDefaultCode ),
-      cmocka_unit_test( backgroundPicker_WhenBrightAnsiDigitSelected_ReturnsBrightAnsiValue ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

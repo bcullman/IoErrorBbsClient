@@ -196,13 +196,11 @@ Optional clang-tidy setup:
 
 ```bash
 # Generate/refresh compile_commands.json for clang-tidy
-bear -- make clean all -j4
+make compile-commands
 
 # Add required braces to control statements
 /opt/homebrew/opt/llvm/bin/clang-tidy -p . -fix -fix-errors -format-style=file \
   -checks='-*,readability-braces-around-statements' \
-  --extra-arg=-isysroot \
-  --extra-arg="$(xcrun --sdk macosx --show-sdk-path)" \
   $(git ls-files '*.c')
 ```
 

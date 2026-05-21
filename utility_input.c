@@ -13,6 +13,7 @@
 #include "network_globals.h"
 #include "utility.h"
 static int printYesNoResult( int inputChar );
+static ColorEditorAction colorEditorActionFromArrowKey( int inputChar );
 static int readValidatedInput( const char *allowedChars, bool shouldFoldInput );
 
 /// @brief Track repeated invalid input and flush the terminal if it keeps happening.
@@ -137,6 +138,43 @@ static int printYesNoResult( int inputChar )
    return 0;
 }
 
+/// @brief Map one editor escape-sequence suffix byte to a normalized action.
+///
+/// Supports arrow keys plus common application-keypad operator keys.
+///
+/// @param inputChar Final byte from a CSI or SS3 editor-input sequence.
+///
+/// @return Matching color-editor action, or cancel when not recognized.
+static ColorEditorAction colorEditorActionFromArrowKey( int inputChar )
+{
+   switch ( inputChar )
+   {
+      case 'A':
+         return COLOR_EDITOR_ACTION_PREVIOUS_FIELD;
+
+      case 'B':
+         return COLOR_EDITOR_ACTION_NEXT_FIELD;
+
+      case 'C':
+         return COLOR_EDITOR_ACTION_MOVE_RIGHT;
+
+      case 'D':
+         return COLOR_EDITOR_ACTION_MOVE_LEFT;
+
+      case 'M':
+         return COLOR_EDITOR_ACTION_SAVE;
+
+      case 'k':
+         return COLOR_EDITOR_ACTION_INCREASE_FAST;
+
+      case 'm':
+         return COLOR_EDITOR_ACTION_DECREASE_FAST;
+
+      default:
+         return COLOR_EDITOR_ACTION_CANCEL;
+   }
+}
+
 /// @brief Read one key and fold alphabetic input to lowercase.
 ///
 /// @return The normalized key value.
@@ -150,6 +188,93 @@ int readFoldedKey( void )
       inputChar = tolower( inputChar );
    }
    return inputChar;
+}
+
+/// @brief Read one normalized action for the interactive color editor.
+///
+/// Arrow keys are accepted directly, and fallback keys provide the same actions
+/// when arrow sequences are awkward in the terminal.
+///
+/// @return Normalized editor action.
+ColorEditorAction readColorEditorAction( void )
+{
+   unsigned int invalid;
+
+   invalid = 0;
+   while ( true )
+   {
+      int inputChar;
+
+      inputChar = inKey();
+      if ( inputChar == '\033' )
+      {
+         int sequenceLeadChar;
+
+         sequenceLeadChar = inKey();
+         if ( sequenceLeadChar == '[' || sequenceLeadChar == 'O' )
+         {
+            int sequenceFinalChar;
+            ColorEditorAction sequenceAction;
+
+            sequenceFinalChar = inKey();
+            sequenceAction = colorEditorActionFromArrowKey( sequenceFinalChar );
+            if ( sequenceAction != COLOR_EDITOR_ACTION_CANCEL )
+            {
+               return sequenceAction;
+            }
+         }
+      }
+
+      if ( isalpha( inputChar ) )
+      {
+         inputChar = tolower( inputChar );
+      }
+      switch ( inputChar )
+      {
+         case 'a':
+            return COLOR_EDITOR_ACTION_MOVE_LEFT;
+
+         case 'c':
+            return COLOR_EDITOR_ACTION_CANCEL;
+
+         case 'd':
+            return COLOR_EDITOR_ACTION_MOVE_RIGHT;
+
+         case 'n':
+            return COLOR_EDITOR_ACTION_NEXT_FIELD;
+
+         case 'p':
+            return COLOR_EDITOR_ACTION_PREVIOUS_FIELD;
+
+         case 'q':
+            return COLOR_EDITOR_ACTION_CANCEL;
+
+         case 'r':
+            return COLOR_EDITOR_ACTION_RESET_FIELD;
+
+         case 's':
+            return COLOR_EDITOR_ACTION_DECREASE_SMALL;
+
+         case 'w':
+            return COLOR_EDITOR_ACTION_INCREASE_SMALL;
+
+         case '=':
+         case '+':
+            return COLOR_EDITOR_ACTION_INCREASE_FAST;
+
+         case '_':
+         case '-':
+            return COLOR_EDITOR_ACTION_DECREASE_FAST;
+
+         case '\n':
+         case ' ':
+            return COLOR_EDITOR_ACTION_SAVE;
+
+         default:
+            handleInvalidInput( &invalid );
+            break;
+      }
+   }
 }
 
 /// @brief Read input until one of the allowed characters is entered.

@@ -81,6 +81,13 @@ static void resetState( void )
    shouldDeleteKeychainPasswordSucceed = false;
    sPromptCallCount = 0;
    aryStdPrintfLog[0] = '\0';
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_AUTO;
+   memset( &color, 0, sizeof( color ) );
+   memset( &color256, 0, sizeof( color256 ) );
+   memset( &colorTruecolor, 0, sizeof( colorTruecolor ) );
+   useBlackThemeBackgrounds = false;
+   useBlackThemeBackgrounds256 = false;
+   useBlackThemeBackgroundsTruecolor = false;
 }
 
 static void setGetKeySequence( const int *aryValues, size_t valueCount )
@@ -163,6 +170,11 @@ void printThemedMnemonicText( const char *ptrText, int defaultColor )
    (void)defaultColor;
 }
 
+void copyColorTable( Color *ptrDestination, const Color *ptrSource )
+{
+   *ptrDestination = *ptrSource;
+}
+
 /// @brief Return one test color field from the internal color-field order.
 ///
 /// @param colorIndex Field index in the internal color array.
@@ -203,6 +215,18 @@ int colorFieldValue( int colorIndex )
    return *aryTestColorFields[colorIndex];
 }
 
+int colorFieldValueForColor( const Color *ptrColor, int colorIndex )
+{
+   const int *ptrColorFields;
+
+   assert( ptrColor != NULL );
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+
+   ptrColorFields = (const int *)ptrColor;
+   return ptrColorFields[colorIndex];
+}
+
 const char *colorFieldTomlKeyName( int colorIndex )
 {
    static const char *const aryTestColorTomlKeys[COLOR_FIELD_COUNT] =
@@ -240,6 +264,11 @@ const char *colorFieldTomlKeyName( int colorIndex )
 
 const char *colorNameFromValue( int colorValue )
 {
+   if ( colorValueIsRgb( colorValue ) )
+   {
+      return NULL;
+   }
+
    switch ( colorValue )
    {
       case 8:
@@ -278,6 +307,22 @@ const char *colorNameFromValue( int colorValue )
          return "default";
       default:
          return NULL;
+   }
+}
+
+const char *colorOutputModeName( ColorOutputMode outputMode )
+{
+   switch ( outputMode )
+   {
+      case COLOR_OUTPUT_MODE_TRUECOLOR:
+         return "truecolor";
+
+      case COLOR_OUTPUT_MODE_256:
+         return "256";
+
+      case COLOR_OUTPUT_MODE_AUTO:
+      default:
+         return "auto";
    }
 }
 
@@ -1207,6 +1252,8 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    aryKeyMap['P'] = 'p';
    aryKeyMap['w'] = 'W';
    aryKeyMap['W'] = 'w';
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   useBlackThemeBackgrounds = true;
    color.text = 10;
    color.forum = 11;
    color.number = 220;
@@ -1215,7 +1262,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    color.ansiBlueTextColor = 26;
    color.ansiMagentaTextColor = 91;
    color.postDate = 34;
-   color.postName = 201;
+   color.postName = colorValueFromRgb( 0x8a, 0xad, 0xf4 );
    color.postText = 231;
    color.postFriendDate = 14;
    color.postFriendName = 12;
@@ -1231,6 +1278,11 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    color.expressName = 12;
    color.expressFriendText = 214;
    color.expressFriendName = 231;
+   copyColorTable( &color256, &color );
+   copyColorTable( &colorTruecolor, &color );
+   colorTruecolor.postName = colorValueFromRgb( 0x8a, 0xad, 0xf4 );
+   useBlackThemeBackgrounds256 = true;
+   useBlackThemeBackgroundsTruecolor = true;
    snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Gone to lunch." );
    snprintf( aryAwayMessageLines[1], sizeof( aryAwayMessageLines[1] ), "%s", "Back by 2pm." );
    aryAwayMessageLines[2][0] = '\0';
@@ -1334,6 +1386,8 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
         strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
+        strstr( aryOutput, "dark_theme_black_background_fallback = true\n" ) == NULL ||
+        strstr( aryOutput, "color_output_mode = \"truecolor\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = true\n" ) == NULL ||
@@ -1376,17 +1430,18 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
       fail_msg( "writeConfig should emit TOML contacts; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
+   if ( strstr( aryOutput, "[colors_256]\n" ) == NULL ||
         strstr( aryOutput, "text = \"brightgreen\"\n" ) == NULL ||
         strstr( aryOutput, "forum_prompt = \"brightyellow\"\n" ) == NULL ||
-        strstr( aryOutput, "post_name = 201\n" ) == NULL ||
         strstr( aryOutput, "background = \"default\"\n" ) == NULL ||
         strstr( aryOutput, "input_text = \"cyan\"\n" ) == NULL ||
         strstr( aryOutput, "express_friend_name = \"white\"\n" ) == NULL ||
+        strstr( aryOutput, "[colors_truecolor]\n" ) == NULL ||
+        strstr( aryOutput, "post_name = \"#8aadf4\"\n" ) == NULL ||
         strstr( aryOutput, "reserved5" ) != NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "writeConfig should emit TOML colors with stable keys and omit reserved5; output was:\n%s", aryOutput );
+      fail_msg( "writeConfig should emit split TOML color tables with stable keys and omit reserved5; output was:\n%s", aryOutput );
       return;
    }
 
@@ -1430,6 +1485,8 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    aryKeyMap['P'] = 'P';
    aryKeyMap['w'] = 'w';
    aryKeyMap['W'] = 'W';
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_256;
+   useBlackThemeBackgrounds = false;
    color.text = 2;
    color.forum = 3;
    color.number = 6;
@@ -1454,6 +1511,10 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    color.expressName = 3;
    color.expressFriendText = 2;
    color.expressFriendName = 3;
+   copyColorTable( &color256, &color );
+   copyColorTable( &colorTruecolor, &color );
+   useBlackThemeBackgrounds256 = false;
+   useBlackThemeBackgroundsTruecolor = false;
    snprintf( aryAwayMessageLines[0], sizeof( aryAwayMessageLines[0] ), "%s", "Heads down coding." );
    aryAwayMessageLines[1][0] = '\0';
    flagsConfiguration.shouldUseTcpKeepalive = false;
@@ -1526,6 +1587,8 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
         strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
         strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
         strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
+        strstr( aryOutput, "dark_theme_black_background_fallback = false\n" ) == NULL ||
+        strstr( aryOutput, "color_output_mode = \"256\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = false\n" ) == NULL ||
@@ -1568,14 +1631,15 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
       fail_msg( "writeConfig should emit TOML contacts for the disabled-state fixture; output was:\n%s", aryOutput );
       return;
    }
-   if ( strstr( aryOutput, "[colors]\n" ) == NULL ||
+   if ( strstr( aryOutput, "[colors_256]\n" ) == NULL ||
         strstr( aryOutput, "text = 2\n" ) == NULL ||
         strstr( aryOutput, "incoming_ansi_blue = 4\n" ) == NULL ||
         strstr( aryOutput, "background = 0\n" ) == NULL ||
+        strstr( aryOutput, "[colors_truecolor]\n" ) == NULL ||
         strstr( aryOutput, "reserved5" ) != NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "writeConfig should emit numeric TOML colors when no named form exists and omit reserved5; output was:\n%s", aryOutput );
+      fail_msg( "writeConfig should emit split numeric TOML color tables when no named form exists and omit reserved5; output was:\n%s", aryOutput );
       return;
    }
 

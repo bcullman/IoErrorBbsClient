@@ -116,7 +116,19 @@ endif
 install-exec-hook:
 	@echo 'Now hot Asian sluts will come out of your computer whenever you type "bbs".'
 
-.PHONY: analyze cppcheck release-package scan-build
+.PHONY: analyze compile-commands cppcheck release-package scan-build
+
+compile-commands:
+	@if ! command -v bear >/dev/null 2>&1; then \
+		echo "bear is not installed. Install it with: brew install bear"; \
+		exit 1; \
+	fi; \
+	if ! command -v python3 >/dev/null 2>&1; then \
+		echo "python3 is required to patch compile_commands.json"; \
+		exit 1; \
+	fi; \
+	bear -- $(MAKE) clean all -j4; \
+	python3 $(srcdir)/tools/fix_compile_commands.py compile_commands.json
 
 release-package: bbs
 	@if test "x$(RELEASE_BUILD_ENABLED)" != "xyes"; then \
@@ -164,5 +176,5 @@ analyze: cppcheck
 	@if command -v clang-tidy >/dev/null 2>&1 && [ -f compile_commands.json ]; then \
 		clang-tidy -p . $(bbs_SOURCES); \
 	else \
-		echo "Skipping clang-tidy (requires clang-tidy and compile_commands.json)"; \
+		echo "Skipping clang-tidy (requires clang-tidy and compile_commands.json; run 'make compile-commands' to generate it)"; \
 	fi

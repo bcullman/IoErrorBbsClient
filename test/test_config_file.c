@@ -95,6 +95,11 @@ void defaultColors( int setall )
    (void)setall;
 }
 
+void copyColorTable( Color *ptrDestination, const Color *ptrSource )
+{
+   *ptrDestination = *ptrSource;
+}
+
 int colorValueFromName( const char *ptrColorName )
 {
    if ( ptrColorName == NULL )
@@ -119,6 +124,30 @@ int colorValueFromName( const char *ptrColorName )
    }
 
    return -1;
+}
+
+int colorValueFromHexString( const char *ptrColorText )
+{
+   int blue;
+   int green;
+   int red;
+
+   if ( ptrColorText == NULL || strlen( ptrColorText ) != 7 || ptrColorText[0] != '#' ||
+        !isxdigit( (unsigned char)ptrColorText[1] ) ||
+        !isxdigit( (unsigned char)ptrColorText[2] ) ||
+        !isxdigit( (unsigned char)ptrColorText[3] ) ||
+        !isxdigit( (unsigned char)ptrColorText[4] ) ||
+        !isxdigit( (unsigned char)ptrColorText[5] ) ||
+        !isxdigit( (unsigned char)ptrColorText[6] ) )
+   {
+      return -1;
+   }
+
+   red = (int)strtol( (char[]){ ptrColorText[1], ptrColorText[2], '\0' }, NULL, 16 );
+   green = (int)strtol( (char[]){ ptrColorText[3], ptrColorText[4], '\0' }, NULL, 16 );
+   blue = (int)strtol( (char[]){ ptrColorText[5], ptrColorText[6], '\0' }, NULL, 16 );
+
+   return colorValueFromRgb( (int)red, (int)green, (int)blue );
 }
 
 noreturn void fatalExit( const char *message, const char *heading )
@@ -190,6 +219,18 @@ void setColorFieldValue( int colorIndex, int colorValue )
    *aryTestColorFields[colorIndex] = colorValue;
 }
 
+void setColorFieldValueForColor( Color *ptrColor, int colorIndex, int colorValue )
+{
+   int *ptrColorFields;
+
+   assert( ptrColor != NULL );
+   assert( colorIndex >= 0 );
+   assert( colorIndex < COLOR_FIELD_COUNT );
+
+   ptrColorFields = (int *)ptrColor;
+   ptrColorFields[colorIndex] = colorValue;
+}
+
 bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
                                           int *ptrOutColorIndex )
 {
@@ -234,6 +275,83 @@ bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
          *ptrOutColorIndex = itemIndex;
          return true;
       }
+   }
+
+   return false;
+}
+
+void rebuildConfiguredColorTables( bool has256Table, bool hasTruecolorTable,
+                                   bool *ptrShouldRewriteConfig )
+{
+   if ( has256Table && !hasTruecolorTable )
+   {
+      copyColorTable( &colorTruecolor, &color256 );
+      if ( ptrShouldRewriteConfig != NULL )
+      {
+         *ptrShouldRewriteConfig = true;
+      }
+   }
+   else if ( !has256Table && hasTruecolorTable )
+   {
+      copyColorTable( &color256, &colorTruecolor );
+      if ( ptrShouldRewriteConfig != NULL )
+      {
+         *ptrShouldRewriteConfig = true;
+      }
+   }
+
+   refreshActiveColorTable();
+}
+
+void refreshActiveColorTable( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      copyColorTable( &color, &colorTruecolor );
+      useBlackThemeBackgrounds = useBlackThemeBackgroundsTruecolor;
+   }
+   else
+   {
+      copyColorTable( &color, &color256 );
+      useBlackThemeBackgrounds = useBlackThemeBackgrounds256;
+   }
+}
+
+void syncActiveColorTable( void )
+{
+   if ( terminalShouldUseTruecolor() )
+   {
+      copyColorTable( &colorTruecolor, &color );
+      useBlackThemeBackgroundsTruecolor = useBlackThemeBackgrounds;
+   }
+   else
+   {
+      copyColorTable( &color256, &color );
+      useBlackThemeBackgrounds256 = useBlackThemeBackgrounds;
+   }
+}
+
+bool tryFindColorOutputMode( const char *ptrModeName,
+                             ColorOutputMode *ptrOutMode )
+{
+   if ( ptrModeName == NULL || ptrOutMode == NULL )
+   {
+      return false;
+   }
+   if ( strcmp( ptrModeName, "auto" ) == 0 )
+   {
+      *ptrOutMode = COLOR_OUTPUT_MODE_AUTO;
+      return true;
+   }
+   if ( strcmp( ptrModeName, "truecolor" ) == 0 )
+   {
+      *ptrOutMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+      return true;
+   }
+   if ( strcmp( ptrModeName, "256" ) == 0 )
+   {
+      *ptrOutMode = COLOR_OUTPUT_MODE_256;
+      return true;
    }
 
    return false;
@@ -906,6 +1024,7 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "auto_reply_to_x_messages = false\n"
            "autocomplete_recipients = false\n"
            "clickable_url_summaries = false\n"
+           "dark_theme_black_background_fallback = true\n"
            "screen_reader_mode = true\n"
            "suppress_enemy_express = true\n"
            "suppress_enemy_posts = true\n"
@@ -920,7 +1039,13 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "enemies = [\"Mallory\", \"Eve\"]\n"
            "friends = [{ name = \"Bob\", info = \"A buddy\" }, { name = \"Carol\" }]\n"
            "\n"
-           "[colors]\n"
+           "[colors_256]\n"
+           "text = \"brightgreen\"\n"
+           "background = \"default\"\n"
+           "post_name = 201\n"
+           "incoming_ansi_white = \"yellow\"\n"
+           "\n"
+           "[colors_truecolor]\n"
            "text = \"brightgreen\"\n"
            "background = \"default\"\n"
            "post_name = 201\n"
@@ -932,6 +1057,7 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   color.text = 2;
    isConfigFileReadOnly = false;
    isLoginShell = false;
 
@@ -970,6 +1096,7 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
    }
    if ( !flagsConfiguration.shouldAutoAnswerAnsiPrompt ||
         flagsConfiguration.shouldEnableClickableUrls ||
+        !useBlackThemeBackgrounds ||
         flagsConfiguration.shouldEnableNameAutocomplete ||
         !flagsConfiguration.isScreenReaderModeEnabled ||
         !flagsConfiguration.shouldSquelchExpress ||
@@ -1078,6 +1205,7 @@ static void readConfig_WhenVersionMissing_RewritesConfigWithCurrentVersion( void
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   color.text = 2;
    isConfigFileReadOnly = false;
    isLoginShell = false;
 
@@ -1124,7 +1252,7 @@ static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefaul
    }
    if ( !tryWriteFileContents(
            aryPath,
-           "[colors]\n"
+           "[colors_256]\n"
            "text = \"banana\"\n" ) )
    {
       unlink( aryPath );
@@ -1133,6 +1261,8 @@ static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefaul
    }
    snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
    snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   color.text = 2;
+   color256.text = 2;
    isConfigFileReadOnly = false;
    isLoginShell = false;
 
@@ -1147,6 +1277,145 @@ static void readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefaul
    if ( color.text != 2 )
    {
       fail_msg( "invalid color should keep the prior/default text color; got %d", color.text );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+static void readConfig_WhenColorsContainHexValue_ParsesRgbColor( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for hex-color test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[behavior]\n"
+           "color_output_mode = \"truecolor\"\n"
+           "\n"
+           "[colors_truecolor]\n"
+           "text = \"#8aadf4\"\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write hex-color configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( color.text != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) ||
+        colorTruecolor.text != colorValueFromRgb( 0x8a, 0xad, 0xf4 ) )
+   {
+      fail_msg( "hex color should parse into the encoded RGB value; got active=%d truecolor=%d",
+                color.text, colorTruecolor.text );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+static void readConfig_WhenColorsContainMalformedHexValue_PrintsWarningAndKeepsDefault( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for malformed-hex-color test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[behavior]\n"
+           "color_output_mode = \"truecolor\"\n"
+           "\n"
+           "[colors_truecolor]\n"
+           "text = \"#8aadfg\"\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write malformed-hex-color configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   color.text = 2;
+   colorTruecolor.text = 2;
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( strstr( aryStdPrintfLog, "Invalid color value for 'text' ignored." ) == NULL )
+   {
+      fail_msg( "malformed hex color should emit warning; log was: %s", aryStdPrintfLog );
+   }
+   if ( color.text != 2 || colorTruecolor.text != 2 )
+   {
+      fail_msg( "malformed hex color should keep the default text color; got active=%d truecolor=%d",
+                color.text, colorTruecolor.text );
+   }
+
+   cleanupReadState();
+   unlink( aryPath );
+}
+
+static void readConfig_WhenBehaviorContainsColorOutputMode_ParsesMode( void **state )
+{
+   char aryPath[PATH_MAX];
+
+   // Arrange
+   (void)state;
+
+   cleanupReadState();
+   resetTracking();
+   if ( !tryCreateTempPath( aryPath, sizeof( aryPath ), "/tmp/iobbs_config_test_XXXXXX" ) )
+   {
+      fail_msg( "Arrange failed: unable to create temporary path for color-output-mode test" );
+      return;
+   }
+   if ( !tryWriteFileContents(
+           aryPath,
+           "[behavior]\n"
+           "color_output_mode = \"truecolor\"\n" ) )
+   {
+      unlink( aryPath );
+      fail_msg( "Arrange failed: unable to write color-output-mode configuration content" );
+      return;
+   }
+   snprintf( aryConfigFileName, sizeof( aryConfigFileName ), "%s", aryPath );
+   snprintf( aryMyEditor, sizeof( aryMyEditor ), "%s", "nano" );
+   isConfigFileReadOnly = false;
+   isLoginShell = false;
+
+   // Act
+   readConfig();
+
+   // Assert
+   if ( configuredColorOutputMode != COLOR_OUTPUT_MODE_TRUECOLOR )
+   {
+      fail_msg( "color_output_mode should parse as truecolor; got %d",
+                configuredColorOutputMode );
    }
 
    cleanupReadState();
@@ -1829,6 +2098,9 @@ int main( void )
          cmocka_unit_test( readConfig_WhenAwayMessagesExceedFive_IgnoresExtraEntries ),
          cmocka_unit_test( readConfig_WhenAwayMessagesArrayIsMalformed_KeepsDefaultMessage ),
          cmocka_unit_test( readConfig_WhenColorsContainInvalidValue_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenColorsContainHexValue_ParsesRgbColor ),
+         cmocka_unit_test( readConfig_WhenColorsContainMalformedHexValue_PrintsWarningAndKeepsDefault ),
+         cmocka_unit_test( readConfig_WhenBehaviorContainsColorOutputMode_ParsesMode ),
          cmocka_unit_test( readConfig_WhenContactArraysAreMalformed_KeepListsEmpty ),
          cmocka_unit_test( readConfig_WhenContactsContainDuplicates_IgnoresLaterDuplicates ),
          cmocka_unit_test( readConfig_WhenConfigContainsInvalidBoolean_PrintsWarningAndKeepsDefault ),

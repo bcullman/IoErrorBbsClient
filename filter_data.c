@@ -56,7 +56,7 @@ void emitTransformedAnsiSequence( const char *ptrAnsiSequence, size_t sequenceLe
         ptrAnsiSequence[1] == '[' && ptrAnsiSequence[2] == '3' &&
         ptrAnsiSequence[4] == 'm' )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       formatTransformedAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                                ptrAnsiSequence[3], isPostContext,
@@ -123,7 +123,7 @@ void filterData( register int inputChar )
    if ( flagsConfiguration.shouldUseAnsi &&
         flagsConfiguration.isMorePromptActive && inputChar == ' ' )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       lastColor = color.text;
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
@@ -148,7 +148,7 @@ void filterData( register int inputChar )
    }
    if ( inputChar == '\033' )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       formatAnsiBackgroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.background );

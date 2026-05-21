@@ -36,7 +36,6 @@ static void storeFriendWhoEntry( const unsigned char *aryWhoEntry,
                                  const friend *ptrFriend );
 static void updateSavedWhoListWithEntry( const unsigned char *aryWhoEntry );
 
-
 /// @brief Start a who-list capture if one is not already active.
 ///
 /// @param ptrPtrWhoEntryWrite Current entry write pointer.
@@ -59,7 +58,6 @@ static void beginWhoListIfNeeded( unsigned char **ptrPtrWhoEntryWrite, char *ptr
    *ptrFriendColumn = 0;
 }
 
-
 /// @brief Duplicate a who-list name or abort if memory allocation fails.
 ///
 /// @param ptrName Name to duplicate.
@@ -79,7 +77,6 @@ static char *duplicateWhoNameOrDie( const char *ptrName, const char *ptrErrorTex
    snprintf( ptrWhoCopy, strlen( ptrName ) + 1, "%s", ptrName );
    return ptrWhoCopy;
 }
-
 
 /// @brief Filter one byte of incoming who-list data.
 ///
@@ -110,7 +107,6 @@ void filterWhoList( register int inputChar )
    }
 }
 
-
 /// @brief Finish the current who-list capture.
 ///
 /// @param ptrPtrWhoEntryWrite Entry write pointer to clear.
@@ -123,7 +119,6 @@ static void finishCurrentWhoList( unsigned char **ptrPtrWhoEntryWrite, char *ptr
    *ptrNew = 0;
    whoListProgress = 0;
 }
-
 
 /// @brief Format the saved who-list age header text.
 ///
@@ -141,7 +136,6 @@ static void formatElapsedWhoHeader( char *ptrBuffer, size_t bufferSize,
              (int)( elapsedSeconds % 60 ),
              strstr( ptrPrefix, "Your friends online" ) ? "\r\n\n" : "" );
 }
-
 
 /// @brief Format the displayed who-list elapsed time text for one entry.
 ///
@@ -166,7 +160,6 @@ static void formatWhoTimeText( char *ptrBuffer, size_t bufferSize, long elapsedM
                 elapsedMinutes % 60 );
    }
 }
-
 
 /// @brief Finish one completed who-list entry and update saved state.
 ///
@@ -241,7 +234,6 @@ static void handleCompletedWhoEntry( unsigned char *aryWhoEntry,
    *ptrExtendedTime = 0;
 }
 
-
 /// @brief Handle a NUL terminator while processing who-list data.
 ///
 /// @param aryWhoEntry Current encoded who-list entry buffer.
@@ -279,7 +271,6 @@ static void handleWhoListNull( unsigned char *aryWhoEntry,
    *ptrPtrWhoEntryWrite = NULL;
 }
 
-
 /// @brief Print the saved who list with refreshed elapsed times.
 ///
 /// @param elapsedSeconds Age of the saved list in seconds.
@@ -310,7 +301,6 @@ static void printSavedWhoList( long elapsedSeconds, int *ptrFriendColumn )
    }
    ( *ptrFriendColumn )--;
 }
-
 
 /// @brief Print the saved who-list summary header.
 ///
@@ -361,7 +351,6 @@ static void printSavedWhoSummary( int *ptrFriendColumn, long timestamp )
    }
 }
 
-
 /// @brief Print one who-list entry using the active theme.
 ///
 /// @param ptrName Display name to print.
@@ -375,7 +364,7 @@ static void printThemedWhoListEntry( const char *ptrName, char statusMarker,
 {
    if ( flagsConfiguration.shouldUseAnsi )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.postFriendName );
@@ -398,7 +387,6 @@ static void printThemedWhoListEntry( const char *ptrName, char statusMarker,
    stdPrintf( "%-19s%c %s  %s\r\n", ptrName, statusMarker, ptrTimeText, ptrInfo );
 }
 
-
 /// @brief Print a who-list header using the active theme.
 ///
 /// @param ptrText Header text to print.
@@ -408,7 +396,7 @@ static void printThemedWhoListHeader( const char *ptrText )
 {
    if ( flagsConfiguration.shouldUseAnsi )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.forum );
@@ -422,7 +410,6 @@ static void printThemedWhoListHeader( const char *ptrText )
 
    stdPrintf( "%s", ptrText );
 }
-
 
 /// @brief Rebuild the saved who list from the configured friend list.
 ///
@@ -453,7 +440,6 @@ static void refreshSavedWhoList( void )
    }
 }
 
-
 /// @brief Store a newly seen friend entry into the saved who-list cache.
 ///
 /// @param aryWhoEntry Encoded who-list entry.
@@ -472,7 +458,6 @@ static void storeFriendWhoEntry( const unsigned char *aryWhoEntry,
              "%s", ptrFriend->info );
    savedWhoCount++;
 }
-
 
 /// @brief Add a who-list entry to the saved-name cache if it is new.
 ///

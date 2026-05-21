@@ -62,6 +62,267 @@
 // extern int errno;
 
 #define COLOR_VALUE_DEFAULT 256
+#define COLOR_VALUE_RGB_FLAG 0x01000000
+#define COLOR_VALUE_RGB_MASK 0x00FFFFFF
+#define ANSI_SEQUENCE_BUFFER_SIZE 64
+
+typedef enum
+{
+   COLOR_OUTPUT_MODE_AUTO = 0,
+   COLOR_OUTPUT_MODE_TRUECOLOR,
+   COLOR_OUTPUT_MODE_256
+} ColorOutputMode;
+
+extern ColorOutputMode configuredColorOutputMode;
+extern bool useBlackThemeBackgrounds;
+
+static inline bool colorValueIsRgb( int colorValue )
+{
+   return ( colorValue & COLOR_VALUE_RGB_FLAG ) != 0;
+}
+
+static inline bool colorValueIsDefault( int colorValue )
+{
+   return colorValue == COLOR_VALUE_DEFAULT;
+}
+
+static inline bool colorValueIsPalette( int colorValue )
+{
+   return !colorValueIsDefault( colorValue ) && !colorValueIsRgb( colorValue );
+}
+
+static inline int colorValueFromRgb( int red, int green, int blue )
+{
+   return COLOR_VALUE_RGB_FLAG |
+          ( ( red & 0xFF ) << 16 ) |
+          ( ( green & 0xFF ) << 8 ) |
+          ( blue & 0xFF );
+}
+
+static inline int colorValueRed( int colorValue )
+{
+   return ( colorValue & COLOR_VALUE_RGB_MASK ) >> 16;
+}
+
+static inline int colorValueGreen( int colorValue )
+{
+   return ( ( colorValue & COLOR_VALUE_RGB_MASK ) >> 8 ) & 0xFF;
+}
+
+static inline int colorValueBlue( int colorValue )
+{
+   return colorValue & 0xFF;
+}
+
+static inline bool textEqualsIgnoreCase( const char *ptrLeft, const char *ptrRight )
+{
+   while ( *ptrLeft != '\0' && *ptrRight != '\0' )
+   {
+      if ( tolower( (unsigned char)*ptrLeft ) != tolower( (unsigned char)*ptrRight ) )
+      {
+         return false;
+      }
+      ptrLeft++;
+      ptrRight++;
+   }
+
+   return *ptrLeft == '\0' && *ptrRight == '\0';
+}
+
+static inline bool textStartsWith( const char *ptrText, const char *ptrPrefix )
+{
+   while ( *ptrPrefix != '\0' )
+   {
+      if ( *ptrText++ != *ptrPrefix++ )
+      {
+         return false;
+      }
+   }
+
+   return true;
+}
+
+static inline bool terminalShouldUseTruecolor( void )
+{
+   const char *ptrColorTerm;
+   const char *ptrTerm;
+   const char *ptrTermProgram;
+
+   switch ( configuredColorOutputMode )
+   {
+      case COLOR_OUTPUT_MODE_TRUECOLOR:
+         return true;
+
+      case COLOR_OUTPUT_MODE_256:
+         return false;
+
+      case COLOR_OUTPUT_MODE_AUTO:
+      default:
+         break;
+   }
+
+   ptrTermProgram = getenv( "TERM_PROGRAM" );
+   if ( ptrTermProgram != NULL )
+   {
+      if ( strcmp( ptrTermProgram, "Apple_Terminal" ) == 0 )
+      {
+         return false;
+      }
+      if ( strcmp( ptrTermProgram, "iTerm.app" ) == 0 ||
+           strcmp( ptrTermProgram, "WezTerm" ) == 0 ||
+           strcmp( ptrTermProgram, "ghostty" ) == 0 ||
+           strcmp( ptrTermProgram, "vscode" ) == 0 )
+      {
+         return true;
+      }
+   }
+
+   ptrColorTerm = getenv( "COLORTERM" );
+   if ( ptrColorTerm != NULL &&
+        ( textEqualsIgnoreCase( ptrColorTerm, "truecolor" ) ||
+          textEqualsIgnoreCase( ptrColorTerm, "24bit" ) ) )
+   {
+      return true;
+   }
+
+   ptrTerm = getenv( "TERM" );
+   if ( ptrTerm != NULL )
+   {
+      size_t termLength;
+
+      termLength = strlen( ptrTerm );
+      if ( termLength >= 7 && strcmp( ptrTerm + termLength - 7, "-direct" ) == 0 )
+      {
+         return true;
+      }
+      if ( textStartsWith( ptrTerm, "wezterm" ) ||
+           textStartsWith( ptrTerm, "xterm-kitty" ) ||
+           textStartsWith( ptrTerm, "ghostty" ) )
+      {
+         return true;
+      }
+   }
+
+   return false;
+}
+
+static inline void xterm256RgbComponents( int colorValue, int *ptrRed,
+                                          int *ptrGreen, int *ptrBlue )
+{
+   static const int aryCubeLevels[6] = { 0, 95, 135, 175, 215, 255 };
+   int cubeIndex;
+
+   if ( colorValue < 0 )
+   {
+      colorValue = 0;
+   }
+   if ( colorValue > 255 )
+   {
+      colorValue = 255;
+   }
+   if ( colorValue < 16 )
+   {
+      static const int aryBaseColors[16][3] =
+         {
+            { 0, 0, 0 },
+            { 128, 0, 0 },
+            { 0, 128, 0 },
+            { 128, 128, 0 },
+            { 0, 0, 128 },
+            { 128, 0, 128 },
+            { 0, 128, 128 },
+            { 192, 192, 192 },
+            { 128, 128, 128 },
+            { 255, 0, 0 },
+            { 0, 255, 0 },
+            { 255, 255, 0 },
+            { 0, 0, 255 },
+            { 255, 0, 255 },
+            { 0, 255, 255 },
+            { 255, 255, 255 } };
+
+      *ptrRed = aryBaseColors[colorValue][0];
+      *ptrGreen = aryBaseColors[colorValue][1];
+      *ptrBlue = aryBaseColors[colorValue][2];
+      return;
+   }
+   if ( colorValue >= 232 )
+   {
+      int grayLevel;
+
+      grayLevel = 8 + ( colorValue - 232 ) * 10;
+      *ptrRed = grayLevel;
+      *ptrGreen = grayLevel;
+      *ptrBlue = grayLevel;
+      return;
+   }
+
+   cubeIndex = colorValue - 16;
+   *ptrRed = aryCubeLevels[cubeIndex / 36];
+   *ptrGreen = aryCubeLevels[( cubeIndex / 6 ) % 6];
+   *ptrBlue = aryCubeLevels[cubeIndex % 6];
+}
+
+static inline bool tryMapCuratedRgbToXterm256( int red, int green, int blue,
+                                               int *ptrPaletteValue )
+{
+   // Preserve separation between Gruvbox Dark's aqua and green accents when
+   // downgrading to 256-color output. The nearest-color search collapses them
+   // both to 108, which makes the theme look monochrome on Apple Terminal.
+   if ( red == 0x83 && green == 0xa5 && blue == 0x98 )
+   {
+      *ptrPaletteValue = 73;
+      return true;
+   }
+   if ( red == 0x8e && green == 0xc0 && blue == 0x7c )
+   {
+      *ptrPaletteValue = 108;
+      return true;
+   }
+
+   return false;
+}
+
+static inline int xterm256ValueFromRgb( int red, int green, int blue )
+{
+   int bestDistanceSquared;
+   int bestValue;
+   int paletteBlue;
+   int paletteGreen;
+   int paletteRed;
+   int paletteValue;
+
+   bestValue = 0;
+   bestDistanceSquared = INT_MAX;
+
+   if ( tryMapCuratedRgbToXterm256( red, green, blue, &bestValue ) )
+   {
+      return bestValue;
+   }
+
+   for ( paletteValue = 0; paletteValue <= 255; paletteValue++ )
+   {
+      int blueDistance;
+      int currentDistanceSquared;
+      int greenDistance;
+      int redDistance;
+
+      xterm256RgbComponents( paletteValue, &paletteRed, &paletteGreen, &paletteBlue );
+      redDistance = paletteRed - red;
+      greenDistance = paletteGreen - green;
+      blueDistance = paletteBlue - blue;
+      currentDistanceSquared = redDistance * redDistance +
+                               greenDistance * greenDistance +
+                               blueDistance * blueDistance;
+      if ( currentDistanceSquared < bestDistanceSquared )
+      {
+         bestDistanceSquared = currentDistanceSquared;
+         bestValue = paletteValue;
+      }
+   }
+
+   return bestValue;
+}
 
 static inline size_t appendAnsiColorSelector( char *ptrBuffer, size_t bufferSize,
                                               size_t writeOffset, int colorValue,
@@ -71,12 +332,35 @@ static inline size_t appendAnsiColorSelector( char *ptrBuffer, size_t bufferSize
    {
       return writeOffset;
    }
-   if ( colorValue == COLOR_VALUE_DEFAULT )
+   if ( colorValueIsDefault( colorValue ) )
    {
       return writeOffset + (size_t)snprintf( ptrBuffer + writeOffset,
                                              bufferSize - writeOffset,
                                              "%d",
                                              isBackground ? 49 : 39 );
+   }
+   if ( colorValueIsRgb( colorValue ) )
+   {
+      if ( terminalShouldUseTruecolor() )
+      {
+         return writeOffset + (size_t)snprintf( ptrBuffer + writeOffset,
+                                                bufferSize - writeOffset,
+                                                "%d;2;%d;%d;%d",
+                                                isBackground ? 48 : 38,
+                                                colorValueRed( colorValue ),
+                                                colorValueGreen( colorValue ),
+                                                colorValueBlue( colorValue ) );
+      }
+      if ( isBackground && useBlackThemeBackgrounds )
+      {
+         colorValue = 0;
+      }
+      else
+      {
+         colorValue = xterm256ValueFromRgb( colorValueRed( colorValue ),
+                                            colorValueGreen( colorValue ),
+                                            colorValueBlue( colorValue ) );
+      }
    }
    if ( colorValue >= 0 && colorValue <= 7 )
    {
@@ -265,8 +549,36 @@ typedef struct
    time_t time;   // Time online
 } friend;         // User list entry
 
-#define COLOR_FIELD_COUNT 24
-#define COLOR_BACKGROUND_INDEX 17
+typedef enum
+{
+   COLOR_FIELD_TEXT = 0,
+   COLOR_FIELD_FORUM,
+   COLOR_FIELD_NUMBER,
+   COLOR_FIELD_ERROR_TEXT,
+   COLOR_FIELD_ANSI_BLACK,
+   COLOR_FIELD_ANSI_BLUE,
+   COLOR_FIELD_ANSI_MAGENTA,
+   COLOR_FIELD_POST_DATE,
+   COLOR_FIELD_POST_NAME,
+   COLOR_FIELD_POST_TEXT,
+   COLOR_FIELD_POST_FRIEND_DATE,
+   COLOR_FIELD_POST_FRIEND_NAME,
+   COLOR_FIELD_POST_FRIEND_TEXT,
+   COLOR_FIELD_ANONYMOUS,
+   COLOR_FIELD_MORE_PROMPT,
+   COLOR_FIELD_ANSI_WHITE,
+   COLOR_FIELD_RESERVED5,
+   COLOR_FIELD_BACKGROUND,
+   COLOR_FIELD_INPUT_TEXT,
+   COLOR_FIELD_INPUT_HIGHLIGHT,
+   COLOR_FIELD_EXPRESS_TEXT,
+   COLOR_FIELD_EXPRESS_NAME,
+   COLOR_FIELD_EXPRESS_FRIEND_TEXT,
+   COLOR_FIELD_EXPRESS_FRIEND_NAME,
+   COLOR_FIELD_COUNT
+} ColorFieldIndex;
+
+#define COLOR_BACKGROUND_INDEX COLOR_FIELD_BACKGROUND
 
 typedef struct
 {

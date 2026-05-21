@@ -22,16 +22,27 @@ static void clearDetectedUrlQueue( void );
 static void endVisibleUrlReportColor( void );
 static bool ensureDetectedUrlQueue( void );
 static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool *ptrHasPendingUrl );
+static char *findTrailingHttpsFragment( char *ptrText );
 static char *findUrlStart( char *ptrText );
 static const char *findUrlStartConst( const char *ptrText );
+static void formatOsc8HyperlinkId( char *aryLinkId, size_t linkIdSize, const char *ptrUrlTarget );
+static bool isQueueableUrl( const char *ptrUrl );
 static bool isUrlBodyChar( int inputChar );
+static bool lineReachedVisualEdge( const char *ptrLine );
+static bool isUrlStartBoundary( const char *ptrText, const char *ptrUrlStart );
 static bool isUrlTerminator( int inputChar );
 static void queueUrlForReport( const char *ptrUrl );
 static void queueUrlIfNew( const char *ptrUrl );
 static bool shouldEmitClickableUrls( void );
+static size_t terminalColumnCount( void );
 static void trimUrlTailPunctuation( char *ptrUrlStart );
 
 static queue *ptrDetectedUrlQueue;
+static bool hasPendingWrappedUrl;
+static char aryPendingWrappedUrl[2048];
+static const size_t DEFAULT_TERMINAL_COLUMNS = 80;
+static const size_t INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 48;
+static const size_t CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 70;
 
 /// @brief Apply the themed color used while printing a visible URL report.
 ///
@@ -58,6 +69,8 @@ void beginUrlDetectionReport( void )
       return;
    }
    clearDetectedUrlQueue();
+   aryPendingWrappedUrl[0] = '\0';
+   hasPendingWrappedUrl = false;
 }
 
 /// @brief Switch output to the body color for URL report entries.
@@ -100,6 +113,7 @@ void emitUrlDetectionReport( void )
 {
    char aryUrl[1024];
 
+   flushPendingUrlDetection();
    if ( !shouldEmitClickableUrls() )
    {
       clearDetectedUrlQueue();
@@ -120,6 +134,19 @@ void emitUrlDetectionReport( void )
       stdPrintf( "\r\n" );
    }
    endVisibleUrlReportColor();
+}
+
+/// @brief Finalize any wrapped URL fragment still waiting on another line.
+///
+/// @return This function does not return a value.
+void flushPendingUrlDetection( void )
+{
+   if ( !hasPendingWrappedUrl )
+   {
+      return;
+   }
+   finalizePendingUrl( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ),
+                       &hasPendingWrappedUrl );
 }
 
 /// @brief Restore normal themed output after a URL report finishes.
@@ -154,7 +181,7 @@ static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool
 {
    (void)pendingUrlSize;
    trimUrlTailPunctuation( aryPendingUrl );
-   if ( *aryPendingUrl )
+   if ( isQueueableUrl( aryPendingUrl ) )
    {
       queueUrlIfNew( aryPendingUrl );
    }
@@ -171,12 +198,10 @@ static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool
 /// @return This function does not return a value.
 void filterUrl( const char *ptrLine )
 {
-   static bool hasPendingUrl = false;
-   static char aryPendingUrl[2048];
-   static const size_t WRAP_GUESS_MIN_LENGTH = 70;
    char aryLineBuffer[1024];
    char *ptrCursor;
    char *ptrNext;
+   char *ptrScanStart;
 
    if ( !urlQueue )
    {
@@ -202,7 +227,8 @@ void filterUrl( const char *ptrLine )
    }
 
    ptrCursor = aryLineBuffer;
-   if ( hasPendingUrl )
+   ptrScanStart = aryLineBuffer;
+   if ( hasPendingWrappedUrl )
    {
       size_t pendingLength;
       size_t appendedCount;
@@ -211,42 +237,51 @@ void filterUrl( const char *ptrLine )
       {
          ptrCursor++;
       }
-      pendingLength = strlen( aryPendingUrl );
+      pendingLength = strlen( aryPendingWrappedUrl );
       appendedCount = 0;
       while ( *ptrCursor != '\0' && isUrlBodyChar( (unsigned char)*ptrCursor ) )
       {
-         if ( pendingLength + 1 < sizeof( aryPendingUrl ) )
+         if ( pendingLength + 1 < sizeof( aryPendingWrappedUrl ) )
          {
-            aryPendingUrl[pendingLength++] = *ptrCursor;
-            aryPendingUrl[pendingLength] = '\0';
+            aryPendingWrappedUrl[pendingLength++] = *ptrCursor;
+            aryPendingWrappedUrl[pendingLength] = '\0';
          }
          appendedCount++;
          ptrCursor++;
       }
       if ( appendedCount > 0 )
       {
+         ptrScanStart = ptrCursor;
          if ( *ptrCursor == '\0' )
          {
-            size_t continuationVisibleLength;
-
-            continuationVisibleLength = strlen( ptrCursor - appendedCount );
-            if ( continuationVisibleLength < WRAP_GUESS_MIN_LENGTH )
+            if ( !lineReachedVisualEdge( aryLineBuffer ) &&
+                 strlen( ptrCursor - appendedCount ) <
+                    CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH )
             {
-               finalizePendingUrl( aryPendingUrl, sizeof( aryPendingUrl ), &hasPendingUrl );
+               finalizePendingUrl( aryPendingWrappedUrl,
+                                   sizeof( aryPendingWrappedUrl ),
+                                   &hasPendingWrappedUrl );
+            }
+            else
+            {
+               return;
             }
          }
          else
          {
-            finalizePendingUrl( aryPendingUrl, sizeof( aryPendingUrl ), &hasPendingUrl );
+            finalizePendingUrl( aryPendingWrappedUrl,
+                                sizeof( aryPendingWrappedUrl ),
+                                &hasPendingWrappedUrl );
          }
       }
       else
       {
-         finalizePendingUrl( aryPendingUrl, sizeof( aryPendingUrl ), &hasPendingUrl );
+         finalizePendingUrl( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ),
+                             &hasPendingWrappedUrl );
       }
    }
 
-   for ( ptrCursor = findUrlStart( aryLineBuffer ); ptrCursor != NULL; ptrCursor = findUrlStart( ptrNext ) )
+   for ( ptrCursor = findUrlStart( ptrScanStart ); ptrCursor != NULL; ptrCursor = findUrlStart( ptrNext ) )
    {
       for ( ptrNext = ptrCursor; *ptrNext; ptrNext++ )
       {
@@ -259,13 +294,13 @@ void filterUrl( const char *ptrLine )
 
       if ( *ptrNext == '\0' )
       {
-         size_t fragmentLength;
-
-         fragmentLength = strlen( ptrCursor );
-         if ( fragmentLength >= WRAP_GUESS_MIN_LENGTH )
+         if ( lineReachedVisualEdge( aryLineBuffer ) ||
+              strlen( ptrCursor ) >= INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH ||
+              !isQueueableUrl( ptrCursor ) )
          {
-            snprintf( aryPendingUrl, sizeof( aryPendingUrl ), "%s", ptrCursor );
-            hasPendingUrl = true;
+            snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
+                      ptrCursor );
+            hasPendingWrappedUrl = true;
          }
          else
          {
@@ -281,6 +316,49 @@ void filterUrl( const char *ptrLine )
 
       ptrNext++;
    }
+
+   ptrCursor = findTrailingHttpsFragment( aryLineBuffer );
+   if ( ptrCursor != NULL )
+   {
+      snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
+                ptrCursor );
+      hasPendingWrappedUrl = true;
+   }
+}
+
+/// @brief Find an incomplete HTTPS scheme prefix at the end of a line.
+///
+/// @param ptrText Text to scan.
+///
+/// @return Pointer to the trailing fragment, or `NULL` if none is present.
+static char *findTrailingHttpsFragment( char *ptrText )
+{
+   static const char *ptrHttpsPrefix = "https://";
+   static const size_t MIN_FRAGMENT_LENGTH = 6;
+   size_t fragmentLength;
+   size_t prefixLength;
+   size_t textLength;
+
+   prefixLength = strlen( ptrHttpsPrefix );
+   textLength = strlen( ptrText );
+
+   for ( fragmentLength = MIN_FRAGMENT_LENGTH; fragmentLength <= prefixLength; fragmentLength++ )
+   {
+      char *ptrCandidate;
+
+      if ( textLength < fragmentLength )
+      {
+         continue;
+      }
+      ptrCandidate = ptrText + textLength - fragmentLength;
+      if ( strncmp( ptrCandidate, ptrHttpsPrefix, fragmentLength ) == 0 &&
+           isUrlStartBoundary( ptrText, ptrCandidate ) )
+      {
+         return ptrCandidate;
+      }
+   }
+
+   return NULL;
 }
 
 /// @brief Find the first URL start sequence in mutable text.
@@ -305,8 +383,7 @@ static char *findUrlStart( char *ptrText )
 
    if ( ptrWww != NULL && ptrEarliest == ptrWww )
    {
-      if ( ptrWww != ptrText && !isspace( (unsigned char)ptrWww[-1] ) && ptrWww[-1] != '(' &&
-           ptrWww[-1] != '<' && ptrWww[-1] != '"' && ptrWww[-1] != '\'' )
+      if ( !isUrlStartBoundary( ptrText, ptrWww ) )
       {
          ptrEarliest = NULL;
       }
@@ -337,14 +414,81 @@ static const char *findUrlStartConst( const char *ptrText )
 
    if ( ptrWww != NULL && ptrEarliest == ptrWww )
    {
-      if ( ptrWww != ptrText && !isspace( (unsigned char)ptrWww[-1] ) && ptrWww[-1] != '(' &&
-           ptrWww[-1] != '<' && ptrWww[-1] != '"' && ptrWww[-1] != '\'' )
+      if ( !isUrlStartBoundary( ptrText, ptrWww ) )
       {
          ptrEarliest = NULL;
       }
    }
 
    return ptrEarliest;
+}
+
+/// @brief Build a stable OSC 8 hyperlink ID for a URL target.
+///
+/// @param aryLinkId Output buffer that receives the generated ID string.
+/// @param linkIdSize Size of the output buffer.
+/// @param ptrUrlTarget URL target that should map to a stable ID.
+///
+/// @return This helper does not return a value.
+static void formatOsc8HyperlinkId( char *aryLinkId, size_t linkIdSize, const char *ptrUrlTarget )
+{
+   unsigned int hashValue;
+
+   hashValue = 2166136261u;
+   while ( ptrUrlTarget != NULL && *ptrUrlTarget != '\0' )
+   {
+      hashValue ^= (unsigned char)*ptrUrlTarget;
+      hashValue *= 16777619u;
+      ptrUrlTarget++;
+   }
+
+   snprintf( aryLinkId, linkIdSize, "url-%08x", hashValue );
+}
+
+/// @brief Check whether detected URL text is complete enough to queue or link.
+///
+/// @param ptrUrl URL text to validate.
+///
+/// @return `true` if the URL has a supported prefix and body, otherwise `false`.
+static bool isQueueableUrl( const char *ptrUrl )
+{
+   static const char *ptrHttpsPrefix = "https://";
+   static const char *ptrWwwPrefix = "www.";
+   const char *ptrBody;
+
+   if ( ptrUrl == NULL )
+   {
+      return false;
+   }
+   if ( strncmp( ptrUrl, ptrHttpsPrefix, strlen( ptrHttpsPrefix ) ) == 0 )
+   {
+      ptrBody = ptrUrl + strlen( ptrHttpsPrefix );
+      return *ptrBody != '\0' && isUrlBodyChar( (unsigned char)*ptrBody );
+   }
+   if ( strncmp( ptrUrl, ptrWwwPrefix, strlen( ptrWwwPrefix ) ) == 0 )
+   {
+      ptrBody = ptrUrl + strlen( ptrWwwPrefix );
+      return *ptrBody != '\0' && isUrlBodyChar( (unsigned char)*ptrBody );
+   }
+
+   return false;
+}
+
+/// @brief Check whether a rendered line likely stopped at the terminal edge.
+///
+/// @param ptrLine Trimmed rendered line text.
+///
+/// @return `true` when the line length reaches the terminal width.
+static bool lineReachedVisualEdge( const char *ptrLine )
+{
+   size_t columnCount;
+
+   if ( ptrLine == NULL )
+   {
+      return false;
+   }
+   columnCount = terminalColumnCount();
+   return strlen( ptrLine ) >= columnCount;
 }
 
 /// @brief Check whether a character is valid inside a detected URL body.
@@ -356,11 +500,31 @@ static bool isUrlBodyChar( int inputChar )
 {
    static const char *ptrAllowedPunctuation = "-._~:/?#[]@!$&'()*+,;=%";
 
+   if ( inputChar == 0 )
+   {
+      return false;
+   }
    if ( isalnum( inputChar ) )
    {
       return true;
    }
    return findChar( ptrAllowedPunctuation, inputChar ) != NULL;
+}
+
+/// @brief Check whether URL text begins at a valid visible boundary.
+///
+/// @param ptrText Start of the line being scanned.
+/// @param ptrUrlStart Candidate URL start inside `ptrText`.
+///
+/// @return `true` if a URL may begin at the candidate position, otherwise `false`.
+static bool isUrlStartBoundary( const char *ptrText, const char *ptrUrlStart )
+{
+   if ( ptrUrlStart == ptrText )
+   {
+      return true;
+   }
+   return isspace( (unsigned char)ptrUrlStart[-1] ) || ptrUrlStart[-1] == '(' ||
+          ptrUrlStart[-1] == '<' || ptrUrlStart[-1] == '"' || ptrUrlStart[-1] == '\'';
 }
 
 /// @brief Check whether a character terminates a detected URL.
@@ -370,7 +534,7 @@ static bool isUrlBodyChar( int inputChar )
 /// @return `true` if the character ends the URL, otherwise `false`.
 static bool isUrlTerminator( int inputChar )
 {
-   if ( inputChar == 0 || isspace( inputChar ) )
+   if ( inputChar == 0 || isspace( (unsigned char)inputChar ) )
    {
       return true;
    }
@@ -403,6 +567,7 @@ void printWithOsc8Links( const char *ptrText )
       const char *ptrTrimEnd;
       const char *ptrUrlEnd;
       const char *ptrUrlStart;
+      char aryHyperlinkId[32];
       char aryUrlTarget[1152];
       char aryUrlText[1024];
       size_t urlLength;
@@ -462,6 +627,13 @@ void printWithOsc8Links( const char *ptrText )
       memcpy( aryUrlText, ptrUrlStart, urlLength );
       aryUrlText[urlLength] = '\0';
 
+      if ( !isQueueableUrl( aryUrlText ) )
+      {
+         stdPrintf( "%.*s", (int)( ptrUrlEnd - ptrUrlStart ), ptrUrlStart );
+         ptrCursor = ptrUrlEnd;
+         continue;
+      }
+
       if ( strncmp( aryUrlText, "www.", 4 ) == 0 )
       {
          snprintf( aryUrlTarget, sizeof( aryUrlTarget ), "https://%s", aryUrlText );
@@ -471,7 +643,8 @@ void printWithOsc8Links( const char *ptrText )
          snprintf( aryUrlTarget, sizeof( aryUrlTarget ), "%s", aryUrlText );
       }
 
-      stdPrintf( "\033]8;;%s\033\\", aryUrlTarget );
+      formatOsc8HyperlinkId( aryHyperlinkId, sizeof( aryHyperlinkId ), aryUrlTarget );
+      stdPrintf( "\033]8;id=%s;%s\033\\", aryHyperlinkId, aryUrlTarget );
       stdPrintf( "%s", aryUrlText );
       stdPrintf( "\033]8;;\033\\" );
 
@@ -521,6 +694,10 @@ static void queueUrlIfNew( const char *ptrUrl )
    {
       return;
    }
+   if ( !isQueueableUrl( ptrUrl ) )
+   {
+      return;
+   }
    queueUrlForReport( ptrUrl );
    if ( isQueued( ptrUrl, urlQueue ) )
    {
@@ -543,6 +720,26 @@ static bool shouldEmitClickableUrls( void )
    }
 
    return flagsConfiguration.shouldEnableClickableUrls;
+}
+
+/// @brief Read the current terminal width used for wrapped URL reconstruction.
+///
+/// @return Current terminal width, or an 80-column fallback when unavailable.
+static size_t terminalColumnCount( void )
+{
+#ifdef TIOCGWINSZ
+   struct winsize terminalSize;
+
+   if ( ioctl( 0, TIOCGWINSZ, (char *)&terminalSize ) == 0 &&
+        terminalSize.ws_col > 0 )
+   {
+      return terminalSize.ws_col < DEFAULT_TERMINAL_COLUMNS
+                ? DEFAULT_TERMINAL_COLUMNS
+                : terminalSize.ws_col;
+   }
+#endif
+
+   return DEFAULT_TERMINAL_COLUMNS;
 }
 
 /// @brief Trim trailing punctuation that should not remain part of a URL.

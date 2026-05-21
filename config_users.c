@@ -323,7 +323,7 @@ static void printThemedFriendListEntry( const friend *ptrFriend )
 {
    if ( flagsConfiguration.shouldUseAnsi )
    {
-      char aryAnsiSequence[32];
+      char aryAnsiSequence[ANSI_SEQUENCE_BUFFER_SIZE];
 
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.postFriendName );

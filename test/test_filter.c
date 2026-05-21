@@ -810,6 +810,54 @@ static void filterUrl_WhenHttpsWrapsAcrossLinesWithShortFirstFragment_CombinesIn
    resetLists();
 }
 
+static void filterUrl_WhenHttpsStartsLateOnFullWidthLine_CombinesIntoSingleUrl( void **state )
+{
+   // Arrange
+   char aryFirstLine[128];
+   char aryUrl[1024];
+   const char *ptrFirstFragment;
+   int popResult;
+   size_t prefixLength;
+
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for late-start wrapped URL test setup" );
+   }
+
+   ptrFirstFragment = "https://example.dev/abc";
+   prefixLength = 80 - strlen( ptrFirstFragment );
+   memset( aryFirstLine, 'x', prefixLength - 1 );
+   aryFirstLine[prefixLength - 1] = ' ';
+   snprintf( aryFirstLine + prefixLength, sizeof( aryFirstLine ) - prefixLength,
+             "%s", ptrFirstFragment );
+
+   // Act
+   filterUrl( aryFirstLine );
+   filterUrl( "defghijklmnopqrstuvwxyz" );
+   filterUrl( "This is the rest of the sentence." );
+
+   // Assert
+   memset( aryUrl, 0, sizeof( aryUrl ) );
+   popResult = popQueue( aryUrl, urlQueue );
+   if ( popResult != 1 )
+   {
+      fail_msg( "late-start wrapped HTTPS URL should be queued once; pop returned %d",
+                popResult );
+   }
+   if ( strcmp( aryUrl, "https://example.dev/abcdefghijklmnopqrstuvwxyz" ) != 0 )
+   {
+      fail_msg( "late-start wrapped URL should be reconstructed into one URL; got '%s'",
+                aryUrl );
+   }
+
+   resetLists();
+}
+
 static void filterUrl_WhenIncompleteHttpsSchemeDoesNotContinue_QueuesNoUrl( void **state )
 {
    // Arrange
@@ -1504,6 +1552,7 @@ int main( void )
       cmocka_unit_test( filterUrl_WhenHttpsSchemeWrapsBeforeSlashes_CombinesIntoSingleUrl ),
       cmocka_unit_test( filterUrl_WhenHttpsWrapsAcrossLines_CombinesIntoSingleUrl ),
       cmocka_unit_test( filterUrl_WhenHttpsWrapsAcrossLinesWithShortFirstFragment_CombinesIntoSingleUrl ),
+      cmocka_unit_test( filterUrl_WhenHttpsStartsLateOnFullWidthLine_CombinesIntoSingleUrl ),
       cmocka_unit_test( filterUrl_WhenIncompleteHttpsSchemeDoesNotContinue_QueuesNoUrl ),
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsHttpsUrl_EmitsHyperlinkEscapes ),
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsWwwUrl_UsesHttpsTarget ),

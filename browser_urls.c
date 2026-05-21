@@ -28,16 +28,19 @@ static const char *findUrlStartConst( const char *ptrText );
 static void formatOsc8HyperlinkId( char *aryLinkId, size_t linkIdSize, const char *ptrUrlTarget );
 static bool isQueueableUrl( const char *ptrUrl );
 static bool isUrlBodyChar( int inputChar );
+static bool lineReachedVisualEdge( const char *ptrLine );
 static bool isUrlStartBoundary( const char *ptrText, const char *ptrUrlStart );
 static bool isUrlTerminator( int inputChar );
 static void queueUrlForReport( const char *ptrUrl );
 static void queueUrlIfNew( const char *ptrUrl );
 static bool shouldEmitClickableUrls( void );
+static size_t terminalColumnCount( void );
 static void trimUrlTailPunctuation( char *ptrUrlStart );
 
 static queue *ptrDetectedUrlQueue;
 static bool hasPendingWrappedUrl;
 static char aryPendingWrappedUrl[2048];
+static const size_t DEFAULT_TERMINAL_COLUMNS = 80;
 static const size_t INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 48;
 static const size_t CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 70;
 
@@ -251,10 +254,9 @@ void filterUrl( const char *ptrLine )
          ptrScanStart = ptrCursor;
          if ( *ptrCursor == '\0' )
          {
-            size_t continuationVisibleLength;
-
-            continuationVisibleLength = strlen( ptrCursor - appendedCount );
-            if ( continuationVisibleLength < CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH )
+            if ( !lineReachedVisualEdge( aryLineBuffer ) &&
+                 strlen( ptrCursor - appendedCount ) <
+                    CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH )
             {
                finalizePendingUrl( aryPendingWrappedUrl,
                                    sizeof( aryPendingWrappedUrl ),
@@ -292,10 +294,8 @@ void filterUrl( const char *ptrLine )
 
       if ( *ptrNext == '\0' )
       {
-         size_t fragmentLength;
-
-         fragmentLength = strlen( ptrCursor );
-         if ( fragmentLength >= INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH ||
+         if ( lineReachedVisualEdge( aryLineBuffer ) ||
+              strlen( ptrCursor ) >= INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH ||
               !isQueueableUrl( ptrCursor ) )
          {
             snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
@@ -472,6 +472,23 @@ static bool isQueueableUrl( const char *ptrUrl )
    }
 
    return false;
+}
+
+/// @brief Check whether a rendered line likely stopped at the terminal edge.
+///
+/// @param ptrLine Trimmed rendered line text.
+///
+/// @return `true` when the line length reaches the terminal width.
+static bool lineReachedVisualEdge( const char *ptrLine )
+{
+   size_t columnCount;
+
+   if ( ptrLine == NULL )
+   {
+      return false;
+   }
+   columnCount = terminalColumnCount();
+   return strlen( ptrLine ) >= columnCount;
 }
 
 /// @brief Check whether a character is valid inside a detected URL body.
@@ -703,6 +720,26 @@ static bool shouldEmitClickableUrls( void )
    }
 
    return flagsConfiguration.shouldEnableClickableUrls;
+}
+
+/// @brief Read the current terminal width used for wrapped URL reconstruction.
+///
+/// @return Current terminal width, or an 80-column fallback when unavailable.
+static size_t terminalColumnCount( void )
+{
+#ifdef TIOCGWINSZ
+   struct winsize terminalSize;
+
+   if ( ioctl( 0, TIOCGWINSZ, (char *)&terminalSize ) == 0 &&
+        terminalSize.ws_col > 0 )
+   {
+      return terminalSize.ws_col < DEFAULT_TERMINAL_COLUMNS
+                ? DEFAULT_TERMINAL_COLUMNS
+                : terminalSize.ws_col;
+   }
+#endif
+
+   return DEFAULT_TERMINAL_COLUMNS;
 }
 
 /// @brief Trim trailing punctuation that should not remain part of a URL.

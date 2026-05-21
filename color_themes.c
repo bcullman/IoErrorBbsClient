@@ -13,6 +13,7 @@ static void applyBrilliantColorsToActiveColor( void );
 static void applyCatppuccinLatteColorsToActiveColor( void );
 static void applyCatppuccinMacchiatoColorsToActiveColor( void );
 static void applyColorblindColorsToActiveColor( void );
+static void applyDefaultColorsTo256ColorTable( int clearall );
 static void applyDefaultColorsToActiveColor( int clearall );
 static void applyDraculaProColorsToActiveColor( void );
 static void applyEverforestDarkColorsToActiveColor( void );
@@ -65,7 +66,7 @@ void defaultColors( int clearall )
 {
    color = color256;
    useBlackThemeBackgrounds = useBlackThemeBackgrounds256;
-   applyDefaultColorsToActiveColor( clearall );
+   applyDefaultColorsTo256ColorTable( clearall );
    copyColorTable( &color256, &color );
    useBlackThemeBackgrounds256 = useBlackThemeBackgrounds;
 
@@ -313,6 +314,43 @@ static void applyDefaultColorsToActiveColor( int clearall )
    ifzero( color.expressName ) color.expressName = RGB( 0x00, 0x80, 0x00 );
    ifzero( color.expressFriendName ) color.expressFriendName = RGB( 0x00, 0x80, 0x00 );
    ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x00, 0x80, 0x00 );
+}
+
+/// @brief Fill missing live-palette fields with palette-safe default 256 colors.
+///
+/// @param clearall When non-zero, reinitialize every color field.
+///
+/// @return This helper does not return a value.
+static void applyDefaultColorsTo256ColorTable( int clearall )
+{
+   useBlackThemeBackgrounds = false;
+   ifzero( color.text ) color.text = 2;
+   ifzero( color.forum ) color.forum = 3;
+   ifzero( color.number ) color.number = 6;
+   ifzero( color.errorTextColor ) color.errorTextColor = 1;
+   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = 2;
+   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = 4;
+   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = 5;
+   ifzero( color.postDate ) color.postDate = 5;
+   ifzero( color.postName ) color.postName = 6;
+   ifzero( color.postText ) color.postText = 2;
+   ifzero( color.postFriendDate ) color.postFriendDate = 5;
+   ifzero( color.postFriendName ) color.postFriendName = 1;
+   ifzero( color.postFriendText ) color.postFriendText = 2;
+   ifzero( color.anonymous ) color.anonymous = 3;
+   ifzero( color.morePrompt ) color.morePrompt = 3;
+   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = 7;
+   color.reserved5 = 7;
+   if ( clearall )
+   {
+      color.background = 0;
+   }
+   ifzero( color.inputText ) color.inputText = 2;
+   ifzero( color.inputHighlight ) color.inputHighlight = 6;
+   ifzero( color.expressText ) color.expressText = 2;
+   ifzero( color.expressName ) color.expressName = 2;
+   ifzero( color.expressFriendName ) color.expressFriendName = 2;
+   ifzero( color.expressFriendText ) color.expressFriendText = 2;
 }
 
 /// @brief Fill the live palette with the Dracula colors.

@@ -401,6 +401,24 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
                 color.ansiBlackTextColor, color.ansiBlueTextColor,
                 color.ansiMagentaTextColor, color.ansiWhiteTextColor );
    }
+   if ( color256.text != 2 ||
+        color256.forum != 3 ||
+        color256.number != 6 ||
+        color256.errorTextColor != 1 ||
+        color256.ansiBlueTextColor != 4 ||
+        color256.ansiWhiteTextColor != 7 )
+   {
+      fail_msg( "defaultColors(1) should keep colors_256 palette-safe; got text=%d forum=%d number=%d error=%d blue=%d white=%d",
+                color256.text, color256.forum, color256.number,
+                color256.errorTextColor, color256.ansiBlueTextColor,
+                color256.ansiWhiteTextColor );
+   }
+   if ( colorValueIsRgb( color256.text ) || colorValueIsRgb( color256.postName ) ||
+        colorValueIsRgb( color256.inputHighlight ) )
+   {
+      fail_msg( "defaultColors(1) should not leave RGB values in colors_256; got text=%d postName=%d inputHighlight=%d",
+                color256.text, color256.postName, color256.inputHighlight );
+   }
 }
 
 static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately( void **state )

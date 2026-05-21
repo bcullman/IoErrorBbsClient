@@ -406,7 +406,7 @@ static void presetColorConfig( void )
       printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
       printThemedMnemonicText( " Q.) Quit\r\n", color.number );
-      printThemedMnemonicText( "Select preset (A-L or Q) -> ", color.forum );
+      printThemedMnemonicText( "Select preset (A-L, Q-Quit) -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
 
       switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )

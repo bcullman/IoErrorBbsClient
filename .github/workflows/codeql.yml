@@ -1,0 +1,51 @@
+name: CodeQL
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+  schedule:
+    - cron: '22 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (c-cpp)
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - c-cpp
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: manual
+
+      - name: Generate configure script
+        run: autoreconf -i
+
+      - name: Configure
+        run: ./configure
+
+      - name: Build
+        run: make -j4
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

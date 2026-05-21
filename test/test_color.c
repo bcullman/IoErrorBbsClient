@@ -1776,7 +1776,10 @@ static void restoreActiveColorEditorState_WhenSnapshotRestored_RebuildsConfigure
 
 static void colorConfig_WhenAutoModeUsesTruecolor_EditorSavesIntoTruecolorTable( void **state )
 {
-   const int aryKeys[] = { 'g', 't', 'w', '\n', 'q' };
+   const int aryKeys[] = { 'c', 'w', '\n', 'q' };
+   const char *ptrColorMenu;
+   const char *ptrColorizedField;
+   const char *ptrFieldList;
 
    // Arrange
    (void)state;
@@ -1804,11 +1807,44 @@ static void colorConfig_WhenAutoModeUsesTruecolor_EditorSavesIntoTruecolorTable(
       fail_msg( "truecolor auto mode should leave colors_256 untouched; got %d",
                 color256.text );
    }
+   ptrColorMenu = findSubstring( aryOutput,
+                                 "<T>hemes  <C>ustomize  <O>ptions  <Q>uit" );
+   if ( ptrColorMenu == NULL )
+   {
+      fail_msg( "color menu should present the collapsed top-level options; output was '%s'",
+                aryOutput );
+   }
+   if ( findSubstring( aryOutput,
+                       "<T>hemes  <G>eneral  <I>nput  <P>osts  <O>ptions  e<X>press  <Q>uit" ) != NULL )
+   {
+      fail_msg( "color menu should no longer show the old category-based top-level options; output was '%s'",
+                aryOutput );
+   }
+   ptrFieldList = findSubstring( aryOutput, "> General text" );
+   if ( ptrFieldList == NULL )
+   {
+      fail_msg( "color editor should show the whole field list in one screen; output was '%s'",
+                aryOutput );
+   }
+   if ( findSubstring( ptrFieldList, "  Forum prompt" ) == NULL ||
+        findSubstring( ptrFieldList, "  Number" ) == NULL ||
+        findSubstring( ptrFieldList, "  Error" ) == NULL ||
+        findSubstring( ptrFieldList, "  Background" ) == NULL )
+   {
+      fail_msg( "color editor should keep nearby fields visible in the unified list; output was '%s'",
+                aryOutput );
+   }
+   ptrColorizedField = findSubstring( aryOutput, "<FG:16843267>> General text" );
+   if ( ptrColorizedField == NULL )
+   {
+      fail_msg( "color editor field rows should render in the field's configured color; output was '%s'",
+                aryOutput );
+   }
 }
 
 static void colorConfig_WhenEditorCancelled_RestoresSnapshotExactly( void **state )
 {
-   const int aryKeys[] = { 'g', 't', 'w', 'q', 'q' };
+   const int aryKeys[] = { 'c', 'w', 'q', 'q' };
 
    // Arrange
    (void)state;
@@ -1834,7 +1870,7 @@ static void colorConfig_WhenEditorCancelled_RestoresSnapshotExactly( void **stat
 
 static void colorConfig_WhenEditingBackground_DisablesBlackThemeBackgroundFallback( void **state )
 {
-   const int aryKeys[] = { 'g', 'b', 'w', '\n', 'q' };
+   const int aryKeys[] = { 'c', 'n', 'n', 'n', 'n', 'w', '\n', 'q' };
 
    // Arrange
    (void)state;
@@ -1859,7 +1895,7 @@ static void colorConfig_WhenEditingBackground_DisablesBlackThemeBackgroundFallba
 
 static void colorConfig_WhenEditingInputIn256Mode_SavesInto256ColorTable( void **state )
 {
-   const int aryKeys[] = { 'i', 'c', 'w', '\n', 'q' };
+   const int aryKeys[] = { 'c', 'n', 'n', 'n', 'n', 'n', 'n', 'w', '\n', 'q' };
 
    // Arrange
    (void)state;
@@ -1890,7 +1926,7 @@ static void colorConfig_WhenEditingInputIn256Mode_SavesInto256ColorTable( void *
 
 static void colorConfig_WhenResetFieldChosen_RestoresOnlyThatFieldFromSnapshot( void **state )
 {
-   const int aryKeys[] = { 'g', 't', 'w', 'r', '\n', 'q' };
+   const int aryKeys[] = { 'c', 'w', 'r', '\n', 'q' };
 
    // Arrange
    (void)state;

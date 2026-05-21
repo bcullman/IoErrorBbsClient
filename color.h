@@ -38,22 +38,15 @@ void draculaProColors( void );
 void everforestDarkColors( void );
 void everforestLightColors( void );
 void expressColorConfig( void );
-char expressColorMenu( void );
-void expressFriendColorConfig( void );
-void expressUserColorConfig( void );
 int formatTransformedAnsiForegroundSequence( char *ptrBuffer, size_t bufferSize,
                                              int inputChar, int isPostContext,
                                              int isFriend );
 void generalColorConfig( void );
-char generalColorMenu( void );
 void gruvboxDarkColors( void );
 void gruvboxLightColors( void );
 void hotDogColors( void );
 void inputColorConfig( void );
 void postColorConfig( void );
-char postColorMenu( void );
-void postFriendColorConfig( void );
-void postUserColorConfig( void );
 void printAnsiBackgroundColorValue( int colorValue );
 void printAnsiDisplayStateValue( int foregroundColor, int backgroundColor );
 void printAnsiForegroundColorValue( int colorValue );
@@ -74,6 +67,5 @@ bool tryFindColorOutputMode( const char *ptrModeName,
                              ColorOutputMode *ptrOutMode );
 bool tryFindColorFieldIndexByTomlKeyName( const char *ptrKeyName,
                                           int *ptrOutColorIndex );
-char userOrFriend( void );
 
 #endif // COLOR_H_INCLUDED

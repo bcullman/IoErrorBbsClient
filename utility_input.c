@@ -138,9 +138,11 @@ static int printYesNoResult( int inputChar )
    return 0;
 }
 
-/// @brief Map one arrow-key suffix byte to a normalized editor action.
+/// @brief Map one editor escape-sequence suffix byte to a normalized action.
 ///
-/// @param inputChar Final byte from a CSI or SS3 arrow-key sequence.
+/// Supports arrow keys plus common application-keypad operator keys.
+///
+/// @param inputChar Final byte from a CSI or SS3 editor-input sequence.
 ///
 /// @return Matching color-editor action, or cancel when not recognized.
 static ColorEditorAction colorEditorActionFromArrowKey( int inputChar )
@@ -148,16 +150,25 @@ static ColorEditorAction colorEditorActionFromArrowKey( int inputChar )
    switch ( inputChar )
    {
       case 'A':
-         return COLOR_EDITOR_ACTION_INCREASE_SMALL;
+         return COLOR_EDITOR_ACTION_PREVIOUS_FIELD;
 
       case 'B':
-         return COLOR_EDITOR_ACTION_DECREASE_SMALL;
+         return COLOR_EDITOR_ACTION_NEXT_FIELD;
 
       case 'C':
          return COLOR_EDITOR_ACTION_MOVE_RIGHT;
 
       case 'D':
          return COLOR_EDITOR_ACTION_MOVE_LEFT;
+
+      case 'M':
+         return COLOR_EDITOR_ACTION_SAVE;
+
+      case 'k':
+         return COLOR_EDITOR_ACTION_INCREASE_FAST;
+
+      case 'm':
+         return COLOR_EDITOR_ACTION_DECREASE_FAST;
 
       default:
          return COLOR_EDITOR_ACTION_CANCEL;
@@ -223,6 +234,9 @@ ColorEditorAction readColorEditorAction( void )
          case 'a':
             return COLOR_EDITOR_ACTION_MOVE_LEFT;
 
+         case 'c':
+            return COLOR_EDITOR_ACTION_CANCEL;
+
          case 'd':
             return COLOR_EDITOR_ACTION_MOVE_RIGHT;
 
@@ -244,9 +258,11 @@ ColorEditorAction readColorEditorAction( void )
          case 'w':
             return COLOR_EDITOR_ACTION_INCREASE_SMALL;
 
+         case '=':
          case '+':
             return COLOR_EDITOR_ACTION_INCREASE_FAST;
 
+         case '_':
          case '-':
             return COLOR_EDITOR_ACTION_DECREASE_FAST;
 

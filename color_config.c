@@ -8,17 +8,14 @@
 #include "color.h"
 #include "defs.h"
 #include "utility.h"
-static const char *COLOR_MAIN_MENU_KEYS = "tgipoxq \n";
-static const char *COLOR_GENERAL_MENU_KEYS = "befntq \n";
-static const char *COLOR_INPUT_MENU_KEYS = "ctq \n";
-static const char *COLOR_POST_MENU_KEYS = "dntq \n";
-static const char *COLOR_EXPRESS_MENU_KEYS = "ntq \n";
+static const char *COLOR_MAIN_MENU_KEYS = "tcoq \n";
 static const char *COLOR_OUTPUT_MODE_KEYS = "at2 \n";
 static const char *COLOR_RESET_MENU_KEYS = "abcdefghijklq \n";
-static const char *COLOR_USER_OR_FRIEND_KEYS = "ufq \n";
 #define RGB_CONST( red, green, blue ) \
    ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
 #define COLOR_EDITOR_FAST_STEP 16
+#define COLOR_EDITOR_FIELD_LABEL_WIDTH 20
+#define COLOR_EDITOR_VISIBLE_FIELD_COUNT 11
 #define PRESET_COLUMN_GAP " "
 #define PRESET_LABEL_WIDTH 22
 #define PRESET_SWATCH_COUNT 4
@@ -44,12 +41,11 @@ typedef struct
 
 typedef enum
 {
-   COLOR_EDITOR_PREVIEW_EXPRESS_FRIEND = 0,
-   COLOR_EDITOR_PREVIEW_EXPRESS_USER,
+   COLOR_EDITOR_PREVIEW_EXPRESS = 0,
+   COLOR_EDITOR_PREVIEW_FULL,
    COLOR_EDITOR_PREVIEW_GENERAL,
    COLOR_EDITOR_PREVIEW_INPUT,
-   COLOR_EDITOR_PREVIEW_POST_FRIEND,
-   COLOR_EDITOR_PREVIEW_POST_USER
+   COLOR_EDITOR_PREVIEW_POST
 } ColorEditorPreviewKind;
 
 typedef struct
@@ -82,40 +78,54 @@ static const PaletteNameOption aryPaletteNameOptions[] =
       { 15, "Bright white" },
       { COLOR_VALUE_DEFAULT, "Default" } };
 
-static const ColorEditorFieldSpec aryExpressColorFields[] =
+static const ColorEditorFieldSpec aryExpressAllColorFields[] =
    {
-      { COLOR_FIELD_EXPRESS_NAME, "Name" },
-      { COLOR_FIELD_EXPRESS_TEXT, "Text" } };
-
-static const ColorEditorFieldSpec aryExpressFriendColorFields[] =
-   {
-      { COLOR_FIELD_EXPRESS_FRIEND_NAME, "Name" },
-      { COLOR_FIELD_EXPRESS_FRIEND_TEXT, "Text" } };
+      { COLOR_FIELD_EXPRESS_NAME, "User name" },
+      { COLOR_FIELD_EXPRESS_TEXT, "User text" },
+      { COLOR_FIELD_EXPRESS_FRIEND_NAME, "Friend name" },
+      { COLOR_FIELD_EXPRESS_FRIEND_TEXT, "Friend text" } };
 
 static const ColorEditorFieldSpec aryGeneralColorFields[] =
    {
-      { COLOR_FIELD_BACKGROUND, "Background" },
-      { COLOR_FIELD_ERROR_TEXT, "Error" },
+      { COLOR_FIELD_TEXT, "Text" },
       { COLOR_FIELD_FORUM, "Forum" },
       { COLOR_FIELD_NUMBER, "Number" },
-      { COLOR_FIELD_TEXT, "Text" } };
+      { COLOR_FIELD_ERROR_TEXT, "Error" },
+      { COLOR_FIELD_BACKGROUND, "Background" } };
 
 static const ColorEditorFieldSpec aryInputColorFields[] =
    {
       { COLOR_FIELD_INPUT_TEXT, "Text" },
       { COLOR_FIELD_INPUT_HIGHLIGHT, "Completion" } };
 
-static const ColorEditorFieldSpec aryPostColorFields[] =
+static const ColorEditorFieldSpec aryPostAllColorFields[] =
    {
-      { COLOR_FIELD_POST_DATE, "Date" },
-      { COLOR_FIELD_POST_NAME, "Name" },
-      { COLOR_FIELD_POST_TEXT, "Text" } };
+      { COLOR_FIELD_POST_DATE, "User date" },
+      { COLOR_FIELD_POST_NAME, "User name" },
+      { COLOR_FIELD_POST_TEXT, "User text" },
+      { COLOR_FIELD_POST_FRIEND_DATE, "Friend date" },
+      { COLOR_FIELD_POST_FRIEND_NAME, "Friend name" },
+      { COLOR_FIELD_POST_FRIEND_TEXT, "Friend text" } };
 
-static const ColorEditorFieldSpec aryPostFriendColorFields[] =
+static const ColorEditorFieldSpec aryFullColorFields[] =
    {
-      { COLOR_FIELD_POST_FRIEND_DATE, "Date" },
-      { COLOR_FIELD_POST_FRIEND_NAME, "Name" },
-      { COLOR_FIELD_POST_FRIEND_TEXT, "Text" } };
+      { COLOR_FIELD_TEXT, "General text" },
+      { COLOR_FIELD_FORUM, "Forum prompt" },
+      { COLOR_FIELD_NUMBER, "Number" },
+      { COLOR_FIELD_ERROR_TEXT, "Error" },
+      { COLOR_FIELD_BACKGROUND, "Background" },
+      { COLOR_FIELD_INPUT_TEXT, "Input text" },
+      { COLOR_FIELD_INPUT_HIGHLIGHT, "Input completion" },
+      { COLOR_FIELD_POST_DATE, "Post date" },
+      { COLOR_FIELD_POST_NAME, "Post name" },
+      { COLOR_FIELD_POST_TEXT, "Post text" },
+      { COLOR_FIELD_POST_FRIEND_DATE, "Friend post date" },
+      { COLOR_FIELD_POST_FRIEND_NAME, "Friend post name" },
+      { COLOR_FIELD_POST_FRIEND_TEXT, "Friend post text" },
+      { COLOR_FIELD_EXPRESS_NAME, "Express name" },
+      { COLOR_FIELD_EXPRESS_TEXT, "Express text" },
+      { COLOR_FIELD_EXPRESS_FRIEND_NAME, "Friend X name" },
+      { COLOR_FIELD_EXPRESS_FRIEND_TEXT, "Friend X text" } };
 
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
@@ -179,9 +189,13 @@ static const char *colorEditorPaletteName( int colorValue );
 static int colorEditorResolvedRgbValue( int colorValue, int colorIndex );
 static void printColorEditor( const ColorEditorContext *ptrContext );
 static void printColorEditorControls( void );
-static void printColorEditorCurrentValue( const ColorEditorContext *ptrContext );
+static void printColorEditorFieldList( const ColorEditorContext *ptrContext );
+static void printColorEditorFieldDisplayState( int colorIndex, int colorValue );
+static void printColorEditorFieldValueSummary( const ColorEditorContext *ptrContext,
+                                               size_t fieldIndex );
 static void printColorEditorPreview( const ColorEditorContext *ptrContext );
-static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind );
+static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind,
+                                           const ColorEditorContext *ptrContext );
 static void printColorEditorRgbValue( int colorValue, size_t componentIndex,
                                       int colorIndex );
 static ColorOutputMode pickColorOutputMode( void );
@@ -193,7 +207,8 @@ static void printPresetPreviewPane( void );
 static void printExpressColorPreview( int textColor, int nameColor,
                                       const char *ptrName );
 static void printGeneralColorPreview( void );
-static void printInputColorPreview( void );
+static void printInputColorPreview( const ColorEditorContext *ptrContext );
+static void printFullColorPreview( void );
 static void printPresetMenuItem( const PresetMenuOption *ptrOption );
 static void printPresetMenuRow( const PresetMenuOption *ptrLeftOption,
                                 const PresetMenuOption *ptrRightOption );
@@ -219,35 +234,25 @@ void colorConfig( void )
    {
       printAnsiDisplayStateValue( color.text, color.background );
 
-      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<T>hemes  <G>eneral  <I>nput  <P>osts  <O>ptions  e<X>press  <Q>uit" );
+      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<T>hemes  <C>ustomize  <O>ptions  <Q>uit" );
       printThemedMnemonicText( aryPromptText, color.number );
       printThemedMnemonicText( "\r\nColor config -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
 
       switch ( readValidatedMenuKey( COLOR_MAIN_MENU_KEYS ) )
       {
-         case 'g':
-            stdPrintf( "General\r\n\n" );
-            generalColorConfig();
-            break;
-         case 'i':
-            stdPrintf( "Input\r\n\n" );
-            inputColorConfig();
+         case 'c':
+            stdPrintf( "Customize\r\n\n" );
+            runColorEditor( aryFullColorFields,
+                            sizeof( aryFullColorFields ) / sizeof( aryFullColorFields[0] ),
+                            0, "Customize", COLOR_EDITOR_PREVIEW_FULL );
             break;
          case 'o':
             stdPrintf( "Options\r\n\n" );
             colorOptions();
             break;
-         case 'p':
-            stdPrintf( "Post colors\r\n\n" );
-            postColorConfig();
-            break;
          case 't':
             presetColorConfig();
-            break;
-         case 'x':
-            stdPrintf( "Express colors\r\n\n" );
-            expressColorConfig();
             break;
          case 'q':
          case ' ':
@@ -307,79 +312,14 @@ static ColorOutputMode pickColorOutputMode( void )
    }
 }
 
-/// @brief Run the express color configuration flow.
+/// @brief Run the express color configuration editor.
 ///
 /// @return This function does not return a value.
 void expressColorConfig( void )
 {
-   while ( true )
-   {
-      switch ( userOrFriend() )
-      {
-         case 'u':
-            expressUserColorConfig();
-            break;
-         case 'f':
-            expressFriendColorConfig();
-            break;
-         default:
-            return;
-      }
-   }
-}
-
-/// @brief Prompt for an express color menu action.
-///
-/// @return Selected express color menu key.
-char expressColorMenu( void )
-{
-   int inputChar;
-   char aryPromptText[100];
-
-   snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<N>ame  <T>ext  <Q>uit -> " );
-   printThemedMnemonicText( aryPromptText, color.number );
-   printAnsiForegroundColorValue( color.text );
-
-   inputChar = readValidatedMenuKey( COLOR_EXPRESS_MENU_KEYS );
-
-   switch ( inputChar )
-   {
-      case 'n':
-         stdPrintf( "Name\r\n\n" );
-         break;
-      case 't':
-         stdPrintf( "Text\r\n\n" );
-         break;
-      case 'q':
-      case ' ':
-      case '\n':
-         stdPrintf( "Quit\r\n\n" );
-         break;
-      default:
-         break;
-   }
-
-   return (char)inputChar;
-}
-
-/// @brief Configure express colors for friend messages.
-///
-/// @return This function does not return a value.
-void expressFriendColorConfig( void )
-{
-   runColorEditor( aryExpressFriendColorFields,
-                   sizeof( aryExpressFriendColorFields ) / sizeof( aryExpressFriendColorFields[0] ),
-                   0, "Express friend", COLOR_EDITOR_PREVIEW_EXPRESS_FRIEND );
-}
-
-/// @brief Configure express colors for non-friend messages.
-///
-/// @return This function does not return a value.
-void expressUserColorConfig( void )
-{
-   runColorEditor( aryExpressColorFields,
-                   sizeof( aryExpressColorFields ) / sizeof( aryExpressColorFields[0] ),
-                   0, "Express user", COLOR_EDITOR_PREVIEW_EXPRESS_USER );
+   runColorEditor( aryExpressAllColorFields,
+                   sizeof( aryExpressAllColorFields ) / sizeof( aryExpressAllColorFields[0] ),
+                   0, "Express", COLOR_EDITOR_PREVIEW_EXPRESS );
 }
 
 /// @brief Configure the general theme colors.
@@ -387,57 +327,9 @@ void expressUserColorConfig( void )
 /// @return This function does not return a value.
 void generalColorConfig( void )
 {
-   char aryPromptText[100];
-
-   while ( true )
-   {
-      printGeneralColorPreview();
-
-      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<B>ackground  <E>rror  <F>orum  <N>umber  <T>ext  <Q>uit -> " );
-      printThemedMnemonicText( aryPromptText, color.number );
-      printAnsiForegroundColorValue( color.text );
-
-      switch ( readValidatedMenuKey( COLOR_GENERAL_MENU_KEYS ) )
-      {
-         case 'q':
-         case ' ':
-         case '\n':
-            stdPrintf( "Quit\r\n" );
-            return;
-         case 'b':
-            stdPrintf( "Background\r\n\n" );
-            runColorEditor( aryGeneralColorFields,
-                            sizeof( aryGeneralColorFields ) / sizeof( aryGeneralColorFields[0] ),
-                            0, "General", COLOR_EDITOR_PREVIEW_GENERAL );
-            break;
-         case 'e':
-            stdPrintf( "Error\r\n\n" );
-            runColorEditor( aryGeneralColorFields,
-                            sizeof( aryGeneralColorFields ) / sizeof( aryGeneralColorFields[0] ),
-                            1, "General", COLOR_EDITOR_PREVIEW_GENERAL );
-            break;
-         case 'f':
-            stdPrintf( "Forum\r\n\n" );
-            runColorEditor( aryGeneralColorFields,
-                            sizeof( aryGeneralColorFields ) / sizeof( aryGeneralColorFields[0] ),
-                            2, "General", COLOR_EDITOR_PREVIEW_GENERAL );
-            break;
-         case 'n':
-            stdPrintf( "Number\r\n\n" );
-            runColorEditor( aryGeneralColorFields,
-                            sizeof( aryGeneralColorFields ) / sizeof( aryGeneralColorFields[0] ),
-                            3, "General", COLOR_EDITOR_PREVIEW_GENERAL );
-            break;
-         case 't':
-            stdPrintf( "Text\r\n\n" );
-            runColorEditor( aryGeneralColorFields,
-                            sizeof( aryGeneralColorFields ) / sizeof( aryGeneralColorFields[0] ),
-                            4, "General", COLOR_EDITOR_PREVIEW_GENERAL );
-            break;
-         default:
-            break;
-      }
-   }
+   runColorEditor( aryGeneralColorFields,
+                   sizeof( aryGeneralColorFields ) / sizeof( aryGeneralColorFields[0] ),
+                   0, "General", COLOR_EDITOR_PREVIEW_GENERAL );
 }
 
 /// @brief Configure input prompt and completion colors.
@@ -445,97 +337,19 @@ void generalColorConfig( void )
 /// @return This function does not return a value.
 void inputColorConfig( void )
 {
-   char aryPromptText[100];
-
-   while ( true )
-   {
-      printInputColorPreview();
-
-      snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<T>ext  <C>ompletion  <Q>uit -> " );
-      printThemedMnemonicText( aryPromptText, color.number );
-      printAnsiForegroundColorValue( color.text );
-
-      switch ( readValidatedMenuKey( COLOR_INPUT_MENU_KEYS ) )
-      {
-         case 'q':
-         case ' ':
-         case '\n':
-            stdPrintf( "Quit\r\n" );
-            return;
-         case 'c':
-            stdPrintf( "Completion\r\n\n" );
-            runColorEditor( aryInputColorFields,
-                            sizeof( aryInputColorFields ) / sizeof( aryInputColorFields[0] ),
-                            1, "Input", COLOR_EDITOR_PREVIEW_INPUT );
-            break;
-         case 't':
-            stdPrintf( "Text\r\n\n" );
-            runColorEditor( aryInputColorFields,
-                            sizeof( aryInputColorFields ) / sizeof( aryInputColorFields[0] ),
-                            0, "Input", COLOR_EDITOR_PREVIEW_INPUT );
-            break;
-         default:
-            break;
-      }
-   }
+   runColorEditor( aryInputColorFields,
+                   sizeof( aryInputColorFields ) / sizeof( aryInputColorFields[0] ),
+                   0, "Input", COLOR_EDITOR_PREVIEW_INPUT );
 }
 
-/// @brief Run the post color configuration flow.
+/// @brief Run the post color configuration editor.
 ///
 /// @return This function does not return a value.
 void postColorConfig( void )
 {
-   while ( true )
-   {
-      switch ( userOrFriend() )
-      {
-         case 'u':
-            postUserColorConfig();
-            break;
-         case 'f':
-            postFriendColorConfig();
-            break;
-         default:
-            return;
-      }
-   }
-}
-
-/// @brief Prompt for a post color menu action.
-///
-/// @return Selected post color menu key.
-char postColorMenu( void )
-{
-   int inputChar;
-   char aryPromptText[100];
-
-   snprintf( aryPromptText, sizeof( aryPromptText ), "\r\n<D>ate  <N>ame  <T>ext  <Q>uit -> " );
-   printThemedMnemonicText( aryPromptText, color.number );
-   printAnsiForegroundColorValue( color.text );
-
-   inputChar = readValidatedMenuKey( COLOR_POST_MENU_KEYS );
-
-   switch ( inputChar )
-   {
-      case 'd':
-         stdPrintf( "Date\r\n\n" );
-         break;
-      case 'n':
-         stdPrintf( "Name\r\n\n" );
-         break;
-      case 't':
-         stdPrintf( "Text\r\n\n" );
-         break;
-      case 'q':
-      case ' ':
-      case '\n':
-         stdPrintf( "Quit\r\n\n" );
-         break;
-      default:
-         break;
-   }
-
-   return (char)inputChar;
+   runColorEditor( aryPostAllColorFields,
+                   sizeof( aryPostAllColorFields ) / sizeof( aryPostAllColorFields[0] ),
+                   0, "Posts", COLOR_EDITOR_PREVIEW_POST );
 }
 
 /// @brief Print a preview line for a post color combination.
@@ -550,35 +364,11 @@ static void postColorPreview( int dateColor, int textColor, int nameColor,
                               const char *ptrName )
 {
    printAnsiForegroundColorValue( dateColor );
-   stdPrintf( "Jan  1, 2000 11:01" );
-   printAnsiForegroundColorValue( textColor );
-   stdPrintf( " from " );
+   stdPrintf( "Jan  1 11:01 " );
    printAnsiForegroundColorValue( nameColor );
-   stdPrintf( "%s", ptrName );
+   stdPrintf( "%s  ", ptrName );
    printAnsiForegroundColorValue( textColor );
-   stdPrintf( "\r\nHi there!\r\n" );
-   printAnsiForegroundColorValue( color.forum );
-   stdPrintf( "[Lobby> msg #1]\r\n" );
-}
-
-/// @brief Configure post colors for friend posts.
-///
-/// @return This function does not return a value.
-void postFriendColorConfig( void )
-{
-   runColorEditor( aryPostFriendColorFields,
-                   sizeof( aryPostFriendColorFields ) / sizeof( aryPostFriendColorFields[0] ),
-                   0, "Post friend", COLOR_EDITOR_PREVIEW_POST_FRIEND );
-}
-
-/// @brief Configure post colors for non-friend posts.
-///
-/// @return This function does not return a value.
-void postUserColorConfig( void )
-{
-   runColorEditor( aryPostColorFields,
-                   sizeof( aryPostColorFields ) / sizeof( aryPostColorFields[0] ),
-                   0, "Post user", COLOR_EDITOR_PREVIEW_POST_USER );
+   stdPrintf( "Hi there!\r\n" );
 }
 
 /// @brief Show preset themes and apply the selected preset.
@@ -850,11 +640,11 @@ static void printColorEditor( const ColorEditorContext *ptrContext )
 
    printAnsiDisplayStateValue( color.text, color.background );
    stdPrintf( "\033[H\033[2J" );
-   snprintf( aryHeader, sizeof( aryHeader ), "Custom color editor (%s)\r\nField group: %s\r\n",
-             colorEditorModeName(), ptrContext->ptrSectionTitle );
+   snprintf( aryHeader, sizeof( aryHeader ), "Color editor: %s (%s)\r\n",
+             ptrContext->ptrSectionTitle, colorEditorModeName() );
    stdPrintf( "%s", aryHeader );
-   printColorEditorCurrentValue( ptrContext );
    printColorEditorControls();
+   printColorEditorFieldList( ptrContext );
    printColorEditorPreview( ptrContext );
 }
 
@@ -863,34 +653,120 @@ static void printColorEditor( const ColorEditorContext *ptrContext )
 /// @return This helper does not return a value.
 static void printColorEditorControls( void )
 {
-   stdPrintf( "Controls: arrows or W/S adjust, A/D component, +/- x16\r\n" );
-   stdPrintf( "          P previous field, N next field, R reset, Enter save, Q cancel\r\n\n" );
+   stdPrintf( "Up/Down-Field  Left/Right-Part  W/S-Adjust  +/-x16\r\n" );
+   stdPrintf( "P/N-Field      A/D-Part         R-Reset     Return-Save & Quit\r\n" );
+   stdPrintf( "                                            C-Cancel & Quit\r\n" );
 }
 
-/// @brief Print the current editable value for the active field.
+/// @brief Print the field list for the active editor section.
 ///
 /// @param ptrContext Current editor context.
 ///
 /// @return This helper does not return a value.
-static void printColorEditorCurrentValue( const ColorEditorContext *ptrContext )
+static void printColorEditorFieldList( const ColorEditorContext *ptrContext )
 {
-   char aryPrefix[160];
-   const char *ptrFieldName;
+   char aryLine[80];
+   size_t firstVisibleFieldIndex;
+   size_t lastVisibleFieldIndex;
+   size_t fieldIndex;
+   size_t visibleFieldCount;
 
-   ptrFieldName = ptrContext->ptrFields[ptrContext->fieldIndex].ptrLabel;
-   snprintf( aryPrefix, sizeof( aryPrefix ), "Field: %s  ", ptrFieldName );
-   stdPrintf( "%s", aryPrefix );
-   if ( terminalShouldUseTruecolor() )
+   visibleFieldCount = ptrContext->fieldCount;
+   if ( visibleFieldCount > COLOR_EDITOR_VISIBLE_FIELD_COUNT )
    {
-      printColorEditorRgbValue( colorFieldValue( ptrContext->ptrFields[ptrContext->fieldIndex].colorIndex ),
-                                ptrContext->componentIndex,
-                                ptrContext->ptrFields[ptrContext->fieldIndex].colorIndex );
+      visibleFieldCount = COLOR_EDITOR_VISIBLE_FIELD_COUNT;
+   }
+
+   if ( ptrContext->fieldCount <= visibleFieldCount ||
+        ptrContext->fieldIndex < visibleFieldCount / 2 )
+   {
+      firstVisibleFieldIndex = 0;
+   }
+   else if ( ptrContext->fieldIndex + visibleFieldCount / 2 >=
+             ptrContext->fieldCount )
+   {
+      firstVisibleFieldIndex = ptrContext->fieldCount - visibleFieldCount;
    }
    else
    {
-      printPaletteColorValue( colorFieldValue( ptrContext->ptrFields[ptrContext->fieldIndex].colorIndex ) );
+      firstVisibleFieldIndex = ptrContext->fieldIndex - visibleFieldCount / 2;
    }
+   lastVisibleFieldIndex = firstVisibleFieldIndex + visibleFieldCount;
+
    stdPrintf( "\r\n" );
+   for ( fieldIndex = firstVisibleFieldIndex;
+         fieldIndex < lastVisibleFieldIndex;
+         fieldIndex++ )
+   {
+      int colorIndex;
+      int colorValue;
+
+      colorIndex = ptrContext->ptrFields[fieldIndex].colorIndex;
+      colorValue = colorFieldValue( colorIndex );
+      printColorEditorFieldDisplayState( colorIndex, colorValue );
+      snprintf( aryLine, sizeof( aryLine ), "%c %-*s ",
+                fieldIndex == ptrContext->fieldIndex ? '>' : ' ',
+                COLOR_EDITOR_FIELD_LABEL_WIDTH,
+                ptrContext->ptrFields[fieldIndex].ptrLabel );
+      stdPrintf( "%s", aryLine );
+      printColorEditorFieldValueSummary( ptrContext, fieldIndex );
+      stdPrintf( "\r\n" );
+   }
+}
+
+/// @brief Apply the display state used for one editor field row.
+///
+/// @param colorIndex Edited field index for this row.
+/// @param colorValue Current configured color value for this row.
+///
+/// @return This helper does not return a value.
+static void printColorEditorFieldDisplayState( int colorIndex, int colorValue )
+{
+   if ( colorIndex == COLOR_FIELD_BACKGROUND )
+   {
+      printAnsiDisplayStateValue( color.text, colorValue );
+      return;
+   }
+
+   printAnsiForegroundColorValue( colorValue );
+}
+
+/// @brief Print one inline value summary beside a field row.
+///
+/// @param ptrContext Current editor context.
+/// @param fieldIndex Field row being rendered.
+///
+/// @return This helper does not return a value.
+static void printColorEditorFieldValueSummary( const ColorEditorContext *ptrContext,
+                                               size_t fieldIndex )
+{
+   int colorIndex;
+   int colorValue;
+
+   colorIndex = ptrContext->ptrFields[fieldIndex].colorIndex;
+   colorValue = colorFieldValue( colorIndex );
+   if ( terminalShouldUseTruecolor() )
+   {
+      if ( fieldIndex == ptrContext->fieldIndex )
+      {
+         printColorEditorRgbValue( colorValue, ptrContext->componentIndex,
+                                   colorIndex );
+      }
+      else
+      {
+         char aryBuffer[32];
+
+         colorValue = colorEditorResolvedRgbValue( colorValue, colorIndex );
+         snprintf( aryBuffer, sizeof( aryBuffer ), "#%02X%02X%02X",
+                   colorValueRed( colorValue ),
+                   colorValueGreen( colorValue ),
+                   colorValueBlue( colorValue ) );
+         stdPrintf( "%s", aryBuffer );
+      }
+      return;
+   }
+
+   printPaletteColorValue( colorValue );
 }
 
 /// @brief Print the current preview pane for the custom color editor.
@@ -900,26 +776,31 @@ static void printColorEditorCurrentValue( const ColorEditorContext *ptrContext )
 /// @return This helper does not return a value.
 static void printColorEditorPreview( const ColorEditorContext *ptrContext )
 {
+   printAnsiDisplayStateValue( color.text, color.background );
+   stdPrintf( "\r\n" );
    printThemedMnemonicText( "Preview\r\n", color.number );
-   printColorEditorPreviewByKind( ptrContext->previewKind );
+   printColorEditorPreviewByKind( ptrContext->previewKind, ptrContext );
 }
 
 /// @brief Print preview content for one editor preview kind.
 ///
 /// @param previewKind Preview variant to print.
+/// @param ptrContext Current editor context.
 ///
 /// @return This helper does not return a value.
-static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind )
+static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind,
+                                           const ColorEditorContext *ptrContext )
 {
    switch ( previewKind )
    {
-      case COLOR_EDITOR_PREVIEW_EXPRESS_FRIEND:
+      case COLOR_EDITOR_PREVIEW_EXPRESS:
+         printExpressColorPreview( color.expressText, color.expressName, A_USER );
          printExpressColorPreview( color.expressFriendText, color.expressFriendName,
                                    A_FRIEND );
          break;
 
-      case COLOR_EDITOR_PREVIEW_EXPRESS_USER:
-         printExpressColorPreview( color.expressText, color.expressName, A_USER );
+      case COLOR_EDITOR_PREVIEW_FULL:
+         printFullColorPreview();
          break;
 
       case COLOR_EDITOR_PREVIEW_GENERAL:
@@ -927,17 +808,17 @@ static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind )
          break;
 
       case COLOR_EDITOR_PREVIEW_INPUT:
-         printInputColorPreview();
+         printInputColorPreview( ptrContext );
          break;
 
-      case COLOR_EDITOR_PREVIEW_POST_FRIEND:
+      case COLOR_EDITOR_PREVIEW_POST:
+         postColorPreview( color.postDate, color.postText, color.postName, A_USER );
          postColorPreview( color.postFriendDate, color.postFriendText,
                            color.postFriendName, A_FRIEND );
          break;
 
-      case COLOR_EDITOR_PREVIEW_POST_USER:
       default:
-         postColorPreview( color.postDate, color.postText, color.postName, A_USER );
+         printGeneralColorPreview();
          break;
    }
 }
@@ -982,11 +863,11 @@ static void printExpressColorPreview( int textColor, int nameColor,
                                       const char *ptrName )
 {
    printAnsiForegroundColorValue( textColor );
-   stdPrintf( "*** Message (#1) from " );
+   stdPrintf( "X: " );
    printAnsiForegroundColorValue( nameColor );
    stdPrintf( "%s", ptrName );
    printAnsiForegroundColorValue( textColor );
-   stdPrintf( " at 11:01 ***\r\n>Hi there!\r\n" );
+   stdPrintf( "  >Hi there!\r\n" );
 }
 
 /// @brief Print a preview of the general theme colors.
@@ -997,40 +878,62 @@ static void printGeneralColorPreview( void )
    printAnsiDisplayStateValue( color.forum, color.background );
    stdPrintf( "Lobby> " );
    printAnsiForegroundColorValue( color.text );
-   stdPrintf( "Enter message\r\n\n" );
-   printAnsiForegroundColorValue( color.errorTextColor );
-   stdPrintf( "Only Sysops may post to the lobby\r\n\n" );
-   printAnsiForegroundColorValue( color.forum );
-   stdPrintf( "Lobby> " );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( "Goto " );
-   printAnsiForegroundColorValue( color.forum );
-   stdPrintf( "[Babble]  " );
+   stdPrintf( "Enter message  " );
    printAnsiForegroundColorValue( color.number );
    stdPrintf( "150" );
    printAnsiForegroundColorValue( color.text );
-   stdPrintf( " messages, " );
-   printAnsiForegroundColorValue( color.number );
-   stdPrintf( "1" );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( " new\r\n" );
+   stdPrintf( " msgs  " );
+   printAnsiForegroundColorValue( color.errorTextColor );
+   stdPrintf( "Error\r\n" );
 }
 
 /// @brief Print a preview of the input and completion colors.
 ///
+/// When editing one of the input fields, use the live edited color across the
+/// whole sample name so the preview does not mix old and new colors.
+///
+/// @param ptrContext Current editor context.
+///
 /// @return This helper does not return a value.
-static void printInputColorPreview( void )
+static void printInputColorPreview( const ColorEditorContext *ptrContext )
 {
+   int activeFieldIndex;
+   int completionColor;
+   int inputTextColor;
+
+   activeFieldIndex = -1;
+   if ( ptrContext != NULL )
+   {
+      activeFieldIndex = ptrContext->ptrFields[ptrContext->fieldIndex].colorIndex;
+   }
+   inputTextColor = color.inputText;
+   completionColor = color.inputHighlight;
+   if ( activeFieldIndex == COLOR_FIELD_INPUT_TEXT ||
+        activeFieldIndex == COLOR_FIELD_INPUT_HIGHLIGHT )
+   {
+      inputTextColor = colorFieldValue( activeFieldIndex );
+      completionColor = inputTextColor;
+   }
+
    printAnsiForegroundColorValue( color.text );
-   stdPrintf( "Message eXpress\r\nRecipient: " );
-   printAnsiForegroundColorValue( color.inputText );
-   stdPrintf( "Exam" );
-   printAnsiForegroundColorValue( color.inputHighlight );
-   stdPrintf( "ple User\r\n" );
-   printAnsiForegroundColorValue( color.inputText );
+   stdPrintf( "Recipient: " );
+   printAnsiForegroundColorValue( inputTextColor );
+   stdPrintf( "Example User" );
+   printAnsiForegroundColorValue( completionColor );
+   stdPrintf( "  " );
+   printAnsiForegroundColorValue( inputTextColor );
    stdPrintf( ">Hi there!\r\n" );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( "Message received by Example User.\r\n" );
+}
+
+/// @brief Print a compact whole-palette preview for the unified color editor.
+///
+/// @return This helper does not return a value.
+static void printFullColorPreview( void )
+{
+   printGeneralColorPreview();
+   printInputColorPreview( NULL );
+   postColorPreview( color.postDate, color.postText, color.postName, A_USER );
+   printExpressColorPreview( color.expressText, color.expressName, A_USER );
 }
 
 /// @brief Print one palette value for the custom color editor.
@@ -1273,36 +1176,4 @@ static bool runColorEditor( const ColorEditorFieldSpec *ptrFields,
             break;
       }
    }
-}
-
-/// @brief Prompt for whether to configure user or friend preview colors.
-///
-/// @return Selected menu key.
-char userOrFriend( void )
-{
-   int inputChar;
-
-   printThemedMnemonicText( "Configure for ", color.text );
-   printThemedMnemonicText( "<U>ser", color.number );
-   printThemedMnemonicText( " or ", color.text );
-   printThemedMnemonicText( "<F>riend", color.number );
-   printThemedMnemonicText( " -> ", color.forum );
-   printAnsiForegroundColorValue( color.text );
-
-   inputChar = readValidatedMenuKey( COLOR_USER_OR_FRIEND_KEYS );
-
-   switch ( inputChar )
-   {
-      case 'u':
-         stdPrintf( "User\r\n\n" );
-         break;
-      case 'f':
-         stdPrintf( "Friend\r\n\n" );
-         break;
-      default:
-         stdPrintf( "Quit\r\n" );
-         break;
-   }
-
-   return (char)inputChar;
 }

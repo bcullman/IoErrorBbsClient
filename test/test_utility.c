@@ -311,9 +311,9 @@ static void readColorEditorAction_WhenArrowSequenceReceived_ReturnsNormalizedAct
 
    result = readColorEditorAction();
 
-   if ( result != COLOR_EDITOR_ACTION_INCREASE_SMALL )
+   if ( result != COLOR_EDITOR_ACTION_PREVIOUS_FIELD )
    {
-      fail_msg( "readColorEditorAction should map up-arrow to increase action; got %d", result );
+      fail_msg( "readColorEditorAction should map up-arrow to previous-field navigation; got %d", result );
    }
 }
 
@@ -330,6 +330,60 @@ static void readColorEditorAction_WhenFallbackCommandReceived_ReturnsNormalizedA
    if ( result != COLOR_EDITOR_ACTION_PREVIOUS_FIELD )
    {
       fail_msg( "readColorEditorAction should lowercase fallback commands and map them; got %d", result );
+   }
+}
+
+static void readColorEditorAction_WhenShiftedFastStepAliasReceived_ReturnsFastStepAction( void **state )
+{
+   const int aryIncreaseSequence[] = { '=' };
+   const int aryDecreaseSequence[] = { '_' };
+   ColorEditorAction result;
+
+   (void)state;
+
+   setInputSequence( aryIncreaseSequence,
+                     sizeof( aryIncreaseSequence ) / sizeof( aryIncreaseSequence[0] ) );
+   result = readColorEditorAction();
+   if ( result != COLOR_EDITOR_ACTION_INCREASE_FAST )
+   {
+      fail_msg( "readColorEditorAction should accept '=' as a fast increase alias; got %d",
+                result );
+   }
+
+   setInputSequence( aryDecreaseSequence,
+                     sizeof( aryDecreaseSequence ) / sizeof( aryDecreaseSequence[0] ) );
+   result = readColorEditorAction();
+   if ( result != COLOR_EDITOR_ACTION_DECREASE_FAST )
+   {
+      fail_msg( "readColorEditorAction should accept '_' as a fast decrease alias; got %d",
+                result );
+   }
+}
+
+static void readColorEditorAction_WhenApplicationKeypadOperatorReceived_ReturnsFastStepAction( void **state )
+{
+   const int aryIncreaseSequence[] = { '\033', 'O', 'k' };
+   const int aryDecreaseSequence[] = { '\033', 'O', 'm' };
+   ColorEditorAction result;
+
+   (void)state;
+
+   setInputSequence( aryIncreaseSequence,
+                     sizeof( aryIncreaseSequence ) / sizeof( aryIncreaseSequence[0] ) );
+   result = readColorEditorAction();
+   if ( result != COLOR_EDITOR_ACTION_INCREASE_FAST )
+   {
+      fail_msg( "readColorEditorAction should accept SS3 keypad plus as a fast increase; got %d",
+                result );
+   }
+
+   setInputSequence( aryDecreaseSequence,
+                     sizeof( aryDecreaseSequence ) / sizeof( aryDecreaseSequence[0] ) );
+   result = readColorEditorAction();
+   if ( result != COLOR_EDITOR_ACTION_DECREASE_FAST )
+   {
+      fail_msg( "readColorEditorAction should accept SS3 keypad minus as a fast decrease; got %d",
+                result );
    }
 }
 
@@ -534,6 +588,8 @@ int main( void )
       cmocka_unit_test( readValidatedMenuKey_WhenInputIsUppercaseLetter_ReturnsLowercaseMatch ),
       cmocka_unit_test( readColorEditorAction_WhenArrowSequenceReceived_ReturnsNormalizedAction ),
       cmocka_unit_test( readColorEditorAction_WhenFallbackCommandReceived_ReturnsNormalizedAction ),
+      cmocka_unit_test( readColorEditorAction_WhenShiftedFastStepAliasReceived_ReturnsFastStepAction ),
+      cmocka_unit_test( readColorEditorAction_WhenApplicationKeypadOperatorReceived_ReturnsFastStepAction ),
       cmocka_unit_test( findChar_WhenTargetExists_ReturnsPointerToCharacter ),
       cmocka_unit_test( findChar_WhenTargetMissing_ReturnsNull ),
       cmocka_unit_test( duplicateString_WhenSourceProvided_ReturnsIndependentCopy ),

@@ -322,21 +322,34 @@ const char *colorOutputModeName( ColorOutputMode outputMode )
 int colorValueFromHexString( const char *ptrColorText )
 {
    int blue;
+   int blueHigh;
+   int blueLow;
    int green;
+   int greenHigh;
+   int greenLow;
    int red;
+   int redHigh;
+   int redLow;
 
    if ( ptrColorText == NULL || strlen( ptrColorText ) != 7 || ptrColorText[0] != '#' )
    {
       return -1;
    }
 
-   red = ( hexDigitValue( ptrColorText[1] ) << 4 ) | hexDigitValue( ptrColorText[2] );
-   green = ( hexDigitValue( ptrColorText[3] ) << 4 ) | hexDigitValue( ptrColorText[4] );
-   blue = ( hexDigitValue( ptrColorText[5] ) << 4 ) | hexDigitValue( ptrColorText[6] );
-   if ( red < 0 || green < 0 || blue < 0 )
+   redHigh = hexDigitValue( ptrColorText[1] );
+   redLow = hexDigitValue( ptrColorText[2] );
+   greenHigh = hexDigitValue( ptrColorText[3] );
+   greenLow = hexDigitValue( ptrColorText[4] );
+   blueHigh = hexDigitValue( ptrColorText[5] );
+   blueLow = hexDigitValue( ptrColorText[6] );
+   if ( redHigh < 0 || redLow < 0 || greenHigh < 0 || greenLow < 0 ||
+        blueHigh < 0 || blueLow < 0 )
    {
       return -1;
    }
+   red = ( redHigh << 4 ) | redLow;
+   green = ( greenHigh << 4 ) | greenLow;
+   blue = ( blueHigh << 4 ) | blueLow;
 
    return colorValueFromRgb( red, green, blue );
 }

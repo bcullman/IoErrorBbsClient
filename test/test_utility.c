@@ -303,14 +303,17 @@ static void readValidatedMenuKey_WhenInputIsUppercaseLetter_ReturnsLowercaseMatc
 
 static void readColorEditorAction_WhenArrowSequenceReceived_ReturnsNormalizedAction( void **state )
 {
+   // Arrange
    const int arySequence[] = { '\033', '[', 'A' };
    ColorEditorAction result;
 
    (void)state;
    setInputSequence( arySequence, sizeof( arySequence ) / sizeof( arySequence[0] ) );
 
+   // Act
    result = readColorEditorAction();
 
+   // Assert
    if ( result != COLOR_EDITOR_ACTION_PREVIOUS_FIELD )
    {
       fail_msg( "readColorEditorAction should map up-arrow to previous-field navigation; got %d", result );
@@ -319,14 +322,17 @@ static void readColorEditorAction_WhenArrowSequenceReceived_ReturnsNormalizedAct
 
 static void readColorEditorAction_WhenFallbackCommandReceived_ReturnsNormalizedAction( void **state )
 {
+   // Arrange
    const int arySequence[] = { 'P' };
    ColorEditorAction result;
 
    (void)state;
    setInputSequence( arySequence, sizeof( arySequence ) / sizeof( arySequence[0] ) );
 
+   // Act
    result = readColorEditorAction();
 
+   // Assert
    if ( result != COLOR_EDITOR_ACTION_PREVIOUS_FIELD )
    {
       fail_msg( "readColorEditorAction should lowercase fallback commands and map them; got %d", result );
@@ -335,6 +341,7 @@ static void readColorEditorAction_WhenFallbackCommandReceived_ReturnsNormalizedA
 
 static void readColorEditorAction_WhenShiftedFastStepAliasReceived_ReturnsFastStepAction( void **state )
 {
+   // Arrange
    const int aryIncreaseSequence[] = { '=' };
    const int aryDecreaseSequence[] = { '_' };
    ColorEditorAction result;
@@ -343,16 +350,25 @@ static void readColorEditorAction_WhenShiftedFastStepAliasReceived_ReturnsFastSt
 
    setInputSequence( aryIncreaseSequence,
                      sizeof( aryIncreaseSequence ) / sizeof( aryIncreaseSequence[0] ) );
+
+   // Act
    result = readColorEditorAction();
+
+   // Assert
    if ( result != COLOR_EDITOR_ACTION_INCREASE_FAST )
    {
       fail_msg( "readColorEditorAction should accept '=' as a fast increase alias; got %d",
                 result );
    }
 
+   // Arrange
    setInputSequence( aryDecreaseSequence,
                      sizeof( aryDecreaseSequence ) / sizeof( aryDecreaseSequence[0] ) );
+
+   // Act
    result = readColorEditorAction();
+
+   // Assert
    if ( result != COLOR_EDITOR_ACTION_DECREASE_FAST )
    {
       fail_msg( "readColorEditorAction should accept '_' as a fast decrease alias; got %d",
@@ -362,6 +378,7 @@ static void readColorEditorAction_WhenShiftedFastStepAliasReceived_ReturnsFastSt
 
 static void readColorEditorAction_WhenApplicationKeypadOperatorReceived_ReturnsFastStepAction( void **state )
 {
+   // Arrange
    const int aryIncreaseSequence[] = { '\033', 'O', 'k' };
    const int aryDecreaseSequence[] = { '\033', 'O', 'm' };
    ColorEditorAction result;
@@ -370,16 +387,25 @@ static void readColorEditorAction_WhenApplicationKeypadOperatorReceived_ReturnsF
 
    setInputSequence( aryIncreaseSequence,
                      sizeof( aryIncreaseSequence ) / sizeof( aryIncreaseSequence[0] ) );
+
+   // Act
    result = readColorEditorAction();
+
+   // Assert
    if ( result != COLOR_EDITOR_ACTION_INCREASE_FAST )
    {
       fail_msg( "readColorEditorAction should accept SS3 keypad plus as a fast increase; got %d",
                 result );
    }
 
+   // Arrange
    setInputSequence( aryDecreaseSequence,
                      sizeof( aryDecreaseSequence ) / sizeof( aryDecreaseSequence[0] ) );
+
+   // Act
    result = readColorEditorAction();
+
+   // Assert
    if ( result != COLOR_EDITOR_ACTION_DECREASE_FAST )
    {
       fail_msg( "readColorEditorAction should accept SS3 keypad minus as a fast decrease; got %d",

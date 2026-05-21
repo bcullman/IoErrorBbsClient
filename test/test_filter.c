@@ -1078,6 +1078,74 @@ static void emitUrlDetectionReport_WhenUrlsCollected_PrintsClickableSummary( voi
    resetLists();
 }
 
+static void emitUrlDetectionReport_WhenWrappedUrlStillPending_FlushesBeforePrintingSummary( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for pending wrapped URL report test setup" );
+   }
+
+   beginUrlDetectionReport();
+   filterUrl( "Read this: https://cybernews.com/security/google-chrome-ai-model-" );
+   filterUrl( "device-no-consent/" );
+
+   // Act
+   emitUrlDetectionReport();
+
+   // Assert
+   if ( strstr( aryPrintLog, "[Clickable URL(s) detected by BBS client]" ) == NULL )
+   {
+      fail_msg( "URL detection report header was not emitted for pending wrapped URL; log was: %s", aryPrintLog );
+   }
+   if ( strstr( aryPrintLog,
+                ";https://cybernews.com/security/google-chrome-ai-model-device-no-consent/\033\\" ) == NULL )
+   {
+      fail_msg( "pending wrapped URL should be flushed into the clickable summary; log was: %s", aryPrintLog );
+   }
+
+   resetLists();
+}
+
+static void beginUrlDetectionReport_WhenPriorWrappedUrlWasPending_ClearsPendingState( void **state )
+{
+   // Arrange
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for pending URL reset test setup" );
+   }
+
+   beginUrlDetectionReport();
+   filterUrl( "Read this: https://example.dev/wrapped-" );
+
+   // Act
+   beginUrlDetectionReport();
+   filterUrl( "No URLs here." );
+   emitUrlDetectionReport();
+
+   // Assert
+   if ( strstr( aryPrintLog, "https://example.dev/wrapped-" ) != NULL )
+   {
+      fail_msg( "new URL detection report should clear pending wrapped URL state; log was: %s", aryPrintLog );
+   }
+   if ( strstr( aryPrintLog, "[Clickable URL(s) detected by BBS client]" ) != NULL )
+   {
+      fail_msg( "report with no URLs should stay empty after clearing pending state; log was: %s", aryPrintLog );
+   }
+
+   resetLists();
+}
+
 static void emitUrlDetectionReport_WhenAnsiEnabled_UsesConfiguredColorState( void **state )
 {
    // Arrange
@@ -1445,6 +1513,8 @@ int main( void )
       cmocka_unit_test( printWithOsc8Links_WhenClickableUrlsDisabled_PrintsPlainText ),
       cmocka_unit_test( printWithOsc8Links_WhenScreenReaderModeEnabled_PrintsPlainText ),
       cmocka_unit_test( emitUrlDetectionReport_WhenUrlsCollected_PrintsClickableSummary ),
+      cmocka_unit_test( emitUrlDetectionReport_WhenWrappedUrlStillPending_FlushesBeforePrintingSummary ),
+      cmocka_unit_test( beginUrlDetectionReport_WhenPriorWrappedUrlWasPending_ClearsPendingState ),
       cmocka_unit_test( emitUrlDetectionReport_WhenAnsiEnabled_UsesConfiguredColorState ),
       cmocka_unit_test( emitUrlDetectionReport_WhenClickableUrlsDisabled_EmitsNoSummary ),
       cmocka_unit_test( emitUrlDetectionReport_WhenScreenReaderModeEnabled_EmitsNoSummary ),

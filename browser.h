@@ -10,6 +10,7 @@
 void beginUrlDetectionReport( void );
 void emitUrlDetectionReport( void );
 void filterUrl( const char *ptrLine );
+void flushPendingUrlDetection( void );
 void openBrowser( void );
 void printWithOsc8Links( const char *ptrText );
 

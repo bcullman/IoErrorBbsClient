@@ -36,6 +36,10 @@ static bool shouldEmitClickableUrls( void );
 static void trimUrlTailPunctuation( char *ptrUrlStart );
 
 static queue *ptrDetectedUrlQueue;
+static bool hasPendingWrappedUrl;
+static char aryPendingWrappedUrl[2048];
+static const size_t INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 48;
+static const size_t CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 70;
 
 /// @brief Apply the themed color used while printing a visible URL report.
 ///
@@ -62,6 +66,8 @@ void beginUrlDetectionReport( void )
       return;
    }
    clearDetectedUrlQueue();
+   aryPendingWrappedUrl[0] = '\0';
+   hasPendingWrappedUrl = false;
 }
 
 /// @brief Switch output to the body color for URL report entries.
@@ -104,6 +110,7 @@ void emitUrlDetectionReport( void )
 {
    char aryUrl[1024];
 
+   flushPendingUrlDetection();
    if ( !shouldEmitClickableUrls() )
    {
       clearDetectedUrlQueue();
@@ -124,6 +131,19 @@ void emitUrlDetectionReport( void )
       stdPrintf( "\r\n" );
    }
    endVisibleUrlReportColor();
+}
+
+/// @brief Finalize any wrapped URL fragment still waiting on another line.
+///
+/// @return This function does not return a value.
+void flushPendingUrlDetection( void )
+{
+   if ( !hasPendingWrappedUrl )
+   {
+      return;
+   }
+   finalizePendingUrl( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ),
+                       &hasPendingWrappedUrl );
 }
 
 /// @brief Restore normal themed output after a URL report finishes.
@@ -175,10 +195,6 @@ static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool
 /// @return This function does not return a value.
 void filterUrl( const char *ptrLine )
 {
-   static bool hasPendingUrl = false;
-   static char aryPendingUrl[2048];
-   static const size_t INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 48;
-   static const size_t CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 70;
    char aryLineBuffer[1024];
    char *ptrCursor;
    char *ptrNext;
@@ -209,7 +225,7 @@ void filterUrl( const char *ptrLine )
 
    ptrCursor = aryLineBuffer;
    ptrScanStart = aryLineBuffer;
-   if ( hasPendingUrl )
+   if ( hasPendingWrappedUrl )
    {
       size_t pendingLength;
       size_t appendedCount;
@@ -218,14 +234,14 @@ void filterUrl( const char *ptrLine )
       {
          ptrCursor++;
       }
-      pendingLength = strlen( aryPendingUrl );
+      pendingLength = strlen( aryPendingWrappedUrl );
       appendedCount = 0;
       while ( *ptrCursor != '\0' && isUrlBodyChar( (unsigned char)*ptrCursor ) )
       {
-         if ( pendingLength + 1 < sizeof( aryPendingUrl ) )
+         if ( pendingLength + 1 < sizeof( aryPendingWrappedUrl ) )
          {
-            aryPendingUrl[pendingLength++] = *ptrCursor;
-            aryPendingUrl[pendingLength] = '\0';
+            aryPendingWrappedUrl[pendingLength++] = *ptrCursor;
+            aryPendingWrappedUrl[pendingLength] = '\0';
          }
          appendedCount++;
          ptrCursor++;
@@ -240,7 +256,9 @@ void filterUrl( const char *ptrLine )
             continuationVisibleLength = strlen( ptrCursor - appendedCount );
             if ( continuationVisibleLength < CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH )
             {
-               finalizePendingUrl( aryPendingUrl, sizeof( aryPendingUrl ), &hasPendingUrl );
+               finalizePendingUrl( aryPendingWrappedUrl,
+                                   sizeof( aryPendingWrappedUrl ),
+                                   &hasPendingWrappedUrl );
             }
             else
             {
@@ -249,12 +267,15 @@ void filterUrl( const char *ptrLine )
          }
          else
          {
-            finalizePendingUrl( aryPendingUrl, sizeof( aryPendingUrl ), &hasPendingUrl );
+            finalizePendingUrl( aryPendingWrappedUrl,
+                                sizeof( aryPendingWrappedUrl ),
+                                &hasPendingWrappedUrl );
          }
       }
       else
       {
-         finalizePendingUrl( aryPendingUrl, sizeof( aryPendingUrl ), &hasPendingUrl );
+         finalizePendingUrl( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ),
+                             &hasPendingWrappedUrl );
       }
    }
 
@@ -277,8 +298,9 @@ void filterUrl( const char *ptrLine )
          if ( fragmentLength >= INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH ||
               !isQueueableUrl( ptrCursor ) )
          {
-            snprintf( aryPendingUrl, sizeof( aryPendingUrl ), "%s", ptrCursor );
-            hasPendingUrl = true;
+            snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
+                      ptrCursor );
+            hasPendingWrappedUrl = true;
          }
          else
          {
@@ -298,8 +320,9 @@ void filterUrl( const char *ptrLine )
    ptrCursor = findTrailingHttpsFragment( aryLineBuffer );
    if ( ptrCursor != NULL )
    {
-      snprintf( aryPendingUrl, sizeof( aryPendingUrl ), "%s", ptrCursor );
-      hasPendingUrl = true;
+      snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
+                ptrCursor );
+      hasPendingWrappedUrl = true;
    }
 }
 

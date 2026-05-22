@@ -6,7 +6,6 @@
 #include "client_globals.h"
 #include "color.h"
 #include "defs.h"
-#define ifzero( x ) if ( ( x ) < 0 || clearall )
 #define RGB( red, green, blue ) colorValueFromRgb( ( red ), ( green ), ( blue ) )
 
 static void applyBrilliantColorsToActiveColor( void );
@@ -23,6 +22,7 @@ static void applyGruvboxLightColorsToActiveColor( void );
 static void applyHotDogColorsToActiveColor( void );
 static void applyThemeAndDerive256( void ( *applyThemeToActiveColor )( void ) );
 static void applyTidalReefColorsToActiveColor( void );
+static bool shouldApplyDefaultColor( int colorValue, int clearall );
 
 /// @brief Apply the bright theme palette to the configured color tables.
 ///
@@ -287,33 +287,99 @@ static void applyColorblindColorsToActiveColor( void )
 static void applyDefaultColorsToActiveColor( int clearall )
 {
    useBlackThemeBackgrounds = false;
-   ifzero( color.text ) color.text = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.forum ) color.forum = RGB( 0x80, 0x80, 0x00 );
-   ifzero( color.number ) color.number = RGB( 0x00, 0x80, 0x80 );
-   ifzero( color.errorTextColor ) color.errorTextColor = RGB( 0x80, 0x00, 0x00 );
-   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = RGB( 0x00, 0x00, 0x80 );
-   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = RGB( 0x80, 0x00, 0x80 );
-   ifzero( color.postDate ) color.postDate = RGB( 0x80, 0x00, 0x80 );
-   ifzero( color.postName ) color.postName = RGB( 0x00, 0x80, 0x80 );
-   ifzero( color.postText ) color.postText = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.postFriendDate ) color.postFriendDate = RGB( 0x80, 0x00, 0x80 );
-   ifzero( color.postFriendName ) color.postFriendName = RGB( 0x80, 0x00, 0x00 );
-   ifzero( color.postFriendText ) color.postFriendText = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.anonymous ) color.anonymous = RGB( 0x80, 0x80, 0x00 );
-   ifzero( color.morePrompt ) color.morePrompt = RGB( 0x80, 0x80, 0x00 );
-   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = RGB( 0xc0, 0xc0, 0xc0 );
+   if ( shouldApplyDefaultColor( color.text, clearall ) )
+   {
+      color.text = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.forum, clearall ) )
+   {
+      color.forum = RGB( 0x80, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.number, clearall ) )
+   {
+      color.number = RGB( 0x00, 0x80, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.errorTextColor, clearall ) )
+   {
+      color.errorTextColor = RGB( 0x80, 0x00, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.ansiBlackTextColor, clearall ) )
+   {
+      color.ansiBlackTextColor = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.ansiBlueTextColor, clearall ) )
+   {
+      color.ansiBlueTextColor = RGB( 0x00, 0x00, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.ansiMagentaTextColor, clearall ) )
+   {
+      color.ansiMagentaTextColor = RGB( 0x80, 0x00, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.postDate, clearall ) )
+   {
+      color.postDate = RGB( 0x80, 0x00, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.postName, clearall ) )
+   {
+      color.postName = RGB( 0x00, 0x80, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.postText, clearall ) )
+   {
+      color.postText = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.postFriendDate, clearall ) )
+   {
+      color.postFriendDate = RGB( 0x80, 0x00, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.postFriendName, clearall ) )
+   {
+      color.postFriendName = RGB( 0x80, 0x00, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.postFriendText, clearall ) )
+   {
+      color.postFriendText = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.anonymous, clearall ) )
+   {
+      color.anonymous = RGB( 0x80, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.morePrompt, clearall ) )
+   {
+      color.morePrompt = RGB( 0x80, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.ansiWhiteTextColor, clearall ) )
+   {
+      color.ansiWhiteTextColor = RGB( 0xc0, 0xc0, 0xc0 );
+   }
    color.reserved5 = RGB( 0xc0, 0xc0, 0xc0 );
    if ( clearall )
    {
       color.background = 0;
    }
-   ifzero( color.inputText ) color.inputText = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.inputHighlight ) color.inputHighlight = RGB( 0x00, 0x80, 0x80 );
-   ifzero( color.expressText ) color.expressText = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.expressName ) color.expressName = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.expressFriendName ) color.expressFriendName = RGB( 0x00, 0x80, 0x00 );
-   ifzero( color.expressFriendText ) color.expressFriendText = RGB( 0x00, 0x80, 0x00 );
+   if ( shouldApplyDefaultColor( color.inputText, clearall ) )
+   {
+      color.inputText = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.inputHighlight, clearall ) )
+   {
+      color.inputHighlight = RGB( 0x00, 0x80, 0x80 );
+   }
+   if ( shouldApplyDefaultColor( color.expressText, clearall ) )
+   {
+      color.expressText = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.expressName, clearall ) )
+   {
+      color.expressName = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.expressFriendName, clearall ) )
+   {
+      color.expressFriendName = RGB( 0x00, 0x80, 0x00 );
+   }
+   if ( shouldApplyDefaultColor( color.expressFriendText, clearall ) )
+   {
+      color.expressFriendText = RGB( 0x00, 0x80, 0x00 );
+   }
 }
 
 /// @brief Fill missing live-palette fields with palette-safe default 256 colors.
@@ -324,33 +390,110 @@ static void applyDefaultColorsToActiveColor( int clearall )
 static void applyDefaultColorsTo256ColorTable( int clearall )
 {
    useBlackThemeBackgrounds = false;
-   ifzero( color.text ) color.text = 2;
-   ifzero( color.forum ) color.forum = 3;
-   ifzero( color.number ) color.number = 6;
-   ifzero( color.errorTextColor ) color.errorTextColor = 1;
-   ifzero( color.ansiBlackTextColor ) color.ansiBlackTextColor = 2;
-   ifzero( color.ansiBlueTextColor ) color.ansiBlueTextColor = 4;
-   ifzero( color.ansiMagentaTextColor ) color.ansiMagentaTextColor = 5;
-   ifzero( color.postDate ) color.postDate = 5;
-   ifzero( color.postName ) color.postName = 6;
-   ifzero( color.postText ) color.postText = 2;
-   ifzero( color.postFriendDate ) color.postFriendDate = 5;
-   ifzero( color.postFriendName ) color.postFriendName = 1;
-   ifzero( color.postFriendText ) color.postFriendText = 2;
-   ifzero( color.anonymous ) color.anonymous = 3;
-   ifzero( color.morePrompt ) color.morePrompt = 3;
-   ifzero( color.ansiWhiteTextColor ) color.ansiWhiteTextColor = 7;
+   if ( shouldApplyDefaultColor( color.text, clearall ) )
+   {
+      color.text = 2;
+   }
+   if ( shouldApplyDefaultColor( color.forum, clearall ) )
+   {
+      color.forum = 3;
+   }
+   if ( shouldApplyDefaultColor( color.number, clearall ) )
+   {
+      color.number = 6;
+   }
+   if ( shouldApplyDefaultColor( color.errorTextColor, clearall ) )
+   {
+      color.errorTextColor = 1;
+   }
+   if ( shouldApplyDefaultColor( color.ansiBlackTextColor, clearall ) )
+   {
+      color.ansiBlackTextColor = 2;
+   }
+   if ( shouldApplyDefaultColor( color.ansiBlueTextColor, clearall ) )
+   {
+      color.ansiBlueTextColor = 4;
+   }
+   if ( shouldApplyDefaultColor( color.ansiMagentaTextColor, clearall ) )
+   {
+      color.ansiMagentaTextColor = 5;
+   }
+   if ( shouldApplyDefaultColor( color.postDate, clearall ) )
+   {
+      color.postDate = 5;
+   }
+   if ( shouldApplyDefaultColor( color.postName, clearall ) )
+   {
+      color.postName = 6;
+   }
+   if ( shouldApplyDefaultColor( color.postText, clearall ) )
+   {
+      color.postText = 2;
+   }
+   if ( shouldApplyDefaultColor( color.postFriendDate, clearall ) )
+   {
+      color.postFriendDate = 5;
+   }
+   if ( shouldApplyDefaultColor( color.postFriendName, clearall ) )
+   {
+      color.postFriendName = 1;
+   }
+   if ( shouldApplyDefaultColor( color.postFriendText, clearall ) )
+   {
+      color.postFriendText = 2;
+   }
+   if ( shouldApplyDefaultColor( color.anonymous, clearall ) )
+   {
+      color.anonymous = 3;
+   }
+   if ( shouldApplyDefaultColor( color.morePrompt, clearall ) )
+   {
+      color.morePrompt = 3;
+   }
+   if ( shouldApplyDefaultColor( color.ansiWhiteTextColor, clearall ) )
+   {
+      color.ansiWhiteTextColor = 7;
+   }
    color.reserved5 = 7;
    if ( clearall )
    {
       color.background = 0;
    }
-   ifzero( color.inputText ) color.inputText = 2;
-   ifzero( color.inputHighlight ) color.inputHighlight = 6;
-   ifzero( color.expressText ) color.expressText = 2;
-   ifzero( color.expressName ) color.expressName = 2;
-   ifzero( color.expressFriendName ) color.expressFriendName = 2;
-   ifzero( color.expressFriendText ) color.expressFriendText = 2;
+   if ( shouldApplyDefaultColor( color.inputText, clearall ) )
+   {
+      color.inputText = 2;
+   }
+   if ( shouldApplyDefaultColor( color.inputHighlight, clearall ) )
+   {
+      color.inputHighlight = 6;
+   }
+   if ( shouldApplyDefaultColor( color.expressText, clearall ) )
+   {
+      color.expressText = 2;
+   }
+   if ( shouldApplyDefaultColor( color.expressName, clearall ) )
+   {
+      color.expressName = 2;
+   }
+   if ( shouldApplyDefaultColor( color.expressFriendName, clearall ) )
+   {
+      color.expressFriendName = 2;
+   }
+   if ( shouldApplyDefaultColor( color.expressFriendText, clearall ) )
+   {
+      color.expressFriendText = 2;
+   }
+}
+
+/// @brief Check whether one color field should be replaced by a default value.
+///
+/// @param colorValue Current configured value for the field.
+/// @param clearall When non-zero, all fields should be reinitialized.
+///
+/// @return `true` when the default should be assigned, otherwise `false`.
+static bool shouldApplyDefaultColor( int colorValue, int clearall )
+{
+   return colorValue < 0 || clearall;
 }
 
 /// @brief Fill the live palette with the Dracula colors.

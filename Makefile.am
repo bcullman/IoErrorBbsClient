@@ -113,9 +113,6 @@ else
 TESTS =
 endif
 
-install-exec-hook:
-	@echo 'Now hot Asian sluts will come out of your computer whenever you type "bbs".'
-
 .PHONY: analyze compile-commands cppcheck release-package scan-build
 
 compile-commands:

@@ -689,7 +689,7 @@ static void printColorEditorControls( void )
 {
    stdPrintf( "Up/Down-Field  Left/Right-Part  W/S-Adjust  +/-x16\r\n" );
    stdPrintf( "P/N-Field      A/D-Part         R-Reset     Return-Save & Quit\r\n" );
-   stdPrintf( "                                            C-Cancel & Quit\r\n" );
+   stdPrintf( "                                            Q-Quit\r\n" );
 }
 
 /// @brief Print the field list for the active editor section.

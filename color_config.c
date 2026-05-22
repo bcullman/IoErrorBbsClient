@@ -441,7 +441,7 @@ static void presetColorConfig( void )
       inputChar = readValidatedMenuKey( COLOR_RESET_MENU_KEYS );
       if ( applyPresetMenuSelection( inputChar ) )
       {
-         break;
+         continue;
       }
 
       switch ( inputChar )

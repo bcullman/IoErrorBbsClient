@@ -529,6 +529,38 @@ static void colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag
    }
 }
 
+static void colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen( void **state )
+{
+   const int aryKeys[] = { 't', 'h', 'q', 'q' };
+   const char *ptrFirstPresetMenu;
+   const char *ptrSecondPresetMenu;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   ptrFirstPresetMenu = findSubstring( aryOutput, "Color presets\r\n\n" );
+   if ( ptrFirstPresetMenu == NULL )
+   {
+      fail_msg( "theme preset flow should show the preset menu at least once; output was '%s'",
+                aryOutput );
+   }
+   ptrSecondPresetMenu = findSubstring( ptrFirstPresetMenu + 1, "Color presets\r\n\n" );
+   if ( ptrSecondPresetMenu == NULL )
+   {
+      fail_msg( "selecting a preset should keep the user in the preset menu until Q is chosen; output was '%s'",
+                aryOutput );
+   }
+}
+
 static void colorOptions_WhenColorOutputModeSelected_UpdatesConfiguredMode( void **state )
 {
    const int aryKeys[] = { 't' };
@@ -1974,6 +2006,7 @@ int main( void )
       cmocka_unit_test( colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately ),
       cmocka_unit_test( colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches ),
       cmocka_unit_test( colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag ),
+      cmocka_unit_test( colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( draculaProColors_WhenApplied_SetsDarkPalette ),

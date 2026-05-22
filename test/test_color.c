@@ -424,7 +424,7 @@ static void defaultColors_WhenClearAllApplied_SetsKnownDefaults( void **state )
 
 static void colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately( void **state )
 {
-   const int aryKeys[] = { 't', 'h', 'q' };
+   const int aryKeys[] = { 't', 'h', '\n', 'q' };
 
    // Arrange
    (void)state;
@@ -504,6 +504,16 @@ static void colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches(
       fail_msg( "theme preset menu should render a second preset in the same row for the two-column layout; output was '%s'",
                 aryOutput );
    }
+   if ( findSubstring( aryOutput, " Q.) Quit\r\n" ) != NULL )
+   {
+      fail_msg( "theme menu should not print a redundant Q.) Quit line above the prompt; output was '%s'",
+                aryOutput );
+   }
+   if ( findSubstring( aryOutput, "Select theme (A-L, Q-Quit, Return-Save & Quit) -> " ) == NULL )
+   {
+      fail_msg( "theme menu prompt should document Q-Quit and Return-Save & Quit; output was '%s'",
+                aryOutput );
+   }
 }
 
 static void colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag( void **state )
@@ -529,9 +539,10 @@ static void colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag
    }
 }
 
-static void colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen( void **state )
+static void colorConfig_WhenThemePreviewCancelled_RestoresOriginalThemeAndStaysInMenuUntilQuitChosen( void **state )
 {
    const int aryKeys[] = { 't', 'h', 'q', 'q' };
+   int originalBackground;
    const char *ptrFirstPresetMenu;
    const char *ptrSecondPresetMenu;
 
@@ -541,6 +552,9 @@ static void colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen( v
    resetState();
    flagsConfiguration.shouldUseAnsi = true;
    configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   color.background = colorValueFromRgb( 0x12, 0x34, 0x56 );
+   commitActiveColorEditorState();
+   originalBackground = color.background;
    setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
 
    // Act
@@ -557,6 +571,56 @@ static void colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen( v
    if ( ptrSecondPresetMenu == NULL )
    {
       fail_msg( "selecting a theme should keep the user in the theme menu until Q is chosen; output was '%s'",
+                aryOutput );
+   }
+   if ( color.background != originalBackground )
+   {
+      fail_msg( "quitting the theme menu without saving should restore the original theme; got %d expected %d",
+                color.background, originalBackground );
+   }
+}
+
+static void colorConfig_WhenThemeSaved_ReturnSavesAndExitsThemeMenu( void **state )
+{
+   const int aryKeys[] = { 't', 'h', '\n', 'q' };
+   const char *ptrFirstThemeMenu;
+   const char *ptrSecondThemeMenu;
+   const char *ptrThirdThemeMenu;
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   configuredColorOutputMode = COLOR_OUTPUT_MODE_TRUECOLOR;
+   color.background = 0;
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   colorConfig();
+
+   // Assert
+   if ( color.background != colorValueFromRgb( 0xef, 0xf1, 0xf5 ) )
+   {
+      fail_msg( "saving a selected theme should keep the chosen theme active; got %d",
+                color.background );
+   }
+   ptrFirstThemeMenu = findSubstring( aryOutput, "Color themes\r\n\n" );
+   ptrSecondThemeMenu = findSubstring( ptrFirstThemeMenu + 1, "Color themes\r\n\n" );
+   ptrThirdThemeMenu = findSubstring( ptrSecondThemeMenu + 1, "Color themes\r\n\n" );
+   if ( ptrThirdThemeMenu != NULL )
+   {
+      fail_msg( "saving a selected theme with Return should exit the theme menu after the preview redraw; output was '%s'",
+                aryOutput );
+   }
+   if ( findSubstring( aryOutput, "Save\r\n" ) == NULL )
+   {
+      fail_msg( "saving a selected theme should acknowledge the save action; output was '%s'",
+                aryOutput );
+   }
+   if ( findSubstring( aryOutput, "Color config -> " ) == NULL )
+   {
+      fail_msg( "saving a selected theme should return to the color config menu; output was '%s'",
                 aryOutput );
    }
 }
@@ -2006,7 +2070,8 @@ int main( void )
       cmocka_unit_test( colorConfig_WhenPresetChangesBackground_RefreshesDisplayStateImmediately ),
       cmocka_unit_test( colorConfig_WhenPresetMenuShown_UsesLiveThemeTextAndPaletteSwatches ),
       cmocka_unit_test( colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag ),
-      cmocka_unit_test( colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen ),
+      cmocka_unit_test( colorConfig_WhenThemePreviewCancelled_RestoresOriginalThemeAndStaysInMenuUntilQuitChosen ),
+      cmocka_unit_test( colorConfig_WhenThemeSaved_ReturnSavesAndExitsThemeMenu ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( draculaProColors_WhenApplied_SetsDarkPalette ),

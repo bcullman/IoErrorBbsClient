@@ -10,7 +10,7 @@
 #include "utility.h"
 static const char *COLOR_MAIN_MENU_KEYS = "tcoq \n";
 static const char *COLOR_OUTPUT_MODE_KEYS = "at2 \n";
-static const char *COLOR_RESET_MENU_KEYS = "abcdefghijklq \n";
+static const char *COLOR_RESET_MENU_KEYS = "abcdefghijklq\n";
 #define RGB_CONST( red, green, blue ) \
    ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
 #define COLOR_EDITOR_FAST_STEP 16
@@ -405,6 +405,11 @@ static void postColorPreview( int dateColor, int textColor, int nameColor,
 /// @return This helper does not return a value.
 static void presetColorConfig( void )
 {
+   bool savedUseBlackThemeBackgrounds;
+   Color savedColorTable;
+
+   snapshotActiveColorEditorState( &savedColorTable,
+                                   &savedUseBlackThemeBackgrounds );
    while ( true )
    {
       size_t columnBreakIndex;
@@ -434,8 +439,8 @@ static void presetColorConfig( void )
       }
       printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
-      printThemedMnemonicText( " Q.) Quit\r\n", color.number );
-      printThemedMnemonicText( "Select theme (A-L, Q-Quit) -> ", color.forum );
+      printThemedMnemonicText( "Select theme (A-L, Q-Quit, Return-Save & Quit) -> ",
+                               color.forum );
       printAnsiForegroundColorValue( color.text );
 
       inputChar = readValidatedMenuKey( COLOR_RESET_MENU_KEYS );
@@ -447,9 +452,13 @@ static void presetColorConfig( void )
       switch ( inputChar )
       {
          case 'q':
-         case ' ':
-         case '\n':
+            restoreActiveColorEditorState( &savedColorTable,
+                                           savedUseBlackThemeBackgrounds );
             stdPrintf( "Quit\r\n" );
+            return;
+         case '\n':
+            commitActiveColorEditorState();
+            stdPrintf( "Save\r\n" );
             return;
          default:
             break;

@@ -4,7 +4,7 @@
  */
 
 #include "client.h"
-#include <cmocka.h>
+#include "test/cmocka_compat.h"
 #include "client_globals.h"
 #include "config_globals.h"
 #include "filter_globals.h"
@@ -103,6 +103,7 @@ int stdPrintf( const char *format, ... )
 {
    va_list argList;
 
+   (void)format;
    va_start( argList, format );
    va_end( argList );
    return 0;

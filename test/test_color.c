@@ -6,7 +6,7 @@
 #include "config_file.h"
 #include "browser.h"
 #include "client.h"
-#include <cmocka.h>
+#include "test/cmocka_compat.h"
 #include "color.h"
 #include "config_menu.h"
 #include "defs.h"
@@ -327,6 +327,7 @@ int stdPrintf( const char *format, ... )
    const char *ptrText;
    int width;
 
+   (void)format;
    va_start( argList, format );
    if ( strchr( format, '%' ) == NULL )
    {

@@ -12,7 +12,6 @@
 #include "utility.h"
 static bool tryParseNameFromHeader( const char *header, char *ptrNameBuffer, size_t nameBufferSize );
 
-
 /// @brief Duplicate a NUL-terminated string with heap storage.
 ///
 /// @param ptrSource Source text to copy.
@@ -31,7 +30,6 @@ char *duplicateString( const char *ptrSource )
    }
    return ptrCopy;
 }
-
 
 /// @brief Extract the sender name from a header and move it to the recent-name history.
 ///
@@ -67,7 +65,6 @@ char *extractName( const char *header )
    return (char *)aryLastName[0];
 }
 
-
 /// @brief Extract the sender name from a header without updating name history.
 ///
 /// @param header Header text to parse.
@@ -84,7 +81,6 @@ char *extractNameNoHistory( const char *header )
    }
    return aryExtractedName;
 }
-
 
 /// @brief Extract the numeric message identifier from a `(#...)` header field.
 ///
@@ -109,7 +105,6 @@ int extractNumber( const char *header )
 
    return number;
 }
-
 
 /// @brief Find the first occurrence of a character in a string.
 ///
@@ -143,7 +138,6 @@ char *findChar( const char *ptrString, int targetChar )
       return ( (char *)NULL );
    }
 }
-
 
 /// @brief Find the first occurrence of a substring within a string.
 ///
@@ -179,7 +173,6 @@ char *findSubstring( const char *ptrString, const char *ptrSubstring )
       return ptrResult;
    }
 }
-
 
 /// @brief Parse a sender name out of a formatted message header.
 ///

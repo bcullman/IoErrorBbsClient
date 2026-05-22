@@ -36,7 +36,6 @@ int slistAddItem( slist *list, void *item, int deferSort )
    return 1;
 }
 
-
 /// @brief Create a new sorted list.
 ///
 /// @param nitems Number of initial items supplied through the variadic arguments.
@@ -80,7 +79,6 @@ slist *slistCreate( int nitems, int ( *sortfn )( const void *, const void * ), .
    return ptrList;
 }
 
-
 /// @brief Destroy a sorted list container without freeing its items.
 ///
 /// @param list List to destroy.
@@ -92,7 +90,6 @@ void slistDestroy( slist *list )
    list->items = NULL;
    free( list );
 }
-
 
 /// @brief Free every item stored in a sorted list.
 ///
@@ -109,7 +106,6 @@ void slistDestroyItems( slist *list )
       list->items[itemIndex] = NULL;
    }
 }
-
 
 /// @brief Locate an item in a sorted list with a binary search.
 ///
@@ -158,7 +154,6 @@ int slistFind( slist *list, void *toFind, int ( *findfn )( const void *, const v
    }
    return -1;
 }
-
 
 /// @brief Build the shallow intersection of two sorted lists.
 ///
@@ -223,7 +218,6 @@ slist *slistIntersection( const slist *list1, const slist *list2 )
    return ptrResultList;
 }
 
-
 /// @brief Remove one item from the sorted list without freeing the item itself.
 ///
 /// @param list List to modify.
@@ -258,7 +252,6 @@ int slistRemoveItem( slist *list, int item )
    list->items = ptrItems;
    return 1;
 }
-
 
 /// @brief Sort the list in place with its configured comparison function.
 ///

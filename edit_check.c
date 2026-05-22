@@ -35,7 +35,6 @@ static bool tryNormalizeSupportedUtf8Sequence( FILE *ptrMessageFile, int inputCh
                                                char *ptrReplacementText,
                                                size_t *ptrReplacementLength );
 
-
 /// @brief Append one validated character to the normalized draft buffer.
 ///
 /// @param ptrState Running validation state.
@@ -94,7 +93,6 @@ static bool appendCheckedChar( CheckFileState *ptrState, char *ptrNormalizedText
    return ptrState->lineWidth <= 79;
 }
 
-
 /// @brief Calculate the displayed width of a normalized line segment.
 ///
 /// @param ptrText Text buffer holding the segment.
@@ -115,7 +113,6 @@ static int calculateDisplayWidth( const char *ptrText, size_t startIndex,
 
    return lineWidth;
 }
-
 
 /// @brief Validate and normalize a saved draft before it is sent to the BBS.
 ///
@@ -239,7 +236,6 @@ int checkFile( FILE *ptrMessageFile )
    return 0;
 }
 
-
 /// @brief Find the last whitespace wrap point in a normalized line segment.
 ///
 /// @param ptrText Text buffer holding the segment.
@@ -263,7 +259,6 @@ static size_t findLastWrapIndex( const char *ptrText, size_t startIndex,
    return SIZE_MAX;
 }
 
-
 /// @brief Compute the next displayed width after appending one character.
 ///
 /// @param currentWidth Current line width.
@@ -280,7 +275,6 @@ static int nextLineWidth( int currentWidth, int inputChar )
    return currentWidth + 1;
 }
 
-
 /// @brief Report that the draft contains an illegal character.
 ///
 /// @param ptrNormalizedText Normalized draft buffer to free.
@@ -294,7 +288,6 @@ static int reportIllegalCharacter( char *ptrNormalizedText, int lineNumber )
            lineNumber );
    return 1;
 }
-
 
 /// @brief Report that a draft line is too long to save safely.
 ///
@@ -310,7 +303,6 @@ static int reportLineTooLong( char *ptrNormalizedText, int lineNumber )
    return 1;
 }
 
-
 /// @brief Report that the draft exceeds the allowed total size.
 ///
 /// @param ptrNormalizedText Normalized draft buffer to free.
@@ -322,7 +314,6 @@ static int reportMessageTooLong( char *ptrNormalizedText )
    printf( "\r\n[Warning:  message too long, edit file before saving]\r\n\n" );
    return 1;
 }
-
 
 /// @brief Rewrite normalized draft contents back into the temporary file.
 ///
@@ -352,7 +343,6 @@ static int rewriteNormalizedFile( FILE *ptrMessageFile,
 
    return 0;
 }
-
 
 /// @brief Normalize supported UTF-8 punctuation and spacing to ASCII replacements.
 ///

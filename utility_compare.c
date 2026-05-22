@@ -12,7 +12,6 @@
 static int compareFriendNames( const friend *ptrLeft, const friend *ptrRight );
 static int compareStringPointers( const char *const *ptrLeft, const char *const *ptrRight );
 
-
 /// @brief Compare two friend records by their stored names.
 ///
 /// @param ptrLeft Left friend record.
@@ -27,7 +26,6 @@ static int compareFriendNames( const friend *ptrLeft, const friend *ptrRight )
    return strcmp( ptrLeft->name, ptrRight->name );
 }
 
-
 /// @brief Compare two pointers to C strings.
 ///
 /// @param ptrLeft Pointer to the left string pointer.
@@ -38,7 +36,6 @@ static int compareStringPointers( const char *const *ptrLeft, const char *const 
 {
    return strcmp( *ptrLeft, *ptrRight );
 }
-
 
 /// @brief Compare two friend-pointer entries for sorting.
 ///
@@ -51,7 +48,6 @@ int fSortCompare( const friend *const *ptrLeft, const friend *const *ptrRight )
    return compareFriendNames( *ptrLeft, *ptrRight );
 }
 
-
 /// @brief `void *` wrapper for friend sorting callbacks.
 ///
 /// @param ptrLeft Pointer to the left friend pointer.
@@ -62,7 +58,6 @@ int fSortCompareVoid( const void *ptrLeft, const void *ptrRight )
 {
    return fSortCompare( (const friend *const *)ptrLeft, (const friend *const *)ptrRight );
 }
-
 
 /// @brief Compare a plain name string against a friend record name.
 ///
@@ -75,7 +70,6 @@ int fStrCompare( const char *ptrName, const friend *ptrFriend )
    return strcmp( ptrName, ptrFriend->name );
 }
 
-
 /// @brief `void *` wrapper for comparing a name string against a friend record.
 ///
 /// @param ptrName Name string to compare.
@@ -86,7 +80,6 @@ int fStrCompareVoid( const void *ptrName, const void *ptrFriend )
 {
    return fStrCompare( (const char *)ptrName, (const friend *)ptrFriend );
 }
-
 
 /// @brief Compare two string-pointer entries for sorting.
 ///
@@ -100,7 +93,6 @@ int sortCompare( char **ptrLeft, char **ptrRight )
                                  (const char *const *)ptrRight );
 }
 
-
 /// @brief `void *` wrapper for sorting string-pointer entries.
 ///
 /// @param ptrLeft Pointer to the left string pointer.
@@ -112,7 +104,6 @@ int sortCompareVoid( const void *ptrLeft, const void *ptrRight )
    return compareStringPointers( (const char *const *)ptrLeft,
                                  (const char *const *)ptrRight );
 }
-
 
 /// @brief Compare two plain C strings passed as `void *`.
 ///

@@ -18,7 +18,6 @@
 #include "utility.h"
 static bool shouldFlushImmediately( const char *ptrText );
 
-
 /// @brief Print formatted text to the capture file when capture mode is active.
 ///
 /// @param format `printf`-style format string.
@@ -46,7 +45,6 @@ int capPrintf( const char *format, ... )
    }
    return 1;
 }
-
 
 /// @brief Write one character to the capture file while honoring ANSI filtering.
 ///
@@ -89,7 +87,6 @@ int capPutChar( int inputChar )
    return inputChar;
 }
 
-
 /// @brief Write a string to the capture file after stripping ANSI escapes.
 ///
 /// @param ptrText Text to capture.
@@ -116,7 +113,6 @@ int capPuts( const char *ptrText )
    return 1;
 }
 
-
 /// @brief Print formatted text to the network output stream.
 ///
 /// @param format `printf`-style format string.
@@ -142,7 +138,6 @@ int netPrintf( const char *format, ... )
    return 1;
 }
 
-
 /// @brief Write one character to the network output stream.
 ///
 /// @param inputChar Character to send.
@@ -152,7 +147,6 @@ int netPutChar( int inputChar )
 {
    return ( netput( inputChar ) );
 }
-
 
 /// @brief Write a string to the network output stream.
 ///
@@ -176,7 +170,6 @@ int netPuts( const char *ptrText )
    return 1;
 }
 
-
 char swork[BUFSIZ]; // temp buffer for color stripping
 
 /// @brief Check whether capture or standard output should be flushed immediately.
@@ -188,7 +181,6 @@ static bool shouldFlushImmediately( const char *ptrText )
 {
    return strchr( ptrText, '\n' ) == NULL;
 }
-
 
 /// @brief Print formatted text to standard output and capture output.
 ///
@@ -215,7 +207,6 @@ int stdPrintf( const char *format, ... )
    return stdPuts( aryString );
 }
 
-
 /// @brief Write one character to standard output and mirror it into capture output.
 ///
 /// @param inputChar Character to print.
@@ -230,7 +221,6 @@ int stdPutChar( int inputChar )
    capPutChar( inputChar );
    return inputChar;
 }
-
 
 /// @brief Write a string to standard output without adding a trailing newline.
 ///
@@ -250,7 +240,6 @@ int stdPuts( const char *ptrText )
    capPuts( ptrText );
    return 1;
 }
-
 
 /// @brief Remove ANSI escape sequences from a string in place.
 ///

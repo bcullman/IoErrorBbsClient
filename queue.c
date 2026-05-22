@@ -20,7 +20,6 @@ int deleteQueue( queue *ptrQueue )
    return 0;
 }
 
-
 /// @brief Check whether a string is already present in the queue.
 ///
 /// @param ptrObject String to search for.
@@ -49,7 +48,6 @@ int isQueued( const char *ptrObject, queue *ptrQueue )
    return 0;
 }
 
-
 /// @brief Allocate a new queue.
 ///
 /// @param size Size of each queued object.
@@ -74,7 +72,6 @@ queue *newQueue( int size, int itemCount )
 
    return ptrQueue;
 }
-
 
 /// @brief Remove the next object from the queue.
 ///
@@ -106,7 +103,6 @@ int popQueue( char *ptrObject, queue *ptrQueue )
 
    return 1;
 }
-
 
 /// @brief Push a new object onto the queue.
 ///
@@ -145,7 +141,6 @@ int pushQueue( const char *ptrObject, queue *ptrQueue )
 
    return 1;
 }
-
 
 /// @brief Free a queue only when it is empty.
 ///

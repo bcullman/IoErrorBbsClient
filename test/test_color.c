@@ -547,16 +547,16 @@ static void colorConfig_WhenPresetSelected_RemainsInPresetMenuUntilQuitChosen( v
    colorConfig();
 
    // Assert
-   ptrFirstPresetMenu = findSubstring( aryOutput, "Color presets\r\n\n" );
+   ptrFirstPresetMenu = findSubstring( aryOutput, "Color themes\r\n\n" );
    if ( ptrFirstPresetMenu == NULL )
    {
-      fail_msg( "theme preset flow should show the preset menu at least once; output was '%s'",
+      fail_msg( "theme picker flow should show the theme menu at least once; output was '%s'",
                 aryOutput );
    }
-   ptrSecondPresetMenu = findSubstring( ptrFirstPresetMenu + 1, "Color presets\r\n\n" );
+   ptrSecondPresetMenu = findSubstring( ptrFirstPresetMenu + 1, "Color themes\r\n\n" );
    if ( ptrSecondPresetMenu == NULL )
    {
-      fail_msg( "selecting a preset should keep the user in the preset menu until Q is chosen; output was '%s'",
+      fail_msg( "selecting a theme should keep the user in the theme menu until Q is chosen; output was '%s'",
                 aryOutput );
    }
 }

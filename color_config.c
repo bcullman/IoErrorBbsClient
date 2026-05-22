@@ -400,7 +400,7 @@ static void postColorPreview( int dateColor, int textColor, int nameColor,
    stdPrintf( "Hi there!\r\n" );
 }
 
-/// @brief Show preset themes and apply the selected preset.
+/// @brief Show built-in themes and apply the selected theme.
 ///
 /// @return This helper does not return a value.
 static void presetColorConfig( void )
@@ -417,7 +417,7 @@ static void presetColorConfig( void )
 
       printAnsiDisplayStateValue( color.text, color.background );
       stdPrintf( "\033[H\033[2J" );
-      stdPrintf( "Color presets\r\n\n" );
+      stdPrintf( "Color themes\r\n\n" );
       for ( optionIndex = 0;
             optionIndex < columnBreakIndex;
             optionIndex++ )
@@ -435,7 +435,7 @@ static void presetColorConfig( void )
       printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
       printThemedMnemonicText( " Q.) Quit\r\n", color.number );
-      printThemedMnemonicText( "Select preset (A-L, Q-Quit) -> ", color.forum );
+      printThemedMnemonicText( "Select theme (A-L, Q-Quit) -> ", color.forum );
       printAnsiForegroundColorValue( color.text );
 
       inputChar = readValidatedMenuKey( COLOR_RESET_MENU_KEYS );
@@ -1050,13 +1050,13 @@ static void printPresetSwatches( const PresetMenuOption *ptrOption )
    useBlackThemeBackgrounds = savedUseBlackThemeBackgrounds;
 }
 
-/// @brief Print a themed preview pane for the current preset colors.
+/// @brief Print a themed preview pane for the current theme colors.
 ///
 /// @return This helper does not return a value.
 static void printPresetPreviewPane( void )
 {
    printAnsiDisplayStateValue( color.text, color.background );
-   printThemedMnemonicText( "\r\nPreview\r\n", color.number );
+   printThemedMnemonicText( "\r\nTheme preview\r\n", color.number );
    printAnsiForegroundColorValue( color.forum );
    stdPrintf( "Lobby> " );
    printAnsiForegroundColorValue( color.text );

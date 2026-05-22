@@ -1,6 +1,6 @@
 # IoError BBS Client
 
-This fork is **2.3.10-Stilgar** by Stilgar, based on the ISCABBS client 1.5.1
+This fork is **3.0.0-Stilgar** by Stilgar, based on the ISCABBS client 1.5.1
 (stdio patch) by Serendipity.
 
 Project page: <https://github.com/StilgarISCA/IoErrorBbsClient>

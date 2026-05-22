@@ -20,6 +20,15 @@ More background is documented in `history.md`.
 
 ## Quick Start
 
+Install test and analysis dependencies first:
+
+```bash
+brew install cmocka cppcheck llvm pkg-config
+```
+
+`make check` builds and runs the cmocka unit tests only when `cmocka` is
+available through `pkg-config`.
+
 ```bash
 make clean
 autoreconf -i
@@ -127,8 +136,9 @@ Boolean settings use explicit TOML values: `true` and `false`.
 
 ## Shell And Editor Commands
 
-The shell hotkey and external editor setting can now use a normal command with
-optional arguments.
+The external editor setting can use a normal command with optional arguments.
+The shell hotkey is configurable, but the shell command itself still comes from
+`$SHELL` at runtime.
 
 Examples that work:
 - `/bin/zsh`
@@ -195,6 +205,8 @@ make scan-build
 Optional clang-tidy setup:
 
 ```bash
+# Requires: brew install bear
+#
 # Generate/refresh compile_commands.json for clang-tidy
 make compile-commands
 

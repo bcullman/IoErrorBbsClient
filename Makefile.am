@@ -13,6 +13,7 @@ releasedsym = $(releasebinary).dSYM
 scanbuildreportdir = scan-build-report
 noinst_HEADERS = \
 	browser.h \
+	config_toml.h \
 	defs.h \
 	ext.h \
 	macos_keychain.h \
@@ -27,6 +28,7 @@ bbs_SOURCES = \
 	browser_urls.c \
 	config_file.c \
 	config_parse.c \
+	config_toml.c \
 	color.c \
 	color_config.c \
 	color_themes.c \
@@ -78,7 +80,7 @@ test_slist_LDADD = $(CMOCKA_LIBS)
 test_utility_SOURCES = test/test_utility.c test/test_helpers.c utility_error.c utility_input.c utility_send.c utility_string.c global.c
 test_utility_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_utility_LDADD = $(CMOCKA_LIBS)
-test_config_file_SOURCES = test/test_config_file.c test/test_helpers.c config_file.c config_parse.c queue.c slist.c global.c
+test_config_file_SOURCES = test/test_config_file.c test/test_helpers.c config_file.c config_parse.c config_toml.c queue.c slist.c global.c
 test_config_file_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_config_file_LDADD = $(CMOCKA_LIBS)
 test_getline_SOURCES = test/test_getline.c test/test_helpers.c getline.c getline_name.c slist.c global.c

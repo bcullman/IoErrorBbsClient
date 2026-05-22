@@ -7,19 +7,18 @@
 /*
  * This file parses config.toml and applies the configured settings.
  */
-#include "config_file.h"
 #include "client.h"
 #include "client_globals.h"
 #include "color.h"
+#include "config_file.h"
 #include "config_globals.h"
 #include "config_menu.h"
+#include "config_toml.h"
 #include "defs.h"
 #include "filter_globals.h"
 #include "utility.h"
 
 #define MAX_LINE_LENGTH 512
-#define MAX_SECTION_NAME_LENGTH 64
-#define MAX_VALUE_LENGTH 256
 
 typedef enum
 {
@@ -82,27 +81,11 @@ static bool tryParseLocalCommandKeyValue( const char *ptrValue,
                                           const char *ptrKeyName,
                                           bool isCommandKey,
                                           int *ptrOutValue );
-static bool tryParseTomlKeyValueLine( const char *ptrLine,
-                                      char *aryKeyName,
-                                      size_t keyNameSize,
-                                      char *aryValue,
-                                      size_t valueSize );
-static bool tryParseTomlStringToken( const char *ptrText,
-                                     size_t *ptrConsumedLength,
-                                     char *aryOutput,
-                                     size_t outputSize );
-static bool tryParseTomlQuotedString( const char *ptrValue,
-                                      char *aryOutput,
-                                      size_t outputSize );
-static TomlSectionId parseTomlSectionLine( const char *ptrLine,
-                                           char *arySectionName,
-                                           size_t sectionNameSize );
+static TomlSectionId tomlSectionIdFromName( const char *ptrSectionName );
 static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
                                     const char *ptrKeyName,
                                     const char *ptrValue,
                                     ConfigReadState *ptrState );
-static void stripInlineTomlComment( char *ptrText );
-static char *trimWhitespace( char *ptrText );
 static void warnAboutConfigConflicts( void );
 
 /// @brief Apply default local-command key values when the config omits them.
@@ -767,7 +750,7 @@ static bool tryParseContactFriendsValue( const char *ptrValue )
          }
          memcpy( aryFieldName, ptrCursor, fieldNameLength );
          aryFieldName[fieldNameLength] = '\0';
-         snprintf( aryFieldName, sizeof( aryFieldName ), "%s", trimWhitespace( aryFieldName ) );
+         snprintf( aryFieldName, sizeof( aryFieldName ), "%s", trimTomlWhitespace( aryFieldName ) );
          ptrCursor = ptrEquals + 1;
          while ( isspace( (unsigned char)*ptrCursor ) )
          {
@@ -872,7 +855,7 @@ static bool tryParseColorValue( const char *ptrValue,
 
    if ( ptrValue != NULL && *ptrValue == '"' )
    {
-      char aryParsedText[MAX_VALUE_LENGTH];
+      char aryParsedText[CONFIG_TOML_MAX_VALUE_LENGTH];
 
       if ( tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) )
       {
@@ -911,7 +894,7 @@ static bool tryParseColorValue( const char *ptrValue,
 static bool tryParseColorOutputModeValue( const char *ptrValue,
                                           ColorOutputMode *ptrOutMode )
 {
-   char aryParsedText[MAX_VALUE_LENGTH];
+   char aryParsedText[CONFIG_TOML_MAX_VALUE_LENGTH];
 
    if ( !tryParseTomlQuotedString( ptrValue, aryParsedText, sizeof( aryParsedText ) ) ||
         !tryFindColorOutputMode( aryParsedText, ptrOutMode ) )
@@ -1033,291 +1016,46 @@ static bool tryParseLocalCommandKeyValue( const char *ptrValue,
    return true;
 }
 
-/// @brief Split a TOML assignment line into key and value text.
+/// @brief Map a parsed TOML section name to a config section identifier.
 ///
-/// @param ptrLine Raw line content.
-/// @param aryKeyName Destination for the decoded key name.
-/// @param keyNameSize Capacity of `aryKeyName`.
-/// @param aryValue Destination for the trimmed value text.
-/// @param valueSize Capacity of `aryValue`.
+/// @param ptrSectionName Parsed TOML section name.
 ///
-/// @return `true` on success, otherwise `false`.
-static bool tryParseTomlKeyValueLine( const char *ptrLine,
-                                      char *aryKeyName,
-                                      size_t keyNameSize,
-                                      char *aryValue,
-                                      size_t valueSize )
+/// @return Matching section enum, or `TOML_SECTION_UNKNOWN`.
+static TomlSectionId tomlSectionIdFromName( const char *ptrSectionName )
 {
-   const char *ptrEquals;
-   char aryKeyBuffer[MAX_SECTION_NAME_LENGTH];
-   char aryValueBuffer[MAX_VALUE_LENGTH];
-   const char *ptrTrimmedKey;
-   const char *ptrTrimmedValue;
-   size_t keyLength;
-   size_t valueLength;
-
-   ptrEquals = strchr( ptrLine, '=' );
-   if ( ptrEquals == NULL )
-   {
-      return false;
-   }
-
-   keyLength = (size_t)( ptrEquals - ptrLine );
-   valueLength = strlen( ptrEquals + 1 );
-   if ( keyLength >= sizeof( aryKeyBuffer ) || valueLength >= sizeof( aryValueBuffer ) )
-   {
-      return false;
-   }
-
-   memcpy( aryKeyBuffer, ptrLine, keyLength );
-   aryKeyBuffer[keyLength] = '\0';
-   memcpy( aryValueBuffer, ptrEquals + 1, valueLength + 1 );
-
-   ptrTrimmedKey = trimWhitespace( aryKeyBuffer );
-   stripInlineTomlComment( aryValueBuffer );
-   ptrTrimmedValue = trimWhitespace( aryValueBuffer );
-   if ( *ptrTrimmedKey == '\0' || *ptrTrimmedValue == '\0' ||
-        strlen( ptrTrimmedKey ) >= keyNameSize || strlen( ptrTrimmedValue ) >= valueSize )
-   {
-      return false;
-   }
-
-   snprintf( aryKeyName, keyNameSize, "%s", ptrTrimmedKey );
-   snprintf( aryValue, valueSize, "%s", ptrTrimmedValue );
-   return true;
-}
-
-/// @brief Remove a TOML inline comment from a value buffer.
-///
-/// `#` starts a comment only when it appears outside a quoted string.
-///
-/// @param ptrText Mutable TOML value text.
-///
-/// @return This helper does not return a value.
-static void stripInlineTomlComment( char *ptrText )
-{
-   bool isEscaped;
-   bool isInsideString;
-
-   if ( ptrText == NULL )
-   {
-      return;
-   }
-
-   isEscaped = false;
-   isInsideString = false;
-   while ( *ptrText != '\0' )
-   {
-      if ( isInsideString )
-      {
-         if ( isEscaped )
-         {
-            isEscaped = false;
-         }
-         else if ( *ptrText == '\\' )
-         {
-            isEscaped = true;
-         }
-         else if ( *ptrText == '"' )
-         {
-            isInsideString = false;
-         }
-      }
-      else if ( *ptrText == '"' )
-      {
-         isInsideString = true;
-      }
-      else if ( *ptrText == '#' )
-      {
-         *ptrText = '\0';
-         return;
-      }
-
-      ptrText++;
-   }
-}
-
-/// @brief Parse one TOML double-quoted string token from the start of a buffer.
-///
-/// @param ptrText Text that begins with a TOML string token.
-/// @param ptrConsumedLength Receives the number of input characters consumed.
-/// @param aryOutput Destination buffer for the decoded string.
-/// @param outputSize Capacity of `aryOutput`.
-///
-/// @return `true` on success, otherwise `false`.
-static bool tryParseTomlStringToken( const char *ptrText,
-                                     size_t *ptrConsumedLength,
-                                     char *aryOutput,
-                                     size_t outputSize )
-{
-   size_t textIndex;
-
-   if ( ptrText == NULL || ptrConsumedLength == NULL || aryOutput == NULL || *ptrText != '"' )
-   {
-      return false;
-   }
-
-   for ( textIndex = 1; ptrText[textIndex] != '\0'; textIndex++ )
-   {
-      if ( ptrText[textIndex] == '\\' && ptrText[textIndex + 1] != '\0' )
-      {
-         textIndex++;
-         continue;
-      }
-      if ( ptrText[textIndex] == '"' )
-      {
-         char aryQuotedValue[MAX_VALUE_LENGTH];
-
-         if ( textIndex + 1 >= sizeof( aryQuotedValue ) )
-         {
-            return false;
-         }
-         memcpy( aryQuotedValue, ptrText, textIndex + 1 );
-         aryQuotedValue[textIndex + 1] = '\0';
-         if ( !tryParseTomlQuotedString( aryQuotedValue, aryOutput, outputSize ) )
-         {
-            return false;
-         }
-         *ptrConsumedLength = textIndex + 1;
-         return true;
-      }
-   }
-
-   return false;
-}
-
-/// @brief Decode a TOML double-quoted string.
-///
-/// @param ptrValue Raw value text to decode.
-/// @param aryOutput Destination buffer for decoded text.
-/// @param outputSize Capacity of `aryOutput`.
-///
-/// @return `true` on success, otherwise `false`.
-static bool tryParseTomlQuotedString( const char *ptrValue,
-                                      char *aryOutput,
-                                      size_t outputSize )
-{
-   size_t inputIndex;
-   size_t outputIndex;
-   size_t valueLength;
-
-   valueLength = strlen( ptrValue );
-   if ( valueLength < 2 || ptrValue[0] != '"' || ptrValue[valueLength - 1] != '"' )
-   {
-      return false;
-   }
-
-   outputIndex = 0;
-   for ( inputIndex = 1; inputIndex + 1 < valueLength; inputIndex++ )
-   {
-      int decodedChar;
-
-      decodedChar = (unsigned char)ptrValue[inputIndex];
-      if ( decodedChar == '\\' )
-      {
-         inputIndex++;
-         if ( inputIndex + 1 > valueLength )
-         {
-            return false;
-         }
-         switch ( ptrValue[inputIndex] )
-         {
-            case '"':
-               decodedChar = '"';
-               break;
-
-            case '\\':
-               decodedChar = '\\';
-               break;
-
-            case 'n':
-               decodedChar = '\n';
-               break;
-
-            case 'r':
-               decodedChar = '\r';
-               break;
-
-            case 't':
-               decodedChar = '\t';
-               break;
-
-            default:
-               return false;
-         }
-      }
-
-      if ( outputIndex + 1 >= outputSize )
-      {
-         return false;
-      }
-      aryOutput[outputIndex++] = (char)decodedChar;
-   }
-   aryOutput[outputIndex] = '\0';
-   return true;
-}
-
-/// @brief Decode a TOML section header.
-///
-/// @param ptrLine Raw line content.
-/// @param arySectionName Destination for the decoded section name.
-/// @param sectionNameSize Capacity of `arySectionName`.
-///
-/// @return Matching section enum.
-static TomlSectionId parseTomlSectionLine( const char *ptrLine,
-                                           char *arySectionName,
-                                           size_t sectionNameSize )
-{
-   size_t sectionNameLength;
-
-   sectionNameLength = strlen( ptrLine );
-   if ( sectionNameLength < 3 || ptrLine[0] != '[' || ptrLine[sectionNameLength - 1] != ']' )
-   {
-      return TOML_SECTION_NONE;
-   }
-   sectionNameLength -= 2;
-   if ( sectionNameLength >= sectionNameSize )
-   {
-      return TOML_SECTION_NONE;
-   }
-
-   memcpy( arySectionName, ptrLine + 1, sectionNameLength );
-   arySectionName[sectionNameLength] = '\0';
-   trimWhitespace( arySectionName );
-
-   if ( strcmp( arySectionName, "behavior" ) == 0 )
+   if ( strcmp( ptrSectionName, "behavior" ) == 0 )
    {
       return TOML_SECTION_BEHAVIOR;
    }
-   if ( strcmp( arySectionName, "away" ) == 0 )
+   if ( strcmp( ptrSectionName, "away" ) == 0 )
    {
       return TOML_SECTION_AWAY;
    }
-   if ( strcmp( arySectionName, "colors_256" ) == 0 )
+   if ( strcmp( ptrSectionName, "colors_256" ) == 0 )
    {
       return TOML_SECTION_COLORS_256;
    }
-   if ( strcmp( arySectionName, "colors_truecolor" ) == 0 )
+   if ( strcmp( ptrSectionName, "colors_truecolor" ) == 0 )
    {
       return TOML_SECTION_COLORS_TRUECOLOR;
    }
-   if ( strcmp( arySectionName, "connection" ) == 0 )
+   if ( strcmp( ptrSectionName, "connection" ) == 0 )
    {
       return TOML_SECTION_CONNECTION;
    }
-   if ( strcmp( arySectionName, "contacts" ) == 0 )
+   if ( strcmp( ptrSectionName, "contacts" ) == 0 )
    {
       return TOML_SECTION_CONTACTS;
    }
-   if ( strcmp( arySectionName, "defaults" ) == 0 )
+   if ( strcmp( ptrSectionName, "defaults" ) == 0 )
    {
       return TOML_SECTION_DEFAULTS;
    }
-   if ( strcmp( arySectionName, "metadata" ) == 0 )
+   if ( strcmp( ptrSectionName, "metadata" ) == 0 )
    {
       return TOML_SECTION_METADATA;
    }
-   if ( strcmp( arySectionName, "local_command_keys" ) == 0 )
+   if ( strcmp( ptrSectionName, "local_command_keys" ) == 0 )
    {
       return TOML_SECTION_LOCAL_COMMAND_KEYS;
    }
@@ -1341,7 +1079,7 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
    bool parsedBooleanValue;
    int parsedIntegerValue;
    int parsedKeyValue;
-   char aryParsedText[MAX_VALUE_LENGTH];
+   char aryParsedText[CONFIG_TOML_MAX_VALUE_LENGTH];
 
    switch ( currentSection )
    {
@@ -1655,33 +1393,6 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
    }
 }
 
-/// @brief Trim leading and trailing ASCII whitespace in place.
-///
-/// @param ptrText Mutable string buffer to normalize.
-///
-/// @return Pointer to the trimmed view inside `ptrText`.
-static char *trimWhitespace( char *ptrText )
-{
-   char *ptrEnd;
-
-   while ( *ptrText != '\0' && isspace( (unsigned char)*ptrText ) )
-   {
-      ptrText++;
-   }
-   if ( *ptrText == '\0' )
-   {
-      return ptrText;
-   }
-
-   ptrEnd = ptrText + strlen( ptrText ) - 1;
-   while ( ptrEnd > ptrText && isspace( (unsigned char)*ptrEnd ) )
-   {
-      *ptrEnd-- = '\0';
-   }
-
-   return ptrText;
-}
-
 /// @brief Warn about conflicting local-command key definitions.
 ///
 /// @return This helper does not return a value.
@@ -1719,9 +1430,9 @@ static void warnAboutConfigConflicts( void )
 void readConfig( void )
 {
    char aryLine[MAX_LINE_LENGTH + 1];
-   char aryKeyName[MAX_SECTION_NAME_LENGTH];
-   char arySectionName[MAX_SECTION_NAME_LENGTH];
-   char aryValue[MAX_VALUE_LENGTH];
+   char aryKeyName[CONFIG_TOML_MAX_NAME_LENGTH];
+   char arySectionName[CONFIG_TOML_MAX_NAME_LENGTH];
+   char aryValue[CONFIG_TOML_MAX_VALUE_LENGTH];
    ConfigReadState state = { 0 };
    TomlSectionId currentSection;
 
@@ -1734,22 +1445,26 @@ void readConfig( void )
    {
       const char *ptrTrimmedLine;
 
-      ptrTrimmedLine = trimWhitespace( aryLine );
+      ptrTrimmedLine = trimTomlWhitespace( aryLine );
       if ( *ptrTrimmedLine == '\0' || *ptrTrimmedLine == '#' )
       {
          continue;
       }
       if ( ptrTrimmedLine[0] == '[' )
       {
-         currentSection = parseTomlSectionLine( ptrTrimmedLine, arySectionName,
-                                                sizeof( arySectionName ) );
-         if ( currentSection == TOML_SECTION_NONE )
+         if ( !tryParseTomlSectionName( ptrTrimmedLine, arySectionName,
+                                        sizeof( arySectionName ) ) )
          {
+            currentSection = TOML_SECTION_NONE;
             stdPrintf( "Invalid TOML section header on line %d.\n", state.lineNumber );
          }
-         else if ( currentSection == TOML_SECTION_UNKNOWN )
+         else
          {
-            stdPrintf( "Unknown TOML section '%s' ignored.\n", arySectionName );
+            currentSection = tomlSectionIdFromName( arySectionName );
+            if ( currentSection == TOML_SECTION_UNKNOWN )
+            {
+               stdPrintf( "Unknown TOML section '%s' ignored.\n", arySectionName );
+            }
          }
          continue;
       }

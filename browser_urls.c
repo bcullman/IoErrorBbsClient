@@ -368,28 +368,35 @@ static char *findTrailingHttpsFragment( char *ptrText )
 /// @return Pointer to the first detected URL start, or `NULL` if none is found.
 static char *findUrlStart( char *ptrText )
 {
-   char *ptrEarliest;
    char *ptrHttps;
    char *ptrWww;
 
    ptrHttps = strstr( ptrText, "https://" );
-   ptrWww = strstr( ptrText, "www." );
-
-   ptrEarliest = ptrHttps;
-   if ( ptrWww != NULL && ( ptrEarliest == NULL || ptrWww < ptrEarliest ) )
+   ptrWww = ptrText;
+   while ( true )
    {
-      ptrEarliest = ptrWww;
-   }
-
-   if ( ptrWww != NULL && ptrEarliest == ptrWww )
-   {
-      if ( !isUrlStartBoundary( ptrText, ptrWww ) )
+      ptrWww = strstr( ptrWww, "www." );
+      if ( ptrWww == NULL )
       {
-         ptrEarliest = NULL;
+         break;
       }
+      if ( isUrlStartBoundary( ptrText, ptrWww ) )
+      {
+         break;
+      }
+      ptrWww++;
    }
 
-   return ptrEarliest;
+   if ( ptrHttps == NULL )
+   {
+      return ptrWww;
+   }
+   if ( ptrWww == NULL )
+   {
+      return ptrHttps;
+   }
+
+   return ptrHttps < ptrWww ? ptrHttps : ptrWww;
 }
 
 /// @brief Find the first URL start sequence in read-only text.
@@ -399,28 +406,35 @@ static char *findUrlStart( char *ptrText )
 /// @return Pointer to the first detected URL start, or `NULL` if none is found.
 static const char *findUrlStartConst( const char *ptrText )
 {
-   const char *ptrEarliest;
    const char *ptrHttps;
    const char *ptrWww;
 
    ptrHttps = strstr( ptrText, "https://" );
-   ptrWww = strstr( ptrText, "www." );
-
-   ptrEarliest = ptrHttps;
-   if ( ptrWww != NULL && ( ptrEarliest == NULL || ptrWww < ptrEarliest ) )
+   ptrWww = ptrText;
+   while ( true )
    {
-      ptrEarliest = ptrWww;
-   }
-
-   if ( ptrWww != NULL && ptrEarliest == ptrWww )
-   {
-      if ( !isUrlStartBoundary( ptrText, ptrWww ) )
+      ptrWww = strstr( ptrWww, "www." );
+      if ( ptrWww == NULL )
       {
-         ptrEarliest = NULL;
+         break;
       }
+      if ( isUrlStartBoundary( ptrText, ptrWww ) )
+      {
+         break;
+      }
+      ptrWww++;
    }
 
-   return ptrEarliest;
+   if ( ptrHttps == NULL )
+   {
+      return ptrWww;
+   }
+   if ( ptrWww == NULL )
+   {
+      return ptrHttps;
+   }
+
+   return ptrHttps < ptrWww ? ptrHttps : ptrWww;
 }
 
 /// @brief Build a stable OSC 8 hyperlink ID for a URL target.

@@ -637,6 +637,42 @@ static void filterUrl_WhenWwwUrlPresent_QueuesUrlWithoutTldList( void **state )
    resetLists();
 }
 
+static void filterUrl_WhenInvalidWwwBoundaryPrecedesHttps_QueuesLaterHttpsUrl( void **state )
+{
+   // Arrange
+   char aryUrl[1024];
+   int popResult;
+
+   (void)state;
+
+   resetState();
+   resetLists();
+   urlQueue = newQueue( 1024, 5 );
+   if ( urlQueue == NULL )
+   {
+      fail_msg( "newQueue failed for invalid www boundary regression test setup" );
+   }
+
+   // Act
+   filterUrl( "notwww.example then https://example.com" );
+
+   // Assert
+   memset( aryUrl, 0, sizeof( aryUrl ) );
+   popResult = popQueue( aryUrl, urlQueue );
+   if ( popResult != 1 )
+   {
+      fail_msg( "later HTTPS URL should still be queued when earlier www. has an invalid boundary; pop returned %d",
+                popResult );
+   }
+   if ( strcmp( aryUrl, "https://example.com" ) != 0 )
+   {
+      fail_msg( "later HTTPS URL should be preserved after skipping invalid www. prefix; got '%s'",
+                aryUrl );
+   }
+
+   resetLists();
+}
+
 static void filterUrl_WhenHttpOrFtpPresent_DoesNotQueueUnsupportedSchemes( void **state )
 {
    // Arrange
@@ -978,6 +1014,29 @@ static void printWithOsc8Links_WhenTextContainsHttpsWwwUrl_EmitsSingleHyperlink(
    if ( strncmp( ptrVisibleText, "https://www.example.com/", 24 ) != 0 )
    {
       fail_msg( "OSC-8 visible link text should start with the full HTTPS URL; log was: %s", aryPrintLog );
+   }
+}
+
+static void printWithOsc8Links_WhenInvalidWwwBoundaryPrecedesHttps_EmitsLaterHttpsHyperlink( void **state )
+{
+   // Arrange
+   const char *ptrExpectedTarget;
+   const char *ptrMessage;
+
+   (void)state;
+
+   resetState();
+   ptrMessage = "notwww.example then https://example.com";
+   ptrExpectedTarget = ";https://example.com\033\\";
+
+   // Act
+   printWithOsc8Links( ptrMessage );
+
+   // Assert
+   if ( strstr( aryPrintLog, ptrExpectedTarget ) == NULL )
+   {
+      fail_msg( "OSC-8 output should skip invalid www. boundaries and link the later HTTPS URL; log was: %s",
+                aryPrintLog );
    }
 }
 
@@ -1546,6 +1605,7 @@ int main( void )
       cmocka_unit_test( filterUrl_WhenDuplicateSeen_QueuesOnlyOnce ),
       cmocka_unit_test( filterUrl_WhenQueueIsFull_EvictsOldestUrl ),
       cmocka_unit_test( filterUrl_WhenHttpsAndTrailingPunctuationPresent_ExtractsCleanUrl ),
+      cmocka_unit_test( filterUrl_WhenInvalidWwwBoundaryPrecedesHttps_QueuesLaterHttpsUrl ),
       cmocka_unit_test( filterUrl_WhenWwwUrlPresent_QueuesUrlWithoutTldList ),
       cmocka_unit_test( filterUrl_WhenHttpOrFtpPresent_DoesNotQueueUnsupportedSchemes ),
       cmocka_unit_test( filterUrl_WhenHttpsSchemeWrapsAfterSlashes_CombinesIntoSingleUrl ),
@@ -1557,6 +1617,7 @@ int main( void )
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsHttpsUrl_EmitsHyperlinkEscapes ),
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsWwwUrl_UsesHttpsTarget ),
       cmocka_unit_test( printWithOsc8Links_WhenTextContainsHttpsWwwUrl_EmitsSingleHyperlink ),
+      cmocka_unit_test( printWithOsc8Links_WhenInvalidWwwBoundaryPrecedesHttps_EmitsLaterHttpsHyperlink ),
       cmocka_unit_test( printWithOsc8Links_WhenHttpsUrlExceedsPrintfBuffer_StillClosesHyperlink ),
       cmocka_unit_test( printWithOsc8Links_WhenGhosttyAndTextEqualsHttpsTarget_StillEmitsOsc8Hyperlink ),
       cmocka_unit_test( printWithOsc8Links_WhenClickableUrlsDisabled_PrintsPlainText ),

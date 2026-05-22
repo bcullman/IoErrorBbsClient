@@ -625,6 +625,49 @@ static void colorConfig_WhenThemeSaved_ReturnSavesAndExitsThemeMenu( void **stat
    }
 }
 
+static void colorConfig_WhenThemeAndCustomizeShown_RenderSameThemePreviewText( void **state )
+{
+   const int aryCustomizeKeys[] = { 'c', 'q', 'q' };
+   const int aryThemeKeys[] = { 't', 'q', 'q' };
+   char aryCustomizeOutput[sizeof( aryOutput )];
+
+   // Arrange
+   (void)state;
+
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   setInputSequence( aryCustomizeKeys,
+                     sizeof( aryCustomizeKeys ) / sizeof( aryCustomizeKeys[0] ) );
+
+   // Act
+   colorConfig();
+   snprintf( aryCustomizeOutput, sizeof( aryCustomizeOutput ), "%s", aryOutput );
+   resetState();
+   flagsConfiguration.shouldUseAnsi = true;
+   setInputSequence( aryThemeKeys, sizeof( aryThemeKeys ) / sizeof( aryThemeKeys[0] ) );
+   colorConfig();
+
+   // Assert
+   if ( findSubstring( aryCustomizeOutput, "Theme preview\r\n" ) == NULL ||
+        findSubstring( aryOutput, "Theme preview\r\n" ) == NULL )
+   {
+      fail_msg( "both color screens should label the shared sample as Theme preview; customize was '%s' theme menu was '%s'",
+                aryCustomizeOutput, aryOutput );
+   }
+   if ( findSubstring( aryCustomizeOutput, "Recipient: " ) == NULL ||
+        findSubstring( aryOutput, "Recipient: " ) == NULL )
+   {
+      fail_msg( "both color screens should include the input preview line; customize was '%s' theme menu was '%s'",
+                aryCustomizeOutput, aryOutput );
+   }
+   if ( findSubstring( aryCustomizeOutput, "ANSI: " ) == NULL ||
+        findSubstring( aryOutput, "ANSI: " ) == NULL )
+   {
+      fail_msg( "both color screens should include the ANSI remap preview line; customize was '%s' theme menu was '%s'",
+                aryCustomizeOutput, aryOutput );
+   }
+}
+
 static void colorOptions_WhenColorOutputModeSelected_UpdatesConfiguredMode( void **state )
 {
    const int aryKeys[] = { 't' };
@@ -2072,6 +2115,7 @@ int main( void )
       cmocka_unit_test( colorConfig_WhenDarkThemeActive_PresetMenuPreservesBlackFallbackFlag ),
       cmocka_unit_test( colorConfig_WhenThemePreviewCancelled_RestoresOriginalThemeAndStaysInMenuUntilQuitChosen ),
       cmocka_unit_test( colorConfig_WhenThemeSaved_ReturnSavesAndExitsThemeMenu ),
+      cmocka_unit_test( colorConfig_WhenThemeAndCustomizeShown_RenderSameThemePreviewText ),
       cmocka_unit_test( defaultColors_WhenClearAllApplied_SetsKnownDefaults ),
       cmocka_unit_test( defaultColors_WhenClearAllDisabled_LeavesBackgroundUnchanged ),
       cmocka_unit_test( draculaProColors_WhenApplied_SetsDarkPalette ),

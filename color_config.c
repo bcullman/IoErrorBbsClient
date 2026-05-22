@@ -232,16 +232,15 @@ static void printPaletteColorValue( int colorValue );
 static void postColorPreview( int dateColor, int textColor, int nameColor,
                               const char *ptrName );
 static void presetColorConfig( void );
-static void printPresetPreviewPane( void );
 static void printExpressColorPreview( int textColor, int nameColor,
                                       const char *ptrName );
 static void printGeneralColorPreview( void );
 static void printInputColorPreview( const ColorEditorContext *ptrContext );
-static void printFullColorPreview( void );
 static void printPresetMenuItem( const PresetMenuOption *ptrOption );
 static void printPresetMenuRow( const PresetMenuOption *ptrLeftOption,
                                 const PresetMenuOption *ptrRightOption );
 static void printPresetSwatches( const PresetMenuOption *ptrOption );
+static void printThemePreviewContent( void );
 static bool runColorEditor( const ColorEditorFieldSpec *ptrFields,
                             size_t fieldCount, size_t initialFieldIndex,
                             const char *ptrSectionTitle,
@@ -437,7 +436,9 @@ static void presetColorConfig( void )
             printPresetMenuRow( &aryPresetMenuOptions[optionIndex], NULL );
          }
       }
-      printPresetPreviewPane();
+      printAnsiDisplayStateValue( color.text, color.background );
+      printThemedMnemonicText( "\r\nTheme preview\r\n", color.number );
+      printThemePreviewContent();
       printAnsiDisplayStateValue( color.text, color.background );
       printThemedMnemonicText( "Select theme (A-L, Q-Quit, Return-Save & Quit) -> ",
                                color.forum );
@@ -811,7 +812,14 @@ static void printColorEditorPreview( const ColorEditorContext *ptrContext )
 {
    printAnsiDisplayStateValue( color.text, color.background );
    stdPrintf( "\r\n" );
-   printThemedMnemonicText( "Preview\r\n", color.number );
+   if ( ptrContext->previewKind == COLOR_EDITOR_PREVIEW_FULL )
+   {
+      printThemedMnemonicText( "Theme preview\r\n", color.number );
+   }
+   else
+   {
+      printThemedMnemonicText( "Preview\r\n", color.number );
+   }
    printColorEditorPreviewByKind( ptrContext->previewKind, ptrContext );
 }
 
@@ -833,7 +841,7 @@ static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind,
          break;
 
       case COLOR_EDITOR_PREVIEW_FULL:
-         printFullColorPreview();
+         printThemePreviewContent();
          break;
 
       case COLOR_EDITOR_PREVIEW_GENERAL:
@@ -958,15 +966,28 @@ static void printInputColorPreview( const ColorEditorContext *ptrContext )
    stdPrintf( ">Hi there!\r\n" );
 }
 
-/// @brief Print a compact whole-palette preview for the unified color editor.
+/// @brief Print a compact whole-theme preview shared by theme selection screens.
 ///
 /// @return This helper does not return a value.
-static void printFullColorPreview( void )
+static void printThemePreviewContent( void )
 {
    printGeneralColorPreview();
    printInputColorPreview( NULL );
    postColorPreview( color.postDate, color.postText, color.postName, A_USER );
-   printExpressColorPreview( color.expressText, color.expressName, A_USER );
+   printAnsiForegroundColorValue( color.expressText );
+   stdPrintf( "X: " );
+   printAnsiForegroundColorValue( color.expressName );
+   stdPrintf( "%s", A_USER );
+   printAnsiForegroundColorValue( color.expressText );
+   stdPrintf( "  >Hello  ANSI: " );
+   printAnsiForegroundColorValue( color.ansiBlackTextColor );
+   stdPrintf( "blk " );
+   printAnsiForegroundColorValue( color.ansiBlueTextColor );
+   stdPrintf( "blu " );
+   printAnsiForegroundColorValue( color.ansiMagentaTextColor );
+   stdPrintf( "mag " );
+   printAnsiForegroundColorValue( color.ansiWhiteTextColor );
+   stdPrintf( "wht\r\n\r\n" );
 }
 
 /// @brief Print one palette value for the custom color editor.
@@ -1057,49 +1078,6 @@ static void printPresetSwatches( const PresetMenuOption *ptrOption )
    }
 
    useBlackThemeBackgrounds = savedUseBlackThemeBackgrounds;
-}
-
-/// @brief Print a themed preview pane for the current theme colors.
-///
-/// @return This helper does not return a value.
-static void printPresetPreviewPane( void )
-{
-   printAnsiDisplayStateValue( color.text, color.background );
-   printThemedMnemonicText( "\r\nTheme preview\r\n", color.number );
-   printAnsiForegroundColorValue( color.forum );
-   stdPrintf( "Lobby> " );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( "Enter message  " );
-   printAnsiForegroundColorValue( color.number );
-   stdPrintf( "150" );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( " msgs  " );
-   printAnsiForegroundColorValue( color.errorTextColor );
-   stdPrintf( "Error\r\n" );
-
-   printAnsiForegroundColorValue( color.postDate );
-   stdPrintf( "Jan  1 11:01" );
-   printAnsiForegroundColorValue( color.postText );
-   stdPrintf( " from " );
-   printAnsiForegroundColorValue( color.postName );
-   stdPrintf( "%s", A_USER );
-   printAnsiForegroundColorValue( color.postText );
-   stdPrintf( "  Hi there!\r\n" );
-
-   printAnsiForegroundColorValue( color.expressText );
-   stdPrintf( "X: " );
-   printAnsiForegroundColorValue( color.expressName );
-   stdPrintf( "%s", A_USER );
-   printAnsiForegroundColorValue( color.expressText );
-   stdPrintf( "  >Hello  ANSI: " );
-   printAnsiForegroundColorValue( color.ansiBlackTextColor );
-   stdPrintf( "blk " );
-   printAnsiForegroundColorValue( color.ansiBlueTextColor );
-   stdPrintf( "blu " );
-   printAnsiForegroundColorValue( color.ansiMagentaTextColor );
-   stdPrintf( "mag " );
-   printAnsiForegroundColorValue( color.ansiWhiteTextColor );
-   stdPrintf( "wht\r\n\r\n" );
 }
 
 /// @brief Run one interactive custom color editor session.

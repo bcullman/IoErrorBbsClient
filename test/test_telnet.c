@@ -362,6 +362,7 @@ static void telReceive_WhenGetStringCommandArrives_MarksExactPromptTriggerByteNo
 {
    int result;
 
+   // Arrange
    (void)state;
 
    resetState();
@@ -375,6 +376,7 @@ static void telReceive_WhenGetStringCommandArrives_MarksExactPromptTriggerByteNo
    arySavedByteCanReplay[10] = true;
    snprintf( aryStringResponse, sizeof( aryStringResponse ), "%s", "Forum" );
 
+   // Act
    (void)telReceive( IAC );
    (void)telReceive( G_STR );
    (void)telReceive( 20 );
@@ -382,6 +384,7 @@ static void telReceive_WhenGetStringCommandArrives_MarksExactPromptTriggerByteNo
    (void)telReceive( 0 );
    result = telReceive( 8 );
 
+   // Assert
    if ( result != 0 )
    {
       fail_msg( "telReceive G_STR flow should return 0; got %d", result );

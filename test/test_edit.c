@@ -267,6 +267,7 @@ static void checkFile_WhenLongLineHasSpaces_WrapsAndReturnsZero( void **state )
    char aryResult[256];
    int result;
 
+   // Arrange
    (void)state;
 
    resetState();
@@ -286,8 +287,10 @@ static void checkFile_WhenLongLineHasSpaces_WrapsAndReturnsZero( void **state )
    }
    fflush( ptrMessageFile );
 
+   // Act
    result = checkFile( ptrMessageFile );
 
+   // Assert
    if ( result != 0 )
    {
       fclose( ptrMessageFile );

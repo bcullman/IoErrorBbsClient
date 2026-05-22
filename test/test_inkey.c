@@ -287,6 +287,7 @@ static void getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput( vo
 {
    int result;
 
+   // Arrange
    (void)state;
 
    resetState();
@@ -296,8 +297,10 @@ static void getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput( vo
    ptrNetInput = aryNetInputBuffer;
    shouldInjectPtyInputDuringNetworkDrain = true;
 
+   // Act
    result = getKey();
 
+   // Assert
    if ( result != 'J' )
    {
       fail_msg( "getKey should return local input that arrives during network draining; got %d", result );

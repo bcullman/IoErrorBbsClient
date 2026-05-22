@@ -126,6 +126,7 @@ static void looper_WhenValidInputIsForwarded_FlushesImmediately( void **state )
 {
    const int arySequence[] = { 'J', -1 };
 
+   // Arrange
    (void)state;
 
    byte = 1;
@@ -133,8 +134,10 @@ static void looper_WhenValidInputIsForwarded_FlushesImmediately( void **state )
    lastNetPutChar = 0;
    setInputSequence( arySequence, sizeof( arySequence ) / sizeof( arySequence[0] ) );
 
+   // Act
    looper();
 
+   // Assert
    if ( lastNetPutChar != aryKeyMap['J'] )
    {
       fail_msg( "looper should forward valid input immediately; expected %d got %d",

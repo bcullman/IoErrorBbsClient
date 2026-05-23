@@ -6,6 +6,8 @@ This fork is **3.0.0-Stilgar** by Stilgar, based on the ISCABBS client 1.5.1
 Project page: <https://github.com/StilgarISCA/IoErrorBbsClient>
 ISCA BBS site: <https://iscabbs.rocks/>
 
+See [HISTORY.md](HISTORY.md) for 3.0 highlights and release history.
+
 ## Historical Contributors
 
 - Michael Hampton (IO ERROR)
@@ -16,9 +18,24 @@ ISCA BBS site: <https://iscabbs.rocks/>
 - Dave (Isoroku)
 - Client 9 / Blackout Group
 
-More background is documented in `history.md`.
+More background is documented in [HISTORY.md](HISTORY.md).
 
 ## Quick Start
+
+Install with Homebrew on macOS:
+
+```bash
+brew tap StilgarISCA/tap
+brew install bbsclient
+```
+
+Equivalent one-line install:
+
+```bash
+brew install StilgarISCA/tap/bbsclient
+```
+
+The Homebrew build includes macOS Keychain support.
 
 Install test and analysis dependencies first:
 
@@ -50,7 +67,7 @@ The default configure path produces a development build.
 
 - Dev build is the default
 - Dev build uses debug-friendly flags and sanitizers
-- Supported builds still add host-appropriate tuning flags by default:
+- Supported builds add host-appropriate tuning flags by default:
   - Apple Silicon builds use Apple Silicon tuning flags
   - Intel builds use Intel tuning flags
 
@@ -137,7 +154,7 @@ Boolean settings use explicit TOML values: `true` and `false`.
 ## Shell And Editor Commands
 
 The external editor setting can use a normal command with optional arguments.
-The shell hotkey is configurable, but the shell command itself still comes from
+The shell hotkey is configurable, but the shell command itself comes from
 `$SHELL` at runtime.
 
 Examples that work:
@@ -146,7 +163,7 @@ Examples that work:
 - `vim -f`
 - `"path with spaces/editor" --wait`
 
-Still not supported:
+Not supported:
 - pipes
 - redirection
 - command substitution

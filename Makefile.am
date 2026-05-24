@@ -13,15 +13,29 @@ releasedsym = $(releasebinary).dSYM
 scanbuildreportdir = scan-build-report
 noinst_HEADERS = \
 	browser.h \
+	client.h \
+	client_globals.h \
+	color.h \
+	config_file.h \
+	config_globals.h \
+	config_menu.h \
 	config_toml.h \
 	defs.h \
+	edit.h \
 	ext.h \
+	filter.h \
+	filter_globals.h \
+	getline_input.h \
 	macos_keychain.h \
+	network_globals.h \
 	proto.h \
 	sysio.h \
 	telnet.h \
+	test/cmocka_compat.h \
+	test/test_helpers.h \
 	unix.h \
-	users.h
+	users.h \
+	utility.h
 
 bbs_SOURCES = \
 	browser.c \

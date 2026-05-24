@@ -12,7 +12,8 @@ See [HISTORY.md](HISTORY.md) for 3.0.0-Stilgar highlights and prior release hist
 Install with Homebrew on macOS:
 
 ```bash
-brew install StilgarISCA/tap/bbsclient
+brew tap StilgarISCA/tap
+brew install bbsclient
 ```
 
 The installed command is:

@@ -86,7 +86,7 @@ void configureOptionsMenu( void )
               flagsConfiguration.shouldEnableTitleBar ? "Yes" : "No" );
    flagsConfiguration.shouldEnableTitleBar =
       (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableTitleBar );
-   stdPrintf( "Append OSC 8 URL summaries to posts & mail? (%s) -> ",
+   stdPrintf( "Enable OSC-8 links in posts and mail? (%s) -> ",
               flagsConfiguration.shouldEnableClickableUrls ? "Yes" : "No" );
    flagsConfiguration.shouldEnableClickableUrls =
       (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableClickableUrls );

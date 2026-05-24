@@ -899,7 +899,7 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
    if ( flagsConfiguration.shouldEnableClickableUrls )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should seed clickable URL summaries to no when screen reader mode is enabled and the user accepts the default" );
+      fail_msg( "configClient should seed OSC-8 links to no when screen reader mode is enabled and the user accepts the default" );
       return;
    }
    if ( flagsConfiguration.shouldEnableNameAutocomplete )
@@ -928,10 +928,10 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Append OSC 8 URL summaries to posts & mail? (No) -> " ) == NULL )
+                "Enable OSC-8 links in posts and mail? (No) -> " ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should show the screen reader default of No for clickable URL summaries after enabling screen reader mode" );
+      fail_msg( "configClient should show the screen reader default of No for OSC-8 links after enabling screen reader mode" );
       return;
    }
    if ( strstr( aryStdPrintfLog, "Autocomplete username in recipient prompts?" ) == NULL )

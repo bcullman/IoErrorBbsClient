@@ -609,6 +609,35 @@ static void getName_WhenAutocompleteDisabled_LeavesTypedPrefixUnchanged( void **
    teardownWhoList();
 }
 
+static void getName_WhenScreenReaderModeEnabled_LeavesTypedPrefixUnchanged( void **state )
+{
+   // Arrange
+   char *ptrResult;
+   const int aryKeys[] = { 'D', 'r', ' ', 'S', '\n' };
+
+   (void)state;
+
+   resetTracking();
+   teardownWhoList();
+   setupWhoList( "Dr Strange", "Meatball" );
+   flagsConfiguration.isScreenReaderModeEnabled = 1;
+   flagsConfiguration.shouldEnableNameAutocomplete = 1;
+
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+
+   // Act
+   ptrResult = getName( 2 );
+
+   // Assert
+   if ( strcmp( ptrResult, "Dr S" ) != 0 )
+   {
+      fail_msg( "getName should keep typed text unchanged when screen reader mode overrides autocomplete; got '%s'",
+                ptrResult );
+   }
+
+   teardownWhoList();
+}
+
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
@@ -624,6 +653,7 @@ int main( void )
       cmocka_unit_test( getName_WhenLoginHandleEntered_RecordsCurrentBbsUser ),
       cmocka_unit_test( getName_WhenAutocompleteEnabled_ExpandsUniqueName ),
       cmocka_unit_test( getName_WhenAutocompleteDisabled_LeavesTypedPrefixUnchanged ),
+      cmocka_unit_test( getName_WhenScreenReaderModeEnabled_LeavesTypedPrefixUnchanged ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

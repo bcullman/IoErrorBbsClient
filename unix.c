@@ -317,18 +317,31 @@ void techInfo( void )
 {
    char aryRuntimeInfo[256];
    char aryRuntimeAccessibility[256];
+   bool isAutocompleteEnabled;
+   bool isClickableUrlsEnabled;
+   bool isTitleBarEnabled;
+
+   isAutocompleteEnabled =
+      !flagsConfiguration.isScreenReaderModeEnabled &&
+      flagsConfiguration.shouldEnableNameAutocomplete;
+   isClickableUrlsEnabled =
+      !flagsConfiguration.isScreenReaderModeEnabled &&
+      flagsConfiguration.shouldEnableClickableUrls;
+   isTitleBarEnabled =
+      !flagsConfiguration.isScreenReaderModeEnabled &&
+      flagsConfiguration.shouldEnableTitleBar;
 
    snprintf( aryRuntimeInfo,
              sizeof( aryRuntimeInfo ),
              "Runtime: keepalive %s, title bar %s, clickable URLs %s\r\n",
              flagsConfiguration.shouldUseTcpKeepalive ? "on" : "off",
-             flagsConfiguration.shouldEnableTitleBar ? "on" : "off",
-             flagsConfiguration.shouldEnableClickableUrls ? "on" : "off" );
+             isTitleBarEnabled ? "on" : "off",
+             isClickableUrlsEnabled ? "on" : "off" );
    snprintf( aryRuntimeAccessibility,
              sizeof( aryRuntimeAccessibility ),
              "Accessibility: screen reader %s, autocomplete %s\r\n",
              flagsConfiguration.isScreenReaderModeEnabled ? "on" : "off",
-             flagsConfiguration.shouldEnableNameAutocomplete ? "on" : "off" );
+             isAutocompleteEnabled ? "on" : "off" );
 
    stdPrintf( "Technical information\r\n\n" );
 

@@ -896,16 +896,22 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       fail_msg( "configClient should mark screen reader mode as configured after toggling it" );
       return;
    }
-   if ( flagsConfiguration.shouldEnableClickableUrls )
+   if ( !flagsConfiguration.shouldEnableClickableUrls )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should seed OSC-8 links to no when screen reader mode is enabled and the user accepts the default" );
+      fail_msg( "configClient should preserve the saved OSC-8 link setting when screen reader mode is enabled" );
       return;
    }
-   if ( flagsConfiguration.shouldEnableNameAutocomplete )
+   if ( !flagsConfiguration.shouldEnableNameAutocomplete )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should seed autocomplete to no when screen reader mode is enabled and the user accepts the default" );
+      fail_msg( "configClient should preserve the saved autocomplete setting when screen reader mode is enabled" );
+      return;
+   }
+   if ( !flagsConfiguration.shouldEnableTitleBar )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should preserve the saved title bar setting when screen reader mode is enabled" );
       return;
    }
    if ( !flagsConfiguration.hasNameAutocompleteSetting )
@@ -921,30 +927,24 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Update terminal title bar? (Yes) -> " ) == NULL )
+                "Update terminal title bar? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should display the title bar option in the Options menu" );
+      fail_msg( "configClient should show title bar updates as forced off when screen reader mode is enabled" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Enable OSC-8 links in posts and mail? (No) -> " ) == NULL )
+                "Enable OSC-8 links in posts and mail? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should show the screen reader default of No for OSC-8 links after enabling screen reader mode" );
-      return;
-   }
-   if ( strstr( aryStdPrintfLog, "Autocomplete username in recipient prompts?" ) == NULL )
-   {
-      cleanupWriteConfigFixture();
-      fail_msg( "configClient should display the autocomplete option in the Options menu" );
+      fail_msg( "configClient should show OSC-8 links as forced off when screen reader mode is enabled" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Autocomplete username in recipient prompts? (No) -> " ) == NULL )
+                "Autocomplete username in recipient prompts? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should show the screen reader default of No for autocomplete after enabling screen reader mode" );
+      fail_msg( "configClient should show autocomplete as forced off when screen reader mode is enabled" );
       return;
    }
 #ifndef ENABLE_KEYCHAIN

@@ -170,7 +170,8 @@ char *getName( int quitPriv )
                }
                *ptrCursor++ = (char)inputChar;
                putchar( inputChar );
-               if ( flagsConfiguration.shouldEnableNameAutocomplete &&
+               if ( !flagsConfiguration.isScreenReaderModeEnabled &&
+                    flagsConfiguration.shouldEnableNameAutocomplete &&
                     ( quitPriv == 2 || quitPriv == -999 ) )
                {
                   if ( smartName( aryNameBuffer, ptrCursor ) )

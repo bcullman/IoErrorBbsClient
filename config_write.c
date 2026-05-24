@@ -184,10 +184,6 @@ static void writeBehaviorSettings( void )
             flagsConfiguration.shouldAutoAnswerAnsiPrompt ? "true" : "false" );
    fprintf( ptrConfigFile, "auto_reply_to_x_messages = %s\n",
             isXland ? "true" : "false" );
-   fprintf( ptrConfigFile, "autocomplete_recipients = %s\n",
-            flagsConfiguration.shouldEnableNameAutocomplete ? "true" : "false" );
-   fprintf( ptrConfigFile, "clickable_url_summaries = %s\n",
-            flagsConfiguration.shouldEnableClickableUrls ? "true" : "false" );
    fprintf( ptrConfigFile, "dark_theme_black_background_fallback = %s\n",
             useBlackThemeBackgrounds ? "true" : "false" );
    fprintf( ptrConfigFile, "color_output_mode = " );
@@ -195,6 +191,12 @@ static void writeBehaviorSettings( void )
    fprintf( ptrConfigFile, "\n" );
    fprintf( ptrConfigFile, "screen_reader_mode = %s\n",
             flagsConfiguration.isScreenReaderModeEnabled ? "true" : "false" );
+   fprintf( ptrConfigFile, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" );
+   fprintf( ptrConfigFile, "# Saved values are preserved here, but screen reader mode takes precedence.\n" );
+   fprintf( ptrConfigFile, "autocomplete_recipients = %s\n",
+            flagsConfiguration.shouldEnableNameAutocomplete ? "true" : "false" );
+   fprintf( ptrConfigFile, "clickable_url_summaries = %s\n",
+            flagsConfiguration.shouldEnableClickableUrls ? "true" : "false" );
    fprintf( ptrConfigFile, "suppress_enemy_express = %s\n",
             flagsConfiguration.shouldSquelchExpress ? "true" : "false" );
    fprintf( ptrConfigFile, "suppress_enemy_posts = %s\n",

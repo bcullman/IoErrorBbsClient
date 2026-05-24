@@ -1386,11 +1386,13 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    if ( strstr( aryOutput, "[behavior]\n" ) == NULL ||
         strstr( aryOutput, "auto_answer_ansi = true\n" ) == NULL ||
         strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
-        strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
-        strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
         strstr( aryOutput, "dark_theme_black_background_fallback = true\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"truecolor\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
+        strstr( aryOutput, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" ) == NULL ||
+        strstr( aryOutput, "# Saved values are preserved here, but screen reader mode takes precedence.\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = true\n" ) == NULL ||
         strstr( aryOutput, "tcp_keepalive = true\n" ) == NULL ||
@@ -1587,11 +1589,13 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    }
    if ( strstr( aryOutput, "auto_answer_ansi = false\n" ) == NULL ||
         strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
-        strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
-        strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
         strstr( aryOutput, "dark_theme_black_background_fallback = false\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"256\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
+        strstr( aryOutput, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" ) == NULL ||
+        strstr( aryOutput, "# Saved values are preserved here, but screen reader mode takes precedence.\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = false\n" ) == NULL ||
         strstr( aryOutput, "tcp_keepalive = false\n" ) == NULL ||

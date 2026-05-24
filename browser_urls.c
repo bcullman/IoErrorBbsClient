@@ -15,31 +15,39 @@
 #include "filter_globals.h"
 #include "utility.h"
 
+typedef struct
+{
+   char aryPendingWrappedUrl[2048];
+   bool hasPendingWrappedUrl;
+   queue *ptrDetectedUrlQueue;
+} UrlDetectionState;
+
 static void applyVisibleUrlReportColor( int foregroundColor );
 static void beginVisibleUrlReportBodyColor( void );
 static void beginVisibleUrlReportHeaderColor( void );
-static void clearDetectedUrlQueue( void );
+static void clearDetectedUrlQueue( UrlDetectionState *ptrState );
+static void clearPendingWrappedUrl( UrlDetectionState *ptrState );
 static void endVisibleUrlReportColor( void );
-static bool ensureDetectedUrlQueue( void );
-static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool *ptrHasPendingUrl );
+static bool ensureDetectedUrlQueue( UrlDetectionState *ptrState );
+static void finalizePendingUrl( UrlDetectionState *ptrState );
 static char *findTrailingHttpsFragment( char *ptrText );
 static char *findUrlStart( char *ptrText );
 static const char *findUrlStartConst( const char *ptrText );
 static void formatOsc8HyperlinkId( char *aryLinkId, size_t linkIdSize, const char *ptrUrlTarget );
 static bool isQueueableUrl( const char *ptrUrl );
 static bool isUrlBodyChar( int inputChar );
-static bool lineReachedVisualEdge( const char *ptrLine );
 static bool isUrlStartBoundary( const char *ptrText, const char *ptrUrlStart );
 static bool isUrlTerminator( int inputChar );
-static void queueUrlForReport( const char *ptrUrl );
-static void queueUrlIfNew( const char *ptrUrl );
+static bool lineReachedVisualEdge( const char *ptrLine );
+static void queueUrlForReport( UrlDetectionState *ptrState, const char *ptrUrl );
+static void queueUrlIfNew( UrlDetectionState *ptrState, const char *ptrUrl );
+static void resetUrlDetectionState( UrlDetectionState *ptrState );
+static void setPendingWrappedUrl( UrlDetectionState *ptrState, const char *ptrUrl );
 static bool shouldEmitClickableUrls( void );
 static size_t terminalColumnCount( void );
 static void trimUrlTailPunctuation( char *ptrUrlStart );
 
-static queue *ptrDetectedUrlQueue;
-static bool hasPendingWrappedUrl;
-static char aryPendingWrappedUrl[2048];
+static UrlDetectionState urlDetectionState;
 static const size_t DEFAULT_TERMINAL_COLUMNS = 80;
 static const size_t INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 48;
 static const size_t CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH = 70;
@@ -64,13 +72,11 @@ static void applyVisibleUrlReportColor( int foregroundColor )
 /// @return This function does not return a value.
 void beginUrlDetectionReport( void )
 {
-   if ( !ensureDetectedUrlQueue() )
+   if ( !ensureDetectedUrlQueue( &urlDetectionState ) )
    {
       return;
    }
-   clearDetectedUrlQueue();
-   aryPendingWrappedUrl[0] = '\0';
-   hasPendingWrappedUrl = false;
+   resetUrlDetectionState( &urlDetectionState );
 }
 
 /// @brief Switch output to the body color for URL report entries.
@@ -92,18 +98,29 @@ static void beginVisibleUrlReportHeaderColor( void )
 /// @brief Empty the queued list of detected URLs.
 ///
 /// @return This helper does not return a value.
-static void clearDetectedUrlQueue( void )
+static void clearDetectedUrlQueue( UrlDetectionState *ptrState )
 {
    char aryTempText[1024];
 
-   if ( ptrDetectedUrlQueue == NULL )
+   if ( ptrState->ptrDetectedUrlQueue == NULL )
    {
       return;
    }
-   while ( ptrDetectedUrlQueue->itemCount > 0 )
+   while ( ptrState->ptrDetectedUrlQueue->itemCount > 0 )
    {
-      popQueue( aryTempText, ptrDetectedUrlQueue );
+      popQueue( aryTempText, ptrState->ptrDetectedUrlQueue );
    }
+}
+
+/// @brief Clear any pending wrapped URL fragment.
+///
+/// @param ptrState URL detection state to update.
+///
+/// @return This helper does not return a value.
+static void clearPendingWrappedUrl( UrlDetectionState *ptrState )
+{
+   ptrState->aryPendingWrappedUrl[0] = '\0';
+   ptrState->hasPendingWrappedUrl = false;
 }
 
 /// @brief Emit the queued clickable URL report.
@@ -116,10 +133,11 @@ void emitUrlDetectionReport( void )
    flushPendingUrlDetection();
    if ( !shouldEmitClickableUrls() )
    {
-      clearDetectedUrlQueue();
+      clearDetectedUrlQueue( &urlDetectionState );
       return;
    }
-   if ( ptrDetectedUrlQueue == NULL || ptrDetectedUrlQueue->itemCount == 0 )
+   if ( urlDetectionState.ptrDetectedUrlQueue == NULL ||
+        urlDetectionState.ptrDetectedUrlQueue->itemCount == 0 )
    {
       return;
    }
@@ -127,7 +145,7 @@ void emitUrlDetectionReport( void )
    beginVisibleUrlReportHeaderColor();
    stdPrintf( "\r\n[Clickable URL(s) detected by BBS client]\r\n" );
    beginVisibleUrlReportBodyColor();
-   while ( popQueue( aryUrl, ptrDetectedUrlQueue ) )
+   while ( popQueue( aryUrl, urlDetectionState.ptrDetectedUrlQueue ) )
    {
       stdPrintf( " " );
       printWithOsc8Links( aryUrl );
@@ -141,12 +159,11 @@ void emitUrlDetectionReport( void )
 /// @return This function does not return a value.
 void flushPendingUrlDetection( void )
 {
-   if ( !hasPendingWrappedUrl )
+   if ( !urlDetectionState.hasPendingWrappedUrl )
    {
       return;
    }
-   finalizePendingUrl( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ),
-                       &hasPendingWrappedUrl );
+   finalizePendingUrl( &urlDetectionState );
 }
 
 /// @brief Restore normal themed output after a URL report finishes.
@@ -160,33 +177,29 @@ static void endVisibleUrlReportColor( void )
 /// @brief Ensure the detected URL queue exists.
 ///
 /// @return `true` if the queue is available, otherwise `false`.
-static bool ensureDetectedUrlQueue( void )
+static bool ensureDetectedUrlQueue( UrlDetectionState *ptrState )
 {
-   if ( ptrDetectedUrlQueue != NULL )
+   if ( ptrState->ptrDetectedUrlQueue != NULL )
    {
       return true;
    }
-   ptrDetectedUrlQueue = newQueue( 1024, 64 );
-   return ptrDetectedUrlQueue != NULL;
+   ptrState->ptrDetectedUrlQueue = newQueue( 1024, 64 );
+   return ptrState->ptrDetectedUrlQueue != NULL;
 }
 
 /// @brief Finalize a pending wrapped URL fragment and queue it if valid.
 ///
-/// @param aryPendingUrl Buffer holding the pending URL.
-/// @param pendingUrlSize Size of the pending URL buffer.
-/// @param ptrHasPendingUrl Tracks whether a pending URL is active.
+/// @param ptrState URL detection state with the pending URL buffer.
 ///
 /// @return This helper does not return a value.
-static void finalizePendingUrl( char *aryPendingUrl, size_t pendingUrlSize, bool *ptrHasPendingUrl )
+static void finalizePendingUrl( UrlDetectionState *ptrState )
 {
-   (void)pendingUrlSize;
-   trimUrlTailPunctuation( aryPendingUrl );
-   if ( isQueueableUrl( aryPendingUrl ) )
+   trimUrlTailPunctuation( ptrState->aryPendingWrappedUrl );
+   if ( isQueueableUrl( ptrState->aryPendingWrappedUrl ) )
    {
-      queueUrlIfNew( aryPendingUrl );
+      queueUrlIfNew( ptrState, ptrState->aryPendingWrappedUrl );
    }
-   aryPendingUrl[0] = '\0';
-   *ptrHasPendingUrl = false;
+   clearPendingWrappedUrl( ptrState );
 }
 
 /// @brief Scan one rendered line for URLs and queue newly detected links.
@@ -202,6 +215,7 @@ void filterUrl( const char *ptrLine )
    char *ptrCursor;
    char *ptrNext;
    char *ptrScanStart;
+   UrlDetectionState *ptrState;
 
    if ( !urlQueue )
    {
@@ -212,6 +226,7 @@ void filterUrl( const char *ptrLine )
       return;
    }
 
+   ptrState = &urlDetectionState;
    snprintf( aryLineBuffer, sizeof( aryLineBuffer ), "%s", ptrLine );
    {
       size_t lineLength;
@@ -228,7 +243,7 @@ void filterUrl( const char *ptrLine )
 
    ptrCursor = aryLineBuffer;
    ptrScanStart = aryLineBuffer;
-   if ( hasPendingWrappedUrl )
+   if ( ptrState->hasPendingWrappedUrl )
    {
       size_t pendingLength;
       size_t appendedCount;
@@ -237,14 +252,14 @@ void filterUrl( const char *ptrLine )
       {
          ptrCursor++;
       }
-      pendingLength = strlen( aryPendingWrappedUrl );
+      pendingLength = strlen( ptrState->aryPendingWrappedUrl );
       appendedCount = 0;
       while ( *ptrCursor != '\0' && isUrlBodyChar( (unsigned char)*ptrCursor ) )
       {
-         if ( pendingLength + 1 < sizeof( aryPendingWrappedUrl ) )
+         if ( pendingLength + 1 < sizeof( ptrState->aryPendingWrappedUrl ) )
          {
-            aryPendingWrappedUrl[pendingLength++] = *ptrCursor;
-            aryPendingWrappedUrl[pendingLength] = '\0';
+            ptrState->aryPendingWrappedUrl[pendingLength++] = *ptrCursor;
+            ptrState->aryPendingWrappedUrl[pendingLength] = '\0';
          }
          appendedCount++;
          ptrCursor++;
@@ -258,9 +273,7 @@ void filterUrl( const char *ptrLine )
                  strlen( ptrCursor - appendedCount ) <
                     CONTINUED_WRAPPED_URL_FRAGMENT_MIN_LENGTH )
             {
-               finalizePendingUrl( aryPendingWrappedUrl,
-                                   sizeof( aryPendingWrappedUrl ),
-                                   &hasPendingWrappedUrl );
+               finalizePendingUrl( ptrState );
             }
             else
             {
@@ -269,15 +282,12 @@ void filterUrl( const char *ptrLine )
          }
          else
          {
-            finalizePendingUrl( aryPendingWrappedUrl,
-                                sizeof( aryPendingWrappedUrl ),
-                                &hasPendingWrappedUrl );
+            finalizePendingUrl( ptrState );
          }
       }
       else
       {
-         finalizePendingUrl( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ),
-                             &hasPendingWrappedUrl );
+         finalizePendingUrl( ptrState );
       }
    }
 
@@ -298,21 +308,19 @@ void filterUrl( const char *ptrLine )
               strlen( ptrCursor ) >= INITIAL_WRAPPED_URL_FRAGMENT_MIN_LENGTH ||
               !isQueueableUrl( ptrCursor ) )
          {
-            snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
-                      ptrCursor );
-            hasPendingWrappedUrl = true;
+            setPendingWrappedUrl( ptrState, ptrCursor );
          }
          else
          {
             trimUrlTailPunctuation( ptrCursor );
-            queueUrlIfNew( ptrCursor );
+            queueUrlIfNew( ptrState, ptrCursor );
          }
          return;
       }
 
       *ptrNext = '\0';
       trimUrlTailPunctuation( ptrCursor );
-      queueUrlIfNew( ptrCursor );
+      queueUrlIfNew( ptrState, ptrCursor );
 
       ptrNext++;
    }
@@ -320,9 +328,7 @@ void filterUrl( const char *ptrLine )
    ptrCursor = findTrailingHttpsFragment( aryLineBuffer );
    if ( ptrCursor != NULL )
    {
-      snprintf( aryPendingWrappedUrl, sizeof( aryPendingWrappedUrl ), "%s",
-                ptrCursor );
-      hasPendingWrappedUrl = true;
+      setPendingWrappedUrl( ptrState, ptrCursor );
    }
 }
 
@@ -368,28 +374,35 @@ static char *findTrailingHttpsFragment( char *ptrText )
 /// @return Pointer to the first detected URL start, or `NULL` if none is found.
 static char *findUrlStart( char *ptrText )
 {
-   char *ptrEarliest;
    char *ptrHttps;
    char *ptrWww;
 
    ptrHttps = strstr( ptrText, "https://" );
-   ptrWww = strstr( ptrText, "www." );
-
-   ptrEarliest = ptrHttps;
-   if ( ptrWww != NULL && ( ptrEarliest == NULL || ptrWww < ptrEarliest ) )
+   ptrWww = ptrText;
+   while ( true )
    {
-      ptrEarliest = ptrWww;
-   }
-
-   if ( ptrWww != NULL && ptrEarliest == ptrWww )
-   {
-      if ( !isUrlStartBoundary( ptrText, ptrWww ) )
+      ptrWww = strstr( ptrWww, "www." );
+      if ( ptrWww == NULL )
       {
-         ptrEarliest = NULL;
+         break;
       }
+      if ( isUrlStartBoundary( ptrText, ptrWww ) )
+      {
+         break;
+      }
+      ptrWww++;
    }
 
-   return ptrEarliest;
+   if ( ptrHttps == NULL )
+   {
+      return ptrWww;
+   }
+   if ( ptrWww == NULL )
+   {
+      return ptrHttps;
+   }
+
+   return ptrHttps < ptrWww ? ptrHttps : ptrWww;
 }
 
 /// @brief Find the first URL start sequence in read-only text.
@@ -399,28 +412,35 @@ static char *findUrlStart( char *ptrText )
 /// @return Pointer to the first detected URL start, or `NULL` if none is found.
 static const char *findUrlStartConst( const char *ptrText )
 {
-   const char *ptrEarliest;
    const char *ptrHttps;
    const char *ptrWww;
 
    ptrHttps = strstr( ptrText, "https://" );
-   ptrWww = strstr( ptrText, "www." );
-
-   ptrEarliest = ptrHttps;
-   if ( ptrWww != NULL && ( ptrEarliest == NULL || ptrWww < ptrEarliest ) )
+   ptrWww = ptrText;
+   while ( true )
    {
-      ptrEarliest = ptrWww;
-   }
-
-   if ( ptrWww != NULL && ptrEarliest == ptrWww )
-   {
-      if ( !isUrlStartBoundary( ptrText, ptrWww ) )
+      ptrWww = strstr( ptrWww, "www." );
+      if ( ptrWww == NULL )
       {
-         ptrEarliest = NULL;
+         break;
       }
+      if ( isUrlStartBoundary( ptrText, ptrWww ) )
+      {
+         break;
+      }
+      ptrWww++;
    }
 
-   return ptrEarliest;
+   if ( ptrHttps == NULL )
+   {
+      return ptrWww;
+   }
+   if ( ptrWww == NULL )
+   {
+      return ptrHttps;
+   }
+
+   return ptrHttps < ptrWww ? ptrHttps : ptrWww;
 }
 
 /// @brief Build a stable OSC 8 hyperlink ID for a URL target.
@@ -474,23 +494,6 @@ static bool isQueueableUrl( const char *ptrUrl )
    return false;
 }
 
-/// @brief Check whether a rendered line likely stopped at the terminal edge.
-///
-/// @param ptrLine Trimmed rendered line text.
-///
-/// @return `true` when the line length reaches the terminal width.
-static bool lineReachedVisualEdge( const char *ptrLine )
-{
-   size_t columnCount;
-
-   if ( ptrLine == NULL )
-   {
-      return false;
-   }
-   columnCount = terminalColumnCount();
-   return strlen( ptrLine ) >= columnCount;
-}
-
 /// @brief Check whether a character is valid inside a detected URL body.
 ///
 /// @param inputChar Character to classify.
@@ -539,6 +542,23 @@ static bool isUrlTerminator( int inputChar )
       return true;
    }
    return false;
+}
+
+/// @brief Check whether a rendered line likely stopped at the terminal edge.
+///
+/// @param ptrLine Trimmed rendered line text.
+///
+/// @return `true` when the line length reaches the terminal width.
+static bool lineReachedVisualEdge( const char *ptrLine )
+{
+   size_t columnCount;
+
+   if ( ptrLine == NULL )
+   {
+      return false;
+   }
+   columnCount = terminalColumnCount();
+   return strlen( ptrLine ) >= columnCount;
 }
 
 /// @brief Print text while wrapping detected URLs in OSC 8 hyperlink escapes.
@@ -660,33 +680,35 @@ void printWithOsc8Links( const char *ptrText )
 
 /// @brief Queue a detected URL for the visible report output.
 ///
+/// @param ptrState URL detection state that owns the visible-report queue.
 /// @param ptrUrl URL text to queue.
 ///
 /// @return This helper does not return a value.
-static void queueUrlForReport( const char *ptrUrl )
+static void queueUrlForReport( UrlDetectionState *ptrState, const char *ptrUrl )
 {
    char aryTempText[1024];
 
-   if ( ptrUrl == NULL || !*ptrUrl || !ensureDetectedUrlQueue() )
+   if ( ptrUrl == NULL || !*ptrUrl || !ensureDetectedUrlQueue( ptrState ) )
    {
       return;
    }
-   if ( isQueued( ptrUrl, ptrDetectedUrlQueue ) )
+   if ( isQueued( ptrUrl, ptrState->ptrDetectedUrlQueue ) )
    {
       return;
    }
-   while ( !pushQueue( ptrUrl, ptrDetectedUrlQueue ) )
+   while ( !pushQueue( ptrUrl, ptrState->ptrDetectedUrlQueue ) )
    {
-      popQueue( aryTempText, ptrDetectedUrlQueue );
+      popQueue( aryTempText, ptrState->ptrDetectedUrlQueue );
    }
 }
 
 /// @brief Queue a detected URL only if it is not already present.
 ///
+/// @param ptrState URL detection state that owns the visible-report queue.
 /// @param ptrUrl URL text to queue.
 ///
 /// @return This helper does not return a value.
-static void queueUrlIfNew( const char *ptrUrl )
+static void queueUrlIfNew( UrlDetectionState *ptrState, const char *ptrUrl )
 {
    char aryTempText[1024];
 
@@ -698,7 +720,7 @@ static void queueUrlIfNew( const char *ptrUrl )
    {
       return;
    }
-   queueUrlForReport( ptrUrl );
+   queueUrlForReport( ptrState, ptrUrl );
    if ( isQueued( ptrUrl, urlQueue ) )
    {
       return;
@@ -707,6 +729,30 @@ static void queueUrlIfNew( const char *ptrUrl )
    {
       popQueue( aryTempText, urlQueue );
    }
+}
+
+/// @brief Clear queued URLs and pending wrapped URL state for a new report.
+///
+/// @param ptrState URL detection state to reset.
+///
+/// @return This helper does not return a value.
+static void resetUrlDetectionState( UrlDetectionState *ptrState )
+{
+   clearDetectedUrlQueue( ptrState );
+   clearPendingWrappedUrl( ptrState );
+}
+
+/// @brief Store a URL fragment waiting for the next rendered line.
+///
+/// @param ptrState URL detection state to update.
+/// @param ptrUrl URL fragment to store.
+///
+/// @return This helper does not return a value.
+static void setPendingWrappedUrl( UrlDetectionState *ptrState, const char *ptrUrl )
+{
+   snprintf( ptrState->aryPendingWrappedUrl, sizeof( ptrState->aryPendingWrappedUrl ), "%s",
+             ptrUrl );
+   ptrState->hasPendingWrappedUrl = true;
 }
 
 /// @brief Check whether clickable URL reporting should be shown.

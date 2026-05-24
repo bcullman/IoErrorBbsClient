@@ -18,6 +18,7 @@
 #define SCREEN_READER_INFO \
    "Screen reader friendly mode keeps this client easier for VoiceOver and other\r\nscreen readers to follow.  You can change this later from the Options menu."
 
+static void printScreenReaderForcedOffOption( const char *ptrPromptText );
 static void setKeyDefaultToUppercase( int lowerKey,
                                       bool shouldUseUppercaseByDefault );
 
@@ -34,11 +35,6 @@ void configureOptionsMenu( void )
    flagsConfiguration.isScreenReaderModeEnabled =
       (unsigned int)yesNoDefault( flagsConfiguration.isScreenReaderModeEnabled );
    flagsConfiguration.hasScreenReaderModeSetting = 1;
-   if ( flagsConfiguration.isScreenReaderModeEnabled )
-   {
-      flagsConfiguration.shouldEnableClickableUrls = 0;
-      flagsConfiguration.shouldEnableNameAutocomplete = 0;
-   }
    if ( !isLoginShell )
    {
       stdPrintf( "Enter local editor to use (%s uses shell default) -> ",
@@ -82,18 +78,27 @@ void configureOptionsMenu( void )
    flagsConfiguration.shouldUseTcpKeepalive =
       (unsigned int)yesNoDefault( flagsConfiguration.shouldUseTcpKeepalive );
    flagsConfiguration.hasTitleBarSetting = 1;
-   stdPrintf( "Update terminal title bar? (%s) -> ",
-              flagsConfiguration.shouldEnableTitleBar ? "Yes" : "No" );
-   flagsConfiguration.shouldEnableTitleBar =
-      (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableTitleBar );
-   stdPrintf( "Append OSC 8 URL summaries to posts & mail? (%s) -> ",
-              flagsConfiguration.shouldEnableClickableUrls ? "Yes" : "No" );
-   flagsConfiguration.shouldEnableClickableUrls =
-      (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableClickableUrls );
-   stdPrintf( "Autocomplete username in recipient prompts? (%s) -> ",
-              flagsConfiguration.shouldEnableNameAutocomplete ? "Yes" : "No" );
-   flagsConfiguration.shouldEnableNameAutocomplete =
-      (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableNameAutocomplete );
+   if ( flagsConfiguration.isScreenReaderModeEnabled )
+   {
+      printScreenReaderForcedOffOption( "Update terminal title bar?" );
+      printScreenReaderForcedOffOption( "Enable OSC-8 links in posts and mail?" );
+      printScreenReaderForcedOffOption( "Autocomplete username in recipient prompts?" );
+   }
+   else
+   {
+      stdPrintf( "Update terminal title bar? (%s) -> ",
+                 flagsConfiguration.shouldEnableTitleBar ? "Yes" : "No" );
+      flagsConfiguration.shouldEnableTitleBar =
+         (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableTitleBar );
+      stdPrintf( "Enable OSC-8 links in posts and mail? (%s) -> ",
+                 flagsConfiguration.shouldEnableClickableUrls ? "Yes" : "No" );
+      flagsConfiguration.shouldEnableClickableUrls =
+         (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableClickableUrls );
+      stdPrintf( "Autocomplete username in recipient prompts? (%s) -> ",
+                 flagsConfiguration.shouldEnableNameAutocomplete ? "Yes" : "No" );
+      flagsConfiguration.shouldEnableNameAutocomplete =
+         (unsigned int)yesNoDefault( flagsConfiguration.shouldEnableNameAutocomplete );
+   }
    flagsConfiguration.hasNameAutocompleteSetting = 1;
 #ifdef ENABLE_KEYCHAIN
    bool isKeychainPasswordDeleted;
@@ -173,6 +178,17 @@ void promptForScreenReaderModeIfUnset( void )
                              "Use screen reader friendly mode?",
                              0 );
    flagsConfiguration.hasScreenReaderModeSetting = 1;
+}
+
+/// @brief Print one option line that screen reader mode currently overrides.
+///
+/// @param ptrPromptText Option label to show before the forced-off note.
+///
+/// @return This helper does not return a value.
+static void printScreenReaderForcedOffOption( const char *ptrPromptText )
+{
+   stdPrintf( "%s (Off)\r\n", ptrPromptText );
+   stdPrintf( "Forced off by screen reader mode.\r\n" );
 }
 
 /// @brief Flip a two-key command mapping between lowercase and uppercase defaults.

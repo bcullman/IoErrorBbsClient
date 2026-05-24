@@ -81,8 +81,7 @@ void openBrowser( void )
       {
          char aryShortUrl[71];
 
-         strncpy( aryShortUrl, ptrUrlEntry, 70 );
-         aryShortUrl[70] = 0;
+         snprintf( aryShortUrl, sizeof( aryShortUrl ), "%.70s", ptrUrlEntry );
          printf( "%d. %-70s...\r\n", inputIndex + 1, aryShortUrl );
       }
       else

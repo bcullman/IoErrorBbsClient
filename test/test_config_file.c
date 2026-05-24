@@ -6,7 +6,7 @@
 #include "config_file.h"
 #include "browser.h"
 #include "client.h"
-#include <cmocka.h>
+#include "test/cmocka_compat.h"
 #include "color.h"
 #include "config_menu.h"
 #include "defs.h"
@@ -479,6 +479,7 @@ int stdPrintf( const char *format, ... )
    char aryBuffer[512];
    size_t currentLength;
 
+   (void)format;
    va_start( argList, format );
 #if defined( __clang__ )
 #pragma clang diagnostic push

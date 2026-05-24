@@ -6,7 +6,7 @@
 #include "config_file.h"
 #include "browser.h"
 #include "client.h"
-#include <cmocka.h>
+#include "test/cmocka_compat.h"
 #include "color.h"
 #include "config_menu.h"
 #include "defs.h"
@@ -131,6 +131,7 @@ int capPrintf( const char *format, ... )
 {
    va_list argList;
 
+   (void)format;
    va_start( argList, format );
    va_end( argList );
    return 1;
@@ -494,6 +495,7 @@ int stdPrintf( const char *format, ... )
    char aryBuffer[512];
    size_t logLength;
 
+   (void)format;
    va_start( argList, format );
 #if defined( __clang__ )
 #pragma clang diagnostic push
@@ -894,16 +896,22 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       fail_msg( "configClient should mark screen reader mode as configured after toggling it" );
       return;
    }
-   if ( flagsConfiguration.shouldEnableClickableUrls )
+   if ( !flagsConfiguration.shouldEnableClickableUrls )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should seed clickable URL summaries to no when screen reader mode is enabled and the user accepts the default" );
+      fail_msg( "configClient should preserve the saved OSC-8 link setting when screen reader mode is enabled" );
       return;
    }
-   if ( flagsConfiguration.shouldEnableNameAutocomplete )
+   if ( !flagsConfiguration.shouldEnableNameAutocomplete )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should seed autocomplete to no when screen reader mode is enabled and the user accepts the default" );
+      fail_msg( "configClient should preserve the saved autocomplete setting when screen reader mode is enabled" );
+      return;
+   }
+   if ( !flagsConfiguration.shouldEnableTitleBar )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should preserve the saved title bar setting when screen reader mode is enabled" );
       return;
    }
    if ( !flagsConfiguration.hasNameAutocompleteSetting )
@@ -919,30 +927,24 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Update terminal title bar? (Yes) -> " ) == NULL )
+                "Update terminal title bar? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should display the title bar option in the Options menu" );
+      fail_msg( "configClient should show title bar updates as forced off when screen reader mode is enabled" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Append OSC 8 URL summaries to posts & mail? (No) -> " ) == NULL )
+                "Enable OSC-8 links in posts and mail? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should show the screen reader default of No for clickable URL summaries after enabling screen reader mode" );
-      return;
-   }
-   if ( strstr( aryStdPrintfLog, "Autocomplete username in recipient prompts?" ) == NULL )
-   {
-      cleanupWriteConfigFixture();
-      fail_msg( "configClient should display the autocomplete option in the Options menu" );
+      fail_msg( "configClient should show OSC-8 links as forced off when screen reader mode is enabled" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Autocomplete username in recipient prompts? (No) -> " ) == NULL )
+                "Autocomplete username in recipient prompts? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should show the screen reader default of No for autocomplete after enabling screen reader mode" );
+      fail_msg( "configClient should show autocomplete as forced off when screen reader mode is enabled" );
       return;
    }
 #ifndef ENABLE_KEYCHAIN
@@ -1384,11 +1386,13 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    if ( strstr( aryOutput, "[behavior]\n" ) == NULL ||
         strstr( aryOutput, "auto_answer_ansi = true\n" ) == NULL ||
         strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
-        strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
-        strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
         strstr( aryOutput, "dark_theme_black_background_fallback = true\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"truecolor\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
+        strstr( aryOutput, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" ) == NULL ||
+        strstr( aryOutput, "# Saved values are preserved here, but screen reader mode takes precedence.\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = false\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = true\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = true\n" ) == NULL ||
         strstr( aryOutput, "tcp_keepalive = true\n" ) == NULL ||
@@ -1585,11 +1589,13 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    }
    if ( strstr( aryOutput, "auto_answer_ansi = false\n" ) == NULL ||
         strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
-        strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
-        strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
         strstr( aryOutput, "dark_theme_black_background_fallback = false\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"256\"\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
+        strstr( aryOutput, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" ) == NULL ||
+        strstr( aryOutput, "# Saved values are preserved here, but screen reader mode takes precedence.\n" ) == NULL ||
+        strstr( aryOutput, "autocomplete_recipients = true\n" ) == NULL ||
+        strstr( aryOutput, "clickable_url_summaries = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_express = false\n" ) == NULL ||
         strstr( aryOutput, "suppress_enemy_posts = false\n" ) == NULL ||
         strstr( aryOutput, "tcp_keepalive = false\n" ) == NULL ||

@@ -13,20 +13,36 @@ releasedsym = $(releasebinary).dSYM
 scanbuildreportdir = scan-build-report
 noinst_HEADERS = \
 	browser.h \
+	client.h \
+	client_globals.h \
+	color.h \
+	config_file.h \
+	config_globals.h \
+	config_menu.h \
+	config_toml.h \
 	defs.h \
+	edit.h \
 	ext.h \
+	filter.h \
+	filter_globals.h \
+	getline_input.h \
 	macos_keychain.h \
+	network_globals.h \
 	proto.h \
 	sysio.h \
 	telnet.h \
+	test/cmocka_compat.h \
+	test/test_helpers.h \
 	unix.h \
-	users.h
+	users.h \
+	utility.h
 
 bbs_SOURCES = \
 	browser.c \
 	browser_urls.c \
 	config_file.c \
 	config_parse.c \
+	config_toml.c \
 	color.c \
 	color_config.c \
 	color_themes.c \
@@ -78,7 +94,7 @@ test_slist_LDADD = $(CMOCKA_LIBS)
 test_utility_SOURCES = test/test_utility.c test/test_helpers.c utility_error.c utility_input.c utility_send.c utility_string.c global.c
 test_utility_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_utility_LDADD = $(CMOCKA_LIBS)
-test_config_file_SOURCES = test/test_config_file.c test/test_helpers.c config_file.c config_parse.c queue.c slist.c global.c
+test_config_file_SOURCES = test/test_config_file.c test/test_helpers.c config_file.c config_parse.c config_toml.c queue.c slist.c global.c
 test_config_file_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_config_file_LDADD = $(CMOCKA_LIBS)
 test_getline_SOURCES = test/test_getline.c test/test_helpers.c getline.c getline_name.c slist.c global.c
@@ -112,9 +128,6 @@ EXTRA_DIST = bbs.1.in test/test_helpers.h
 else
 TESTS =
 endif
-
-install-exec-hook:
-	@echo 'Now hot Asian sluts will come out of your computer whenever you type "bbs".'
 
 .PHONY: analyze compile-commands cppcheck release-package scan-build
 

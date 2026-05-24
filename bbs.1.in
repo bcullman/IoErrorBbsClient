@@ -1,6 +1,6 @@
 .\" -*-Nroff-*-
 .\"
-.TH BBS 1 "15 Feb 2026" "@PACKAGE_VERSION@" "Unix User's Manual"
+.TH BBS 1 "22 May 2026" "@PACKAGE_VERSION@" "Unix User's Manual"
 .SH NAME
 bbs \- Connect to the ISCA BBS or a similar BBS.
 .SH SYNOPSIS

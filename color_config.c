@@ -10,7 +10,7 @@
 #include "utility.h"
 static const char *COLOR_MAIN_MENU_KEYS = "tcoq \n";
 static const char *COLOR_OUTPUT_MODE_KEYS = "at2 \n";
-static const char *COLOR_RESET_MENU_KEYS = "abcdefghijklq \n";
+static const char *COLOR_RESET_MENU_KEYS = "abcdefghijklq\n";
 #define RGB_CONST( red, green, blue ) \
    ( COLOR_VALUE_RGB_FLAG | ( ( red ) << 16 ) | ( ( green ) << 8 ) | ( blue ) )
 #define COLOR_EDITOR_FAST_STEP 16
@@ -28,9 +28,11 @@ typedef struct
 
 typedef struct
 {
+   void ( *applyPresetColors )( void );
    int arySwatchColors[PRESET_SWATCH_COUNT];
    int keyChar;
    const char *ptrLabel;
+   const char *ptrSelectionLabel;
 } PresetMenuOption;
 
 typedef struct
@@ -127,55 +129,81 @@ static const ColorEditorFieldSpec aryFullColorFields[] =
       { COLOR_FIELD_EXPRESS_FRIEND_NAME, "Friend X name" },
       { COLOR_FIELD_EXPRESS_FRIEND_TEXT, "Friend X text" } };
 
+static void applyDefaultPresetColors( void );
+
 static const PresetMenuOption aryPresetMenuOptions[] =
    {
-      { { RGB_CONST( 0x00, 0x80, 0x00 ), RGB_CONST( 0x80, 0x80, 0x00 ),
+      { applyDefaultPresetColors,
+        { RGB_CONST( 0x00, 0x80, 0x00 ), RGB_CONST( 0x80, 0x80, 0x00 ),
           RGB_CONST( 0x00, 0x80, 0x80 ), RGB_CONST( 0x80, 0x00, 0x00 ) },
         'A',
+        "Default",
         "Default" },
-      { { RGB_CONST( 0x00, 0xff, 0x00 ), RGB_CONST( 0xff, 0xff, 0x00 ),
+      { brilliantColors,
+        { RGB_CONST( 0x00, 0xff, 0x00 ), RGB_CONST( 0xff, 0xff, 0x00 ),
           RGB_CONST( 0x00, 0xff, 0xff ), RGB_CONST( 0xff, 0x00, 0x00 ) },
         'B',
+        "Brilliant",
         "Brilliant" },
-      { { RGB_CONST( 0xd3, 0xc6, 0xaa ), RGB_CONST( 0x7f, 0xbb, 0xb3 ),
+      { everforestDarkColors,
+        { RGB_CONST( 0xd3, 0xc6, 0xaa ), RGB_CONST( 0x7f, 0xbb, 0xb3 ),
           RGB_CONST( 0x83, 0xc0, 0x92 ), RGB_CONST( 0xe6, 0x7e, 0x80 ) },
         'C',
+        "Everforest Dark",
         "Everforest Dark" },
-      { { RGB_CONST( 0x5c, 0x6a, 0x72 ), RGB_CONST( 0x35, 0x8f, 0xa2 ),
+      { everforestLightColors,
+        { RGB_CONST( 0x5c, 0x6a, 0x72 ), RGB_CONST( 0x35, 0x8f, 0xa2 ),
           RGB_CONST( 0x3a, 0x94, 0x84 ), RGB_CONST( 0xf8, 0x55, 0x52 ) },
         'D',
+        "Everforest Light",
         "Everforest Light" },
-      { { RGB_CONST( 0xeb, 0xdb, 0xb2 ), RGB_CONST( 0x83, 0xa5, 0x98 ),
+      { gruvboxDarkColors,
+        { RGB_CONST( 0xeb, 0xdb, 0xb2 ), RGB_CONST( 0x83, 0xa5, 0x98 ),
           RGB_CONST( 0x8e, 0xc0, 0x7c ), RGB_CONST( 0xfe, 0x80, 0x19 ) },
         'E',
+        "Gruvbox Dark",
         "Gruvbox Dark" },
-      { { RGB_CONST( 0x3c, 0x38, 0x36 ), RGB_CONST( 0x45, 0x85, 0x88 ),
+      { gruvboxLightColors,
+        { RGB_CONST( 0x3c, 0x38, 0x36 ), RGB_CONST( 0x45, 0x85, 0x88 ),
           RGB_CONST( 0x79, 0x74, 0x0e ), RGB_CONST( 0x9d, 0x00, 0x06 ) },
         'F',
+        "Gruvbox Light",
         "Gruvbox Light" },
-      { { RGB_CONST( 0xe3, 0xe2, 0xe9 ), RGB_CONST( 0x73, 0x59, 0xf8 ),
+      { draculaProColors,
+        { RGB_CONST( 0xe3, 0xe2, 0xe9 ), RGB_CONST( 0x73, 0x59, 0xf8 ),
           RGB_CONST( 0x5c, 0xf5, 0xdb ), RGB_CONST( 0xf8, 0x73, 0x59 ) },
         'G',
+        "Dracula",
         "Dracula" },
-      { { RGB_CONST( 0x4c, 0x4f, 0x69 ), RGB_CONST( 0x1e, 0x66, 0xf5 ),
+      { catppuccinLatteColors,
+        { RGB_CONST( 0x4c, 0x4f, 0x69 ), RGB_CONST( 0x1e, 0x66, 0xf5 ),
           RGB_CONST( 0x20, 0x9f, 0xb5 ), RGB_CONST( 0xd2, 0x0f, 0x39 ) },
         'H',
-        "Latte (Catppuccin)" },
-      { { RGB_CONST( 0xca, 0xd3, 0xf5 ), RGB_CONST( 0x8a, 0xad, 0xf4 ),
+        "Latte (Catppuccin)",
+        "Catppuccin Latte" },
+      { catppuccinMacchiatoColors,
+        { RGB_CONST( 0xca, 0xd3, 0xf5 ), RGB_CONST( 0x8a, 0xad, 0xf4 ),
           RGB_CONST( 0x7d, 0xc4, 0xe4 ), RGB_CONST( 0xed, 0x87, 0x96 ) },
         'I',
-        "Macchiato (Catppuccin)" },
-      { { RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0x5f, 0xaf, 0xff ),
+        "Macchiato (Catppuccin)",
+        "Catppuccin Macchiato" },
+      { colorblindColors,
+        { RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0x5f, 0xaf, 0xff ),
           RGB_CONST( 0xff, 0xaf, 0x00 ), RGB_CONST( 0xd7, 0x5f, 0x00 ) },
         'J',
+        "Colorblind",
         "Colorblind" },
-      { { RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
+      { hotDogColors,
+        { RGB_CONST( 0xff, 0xd7, 0x00 ), RGB_CONST( 0xff, 0x00, 0x00 ),
           RGB_CONST( 0xff, 0xff, 0xff ), RGB_CONST( 0xff, 0xd7, 0x00 ) },
         'K',
-        "Hotdog stand" },
-      { { RGB_CONST( 0xea, 0xf6, 0xad ), RGB_CONST( 0x1b, 0x77, 0x8c ),
+        "Hotdog stand",
+        "Hotdog Stand" },
+      { tidalReefColors,
+        { RGB_CONST( 0xea, 0xf6, 0xad ), RGB_CONST( 0x1b, 0x77, 0x8c ),
           RGB_CONST( 0x6a, 0x2f, 0xee ), RGB_CONST( 0xb6, 0xdb, 0x00 ) },
         'L',
+        "Tidal Reef",
         "Tidal Reef" } };
 
 static const char *A_FRIEND = "Example Friend";
@@ -183,6 +211,7 @@ static const char *A_USER = "Example User";
 
 static void applyColorEditorAction( ColorEditorContext *ptrContext,
                                     ColorEditorAction inputAction );
+static bool applyPresetMenuSelection( int inputChar );
 static bool colorEditorFieldAllowsDefaultValue( int colorIndex );
 static const char *colorEditorModeName( void );
 static const char *colorEditorPaletteName( int colorValue );
@@ -203,16 +232,15 @@ static void printPaletteColorValue( int colorValue );
 static void postColorPreview( int dateColor, int textColor, int nameColor,
                               const char *ptrName );
 static void presetColorConfig( void );
-static void printPresetPreviewPane( void );
 static void printExpressColorPreview( int textColor, int nameColor,
                                       const char *ptrName );
 static void printGeneralColorPreview( void );
 static void printInputColorPreview( const ColorEditorContext *ptrContext );
-static void printFullColorPreview( void );
 static void printPresetMenuItem( const PresetMenuOption *ptrOption );
 static void printPresetMenuRow( const PresetMenuOption *ptrLeftOption,
                                 const PresetMenuOption *ptrRightOption );
 static void printPresetSwatches( const PresetMenuOption *ptrOption );
+static void printThemePreviewContent( void );
 static bool runColorEditor( const ColorEditorFieldSpec *ptrFields,
                             size_t fieldCount, size_t initialFieldIndex,
                             const char *ptrSectionTitle,
@@ -371,24 +399,29 @@ static void postColorPreview( int dateColor, int textColor, int nameColor,
    stdPrintf( "Hi there!\r\n" );
 }
 
-/// @brief Show preset themes and apply the selected preset.
+/// @brief Show built-in themes and apply the selected theme.
 ///
 /// @return This helper does not return a value.
 static void presetColorConfig( void )
 {
-   size_t optionIndex;
+   bool savedUseBlackThemeBackgrounds;
+   Color savedColorTable;
 
+   snapshotActiveColorEditorState( &savedColorTable,
+                                   &savedUseBlackThemeBackgrounds );
    while ( true )
    {
       size_t columnBreakIndex;
       size_t optionCount;
+      size_t optionIndex;
+      int inputChar;
 
       optionCount = sizeof( aryPresetMenuOptions ) / sizeof( aryPresetMenuOptions[0] );
       columnBreakIndex = ( optionCount + 1 ) / 2;
 
       printAnsiDisplayStateValue( color.text, color.background );
       stdPrintf( "\033[H\033[2J" );
-      stdPrintf( "Color presets\r\n\n" );
+      stdPrintf( "Color themes\r\n\n" );
       for ( optionIndex = 0;
             optionIndex < columnBreakIndex;
             optionIndex++ )
@@ -403,71 +436,72 @@ static void presetColorConfig( void )
             printPresetMenuRow( &aryPresetMenuOptions[optionIndex], NULL );
          }
       }
-      printPresetPreviewPane();
       printAnsiDisplayStateValue( color.text, color.background );
-      printThemedMnemonicText( " Q.) Quit\r\n", color.number );
-      printThemedMnemonicText( "Select preset (A-L, Q-Quit) -> ", color.forum );
+      printThemedMnemonicText( "\r\nTheme preview\r\n", color.number );
+      printThemePreviewContent();
+      printAnsiDisplayStateValue( color.text, color.background );
+      printThemedMnemonicText( "Select theme (A-L, Q-Quit, Return-Save & Quit) -> ",
+                               color.forum );
       printAnsiForegroundColorValue( color.text );
 
-      switch ( readValidatedMenuKey( COLOR_RESET_MENU_KEYS ) )
+      inputChar = readValidatedMenuKey( COLOR_RESET_MENU_KEYS );
+      if ( applyPresetMenuSelection( inputChar ) )
       {
-         case 'a':
-            stdPrintf( "Default\r\n\n" );
-            defaultColors( 1 );
-            break;
-         case 'b':
-            stdPrintf( "Brilliant\r\n\n" );
-            brilliantColors();
-            break;
-         case 'c':
-            stdPrintf( "Everforest Dark\r\n\n" );
-            everforestDarkColors();
-            break;
-         case 'd':
-            stdPrintf( "Everforest Light\r\n\n" );
-            everforestLightColors();
-            break;
-         case 'e':
-            stdPrintf( "Gruvbox Dark\r\n\n" );
-            gruvboxDarkColors();
-            break;
-         case 'f':
-            stdPrintf( "Gruvbox Light\r\n\n" );
-            gruvboxLightColors();
-            break;
-         case 'g':
-            stdPrintf( "Dracula\r\n\n" );
-            draculaProColors();
-            break;
-         case 'h':
-            stdPrintf( "Catppuccin Latte\r\n\n" );
-            catppuccinLatteColors();
-            break;
-         case 'i':
-            stdPrintf( "Catppuccin Macchiato\r\n\n" );
-            catppuccinMacchiatoColors();
-            break;
-         case 'j':
-            stdPrintf( "Colorblind\r\n\n" );
-            colorblindColors();
-            break;
-         case 'k':
-            stdPrintf( "Hotdog Stand\r\n\n" );
-            hotDogColors();
-            break;
-         case 'l':
-            stdPrintf( "Tidal Reef\r\n\n" );
-            tidalReefColors();
-            break;
+         continue;
+      }
+
+      switch ( inputChar )
+      {
          case 'q':
-         case ' ':
-         case '\n':
+            restoreActiveColorEditorState( &savedColorTable,
+                                           savedUseBlackThemeBackgrounds );
             stdPrintf( "Quit\r\n" );
+            return;
+         case '\n':
+            commitActiveColorEditorState();
+            stdPrintf( "Save\r\n" );
             return;
          default:
             break;
       }
    }
+}
+
+/// @brief Apply the built-in default preset from the preset menu.
+///
+/// @return This helper does not return a value.
+static void applyDefaultPresetColors( void )
+{
+   defaultColors( 1 );
+}
+
+/// @brief Apply a preset menu option matching the supplied key.
+///
+/// @param inputChar Validated menu key to resolve.
+///
+/// @return `true` when a preset was matched and applied, otherwise `false`.
+static bool applyPresetMenuSelection( int inputChar )
+{
+   size_t optionIndex;
+
+   for ( optionIndex = 0;
+         optionIndex < sizeof( aryPresetMenuOptions ) / sizeof( aryPresetMenuOptions[0] );
+         optionIndex++ )
+   {
+      const PresetMenuOption *ptrOption;
+
+      ptrOption = &aryPresetMenuOptions[optionIndex];
+      if ( inputChar != tolower( ptrOption->keyChar ) )
+      {
+         continue;
+      }
+
+      stdPrintf( "%s\r\n\n", ptrOption->ptrSelectionLabel );
+      ptrOption->applyPresetColors();
+      return true;
+   }
+
+   return false;
 }
 
 /// @brief Apply one editing action to the live runtime palette.
@@ -655,7 +689,7 @@ static void printColorEditorControls( void )
 {
    stdPrintf( "Up/Down-Field  Left/Right-Part  W/S-Adjust  +/-x16\r\n" );
    stdPrintf( "P/N-Field      A/D-Part         R-Reset     Return-Save & Quit\r\n" );
-   stdPrintf( "                                            C-Cancel & Quit\r\n" );
+   stdPrintf( "                                            Q-Quit\r\n" );
 }
 
 /// @brief Print the field list for the active editor section.
@@ -778,7 +812,14 @@ static void printColorEditorPreview( const ColorEditorContext *ptrContext )
 {
    printAnsiDisplayStateValue( color.text, color.background );
    stdPrintf( "\r\n" );
-   printThemedMnemonicText( "Preview\r\n", color.number );
+   if ( ptrContext->previewKind == COLOR_EDITOR_PREVIEW_FULL )
+   {
+      printThemedMnemonicText( "Theme preview\r\n", color.number );
+   }
+   else
+   {
+      printThemedMnemonicText( "Preview\r\n", color.number );
+   }
    printColorEditorPreviewByKind( ptrContext->previewKind, ptrContext );
 }
 
@@ -800,7 +841,7 @@ static void printColorEditorPreviewByKind( ColorEditorPreviewKind previewKind,
          break;
 
       case COLOR_EDITOR_PREVIEW_FULL:
-         printFullColorPreview();
+         printThemePreviewContent();
          break;
 
       case COLOR_EDITOR_PREVIEW_GENERAL:
@@ -925,15 +966,28 @@ static void printInputColorPreview( const ColorEditorContext *ptrContext )
    stdPrintf( ">Hi there!\r\n" );
 }
 
-/// @brief Print a compact whole-palette preview for the unified color editor.
+/// @brief Print a compact whole-theme preview shared by theme selection screens.
 ///
 /// @return This helper does not return a value.
-static void printFullColorPreview( void )
+static void printThemePreviewContent( void )
 {
    printGeneralColorPreview();
    printInputColorPreview( NULL );
    postColorPreview( color.postDate, color.postText, color.postName, A_USER );
-   printExpressColorPreview( color.expressText, color.expressName, A_USER );
+   printAnsiForegroundColorValue( color.expressText );
+   stdPrintf( "X: " );
+   printAnsiForegroundColorValue( color.expressName );
+   stdPrintf( "%s", A_USER );
+   printAnsiForegroundColorValue( color.expressText );
+   stdPrintf( "  >Hello  ANSI: " );
+   printAnsiForegroundColorValue( color.ansiBlackTextColor );
+   stdPrintf( "blk " );
+   printAnsiForegroundColorValue( color.ansiBlueTextColor );
+   stdPrintf( "blu " );
+   printAnsiForegroundColorValue( color.ansiMagentaTextColor );
+   stdPrintf( "mag " );
+   printAnsiForegroundColorValue( color.ansiWhiteTextColor );
+   stdPrintf( "wht\r\n\r\n" );
 }
 
 /// @brief Print one palette value for the custom color editor.
@@ -1024,49 +1078,6 @@ static void printPresetSwatches( const PresetMenuOption *ptrOption )
    }
 
    useBlackThemeBackgrounds = savedUseBlackThemeBackgrounds;
-}
-
-/// @brief Print a themed preview pane for the current preset colors.
-///
-/// @return This helper does not return a value.
-static void printPresetPreviewPane( void )
-{
-   printAnsiDisplayStateValue( color.text, color.background );
-   printThemedMnemonicText( "\r\nPreview\r\n", color.number );
-   printAnsiForegroundColorValue( color.forum );
-   stdPrintf( "Lobby> " );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( "Enter message  " );
-   printAnsiForegroundColorValue( color.number );
-   stdPrintf( "150" );
-   printAnsiForegroundColorValue( color.text );
-   stdPrintf( " msgs  " );
-   printAnsiForegroundColorValue( color.errorTextColor );
-   stdPrintf( "Error\r\n" );
-
-   printAnsiForegroundColorValue( color.postDate );
-   stdPrintf( "Jan  1 11:01" );
-   printAnsiForegroundColorValue( color.postText );
-   stdPrintf( " from " );
-   printAnsiForegroundColorValue( color.postName );
-   stdPrintf( "%s", A_USER );
-   printAnsiForegroundColorValue( color.postText );
-   stdPrintf( "  Hi there!\r\n" );
-
-   printAnsiForegroundColorValue( color.expressText );
-   stdPrintf( "X: " );
-   printAnsiForegroundColorValue( color.expressName );
-   stdPrintf( "%s", A_USER );
-   printAnsiForegroundColorValue( color.expressText );
-   stdPrintf( "  >Hello  ANSI: " );
-   printAnsiForegroundColorValue( color.ansiBlackTextColor );
-   stdPrintf( "blk " );
-   printAnsiForegroundColorValue( color.ansiBlueTextColor );
-   stdPrintf( "blu " );
-   printAnsiForegroundColorValue( color.ansiMagentaTextColor );
-   stdPrintf( "mag " );
-   printAnsiForegroundColorValue( color.ansiWhiteTextColor );
-   stdPrintf( "wht\r\n\r\n" );
 }
 
 /// @brief Run one interactive custom color editor session.

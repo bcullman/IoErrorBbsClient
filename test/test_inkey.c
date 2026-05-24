@@ -6,7 +6,7 @@
 #include "config_file.h"
 #include "browser.h"
 #include "client.h"
-#include <cmocka.h>
+#include "test/cmocka_compat.h"
 #include "color.h"
 #include "config_menu.h"
 #include "defs.h"
@@ -156,6 +156,7 @@ int stdPrintf( const char *format, ... )
 {
    va_list argList;
 
+   (void)format;
    va_start( argList, format );
    va_end( argList );
    return 0;
@@ -286,6 +287,7 @@ static void getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput( vo
 {
    int result;
 
+   // Arrange
    (void)state;
 
    resetState();
@@ -295,8 +297,10 @@ static void getKey_WhenLocalInputArrivesDuringNetworkDrain_ReturnsLocalInput( vo
    ptrNetInput = aryNetInputBuffer;
    shouldInjectPtyInputDuringNetworkDrain = true;
 
+   // Act
    result = getKey();
 
+   // Assert
    if ( result != 'J' )
    {
       fail_msg( "getKey should return local input that arrives during network draining; got %d", result );

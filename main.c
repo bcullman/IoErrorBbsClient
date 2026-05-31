@@ -11,6 +11,7 @@
 #include "client.h"
 #include "client_globals.h"
 #include "defs.h"
+#include "pane_ui.h"
 #include "utility.h"
 /// @brief Entry point for the BBS client.
 ///
@@ -38,8 +39,8 @@ int main( int argc, char *argv[] )
    connectBbs();
    sigInit();
    telInit();
+   paneUiResetSession();
    setTerm();
    looper();
-   exit( 0 );
-   return ( 0 );
+   myExit();
 }

@@ -35,6 +35,10 @@ void configureOptionsMenu( void )
    flagsConfiguration.isScreenReaderModeEnabled =
       (unsigned int)yesNoDefault( flagsConfiguration.isScreenReaderModeEnabled );
    flagsConfiguration.hasScreenReaderModeSetting = 1;
+   stdPrintf( "Use wide terminal pane UI when space is available? (%s) -> ",
+              flagsConfiguration.shouldUsePaneUi ? "Yes" : "No" );
+   flagsConfiguration.shouldUsePaneUi =
+      (unsigned int)yesNoDefault( flagsConfiguration.shouldUsePaneUi );
    if ( !isLoginShell )
    {
       stdPrintf( "Enter local editor to use (%s uses shell default) -> ",

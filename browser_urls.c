@@ -13,6 +13,7 @@
 #include "color.h"
 #include "defs.h"
 #include "filter_globals.h"
+#include "pane_ui.h"
 #include "utility.h"
 
 typedef struct
@@ -773,6 +774,13 @@ static bool shouldEmitClickableUrls( void )
 /// @return Current terminal width, or an 80-column fallback when unavailable.
 static size_t terminalColumnCount( void )
 {
+   size_t paneColumns;
+
+   paneColumns = paneUiTerminalContentColumns();
+   if ( paneColumns > 0 )
+   {
+      return paneColumns;
+   }
 #ifdef TIOCGWINSZ
    struct winsize terminalSize;
 

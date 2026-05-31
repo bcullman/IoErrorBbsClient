@@ -10,6 +10,7 @@
 #include "defs.h"
 #include "macos_keychain.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include "unix.h"
 #include "utility.h"
 typedef struct
@@ -458,22 +459,34 @@ int waitNextEvent( void )
          FD_SET( net, &fdr );
       }
 
-      if ( select( shouldIgnoreNetwork ? 1 : net + 1, &fdr, 0, 0, 0 ) < 0 )
       {
-         if ( errno == EINTR )
+         struct timeval timeout;
+         struct timeval *ptrTimeout;
+         int selectResult;
+
+         ptrTimeout = paneUiSelectTimeout( &timeout ) ? &timeout : NULL;
+         selectResult = select( shouldIgnoreNetwork ? 1 : net + 1,
+                                &fdr, 0, 0, ptrTimeout );
+         if ( selectResult == 0 )
          {
+            paneUiHandleTimer();
             continue;
          }
-         else
+         if ( selectResult >= 0 )
          {
-            stdPrintf( "\r\n" );
-            fatalPerror( "select", "Local error" );
+            result = ( ( FD_ISSET( net, &fdr ) != 0 ) << 1 |
+                       ( FD_ISSET( 0, &fdr ) != 0 ) );
+            if ( result )
+            {
+               return result;
+            }
+            continue;
          }
       }
-
-      if ( ( result = ( ( FD_ISSET( net, &fdr ) != 0 ) << 1 | ( FD_ISSET( 0, &fdr ) != 0 ) ) ) )
+      if ( errno != EINTR )
       {
-         return ( result );
+         stdPrintf( "\r\n" );
+         fatalPerror( "select", "Local error" );
       }
    }
 }

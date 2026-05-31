@@ -13,6 +13,7 @@
 #include "filter_globals.h"
 #include "macos_keychain.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include "telnet.h"
 #include "utility.h"
 static void printBufferedAnsiSequence( const char *ptrAnsiSequence, size_t sequenceLength );
@@ -77,6 +78,12 @@ void filterData( register int inputChar )
 {
    static char aryBufferedAnsiSequence[8];
    static size_t bufferedAnsiSequenceLength = 0;
+
+   if ( paneUiHandleIncomingChar( inputChar ) )
+   {
+      aryFilterLine[0] = '\0';
+      return;
+   }
 
    // Copy the current line (or what we have so far)
    if ( inputChar == '\n' )

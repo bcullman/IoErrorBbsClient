@@ -10,6 +10,7 @@
 #include "config_globals.h"
 #include "defs.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include "sysio.h"
 #include "telnet.h"
 #include "unix.h"
@@ -18,6 +19,9 @@ static bool shouldUpdateTitleBar( void );
 static bool terminalSupportsTitleBarUpdates( void );
 
 static int isTerminalStateSaved = 0;
+#ifdef HAVE_TERMIOS_H
+static struct termios saveterm;
+#else
 #ifdef HAVE_TERMIO_H
 static struct termio saveterm;
 #else
@@ -25,6 +29,7 @@ static struct sgttyb saveterm;
 static struct tchars savetchars;
 static struct ltchars savedLocalTermChars;
 static int savelocalmode;
+#endif
 #endif
 
 /// @brief Flush pending terminal input after invalid or dangerous key sequences.
@@ -113,6 +118,7 @@ void noTitleBar( void )
 /// @return This function does not return a value.
 void resetTerm( void )
 {
+   paneUiLeave();
    if ( flagsConfiguration.shouldUseAnsi )
    {
       printAnsiResetValue();
@@ -122,6 +128,9 @@ void resetTerm( void )
    {
       return;
    }
+#ifdef HAVE_TERMIOS_H
+   tcsetattr( 0, TCSANOW, &saveterm );
+#else
 #ifdef HAVE_TERMIO_H
    ioctl( 0, TCSETA, &saveterm );
 #else
@@ -130,6 +139,7 @@ void resetTerm( void )
    ioctl( 0, TIOCSLTC, (char *)&savedLocalTermChars );
    ioctl( 0, TIOCLSET, (char *)&savelocalmode );
 #endif
+#endif
 }
 
 /// @brief Put the terminal into the mode expected by the interactive client.
@@ -137,6 +147,9 @@ void resetTerm( void )
 /// @return This function does not return a value.
 void setTerm( void )
 {
+#ifdef HAVE_TERMIOS_H
+   struct termios tmpterm;
+#else
 #ifdef HAVE_TERMIO_H
    struct termio tmpterm;
 
@@ -146,6 +159,7 @@ void setTerm( void )
    struct ltchars tmpltchars;
    int tmplocalmode;
 
+#endif
 #endif
 
    getWindowSize();
@@ -157,6 +171,20 @@ void setTerm( void )
    }
 
    titleBar();
+#ifdef HAVE_TERMIOS_H
+   if ( !isTerminalStateSaved )
+   {
+      tcgetattr( 0, &saveterm );
+   }
+   tmpterm = saveterm;
+   tmpterm.c_iflag &= ~( INLCR | IGNCR | ICRNL );
+   tmpterm.c_iflag |= IXOFF | IXON | IXANY;
+   tmpterm.c_oflag &= ~( ONLCR | OCRNL );
+   tmpterm.c_lflag &= ~( ISIG | ICANON | ECHO );
+   tmpterm.c_cc[VMIN] = 1;
+   tmpterm.c_cc[VTIME] = 0;
+   tcsetattr( 0, TCSANOW, &tmpterm );
+#else
 #ifdef HAVE_TERMIO_H
    if ( !isTerminalStateSaved )
    {
@@ -207,7 +235,9 @@ void setTerm( void )
    tmplocalmode |= LCRTBS;
    ioctl( 0, TIOCLSET, (char *)&tmplocalmode );
 #endif
+#endif
    isTerminalStateSaved = 1;
+   paneUiEnterIfEligible();
 }
 
 /// @brief Decide whether title-bar updates should be emitted right now.

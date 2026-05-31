@@ -526,6 +526,7 @@ typedef struct
    unsigned int shouldEnableClickableUrls : 1;    // true if OSC-8 clickable URL output is enabled
    unsigned int shouldEnableNameAutocomplete : 1; // true if name-entry autocomplete is enabled
    unsigned int shouldEnableTitleBar : 1;         // true if terminal title updates are enabled
+   unsigned int shouldUsePaneUi : 1;              // true if the wide terminal pane UI is enabled
    unsigned int shouldUseKeychain : 1;            // true if runtime keychain support is enabled
    unsigned int shouldSquelchExpress : 1;         // true when enemy express messages should be squelched
    unsigned int shouldSquelchPost : 1;            // true when enemy posts should be squelched

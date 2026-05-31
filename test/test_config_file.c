@@ -1026,6 +1026,7 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
            "autocomplete_recipients = false\n"
            "clickable_url_summaries = false\n"
            "dark_theme_black_background_fallback = true\n"
+           "pane_ui = true\n"
            "screen_reader_mode = true\n"
            "suppress_enemy_express = true\n"
            "suppress_enemy_posts = true\n"
@@ -1099,6 +1100,7 @@ static void readConfig_WhenConfigContainsCoreToml_ParsesValues( void **state )
         flagsConfiguration.shouldEnableClickableUrls ||
         !useBlackThemeBackgrounds ||
         flagsConfiguration.shouldEnableNameAutocomplete ||
+        !flagsConfiguration.shouldUsePaneUi ||
         !flagsConfiguration.isScreenReaderModeEnabled ||
         !flagsConfiguration.shouldSquelchExpress ||
         !flagsConfiguration.shouldSquelchPost ||

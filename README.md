@@ -38,6 +38,12 @@ Client settings are saved in a TOML file at:
 
 Settings files (`.bbsrc`) from older client builds are not imported, updated, or removed.
 
+Set `pane_ui = true` in the `[behavior]` config section to enable the
+experimental wide-terminal pane layout. When the terminal is wide enough, the
+client keeps the normal 80-column BBS session on the left and a buffered
+sidebar on the right. Narrow terminals and screen-reader mode continue to use
+the classic view.
+
 ## Shell And Editor Commands
 
 The external editor setting can use a normal command with optional arguments. By default, it uses the value of the `EDITOR` environment variable.

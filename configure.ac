@@ -297,7 +297,7 @@ PLATFORM_OBJS="unix.o"
 
 dnl Checks for header files.
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(sgtty.h stdint.h sys/ioctl.h sys/time.h termio.h time.h unistd.h)
+AC_CHECK_HEADERS(sgtty.h stdint.h sys/ioctl.h sys/time.h termio.h termios.h time.h unistd.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

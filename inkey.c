@@ -12,6 +12,7 @@
 #include "defs.h"
 #include "edit.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include "sysio.h"
 #include "telnet.h"
 #include "utility.h"
@@ -224,10 +225,21 @@ static GetKeyResult handleBufferedLocalInput( int *ptrIsCommandNext,
    result.kind = GETKEY_RESULT_NONE;
    result.inputChar = -1;
 
-   while ( isPtyInputAvailable() && !childPid &&
+   while ( ( paneUiHasPendingLocalInput() || isPtyInputAvailable() ) && !childPid &&
            !flagsConfiguration.shouldCheckExpress )
    {
-      int inputChar = ptyget() & 0x7f;
+      int inputChar;
+
+      if ( !paneUiTakePendingLocalInput( &inputChar ) )
+      {
+         inputChar = ptyget() & 0x7f;
+         if ( paneUiHandleLocalInput( inputChar, isPtyInputAvailable() ) )
+         {
+            result.kind = GETKEY_RESULT_CONTINUE;
+            return result;
+         }
+      }
+      paneUiNoteUserInput();
       if ( inputChar > 0 && isAway )
       {
          isAway = false;

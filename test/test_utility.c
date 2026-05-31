@@ -63,6 +63,11 @@ void resetTerm( void )
    // Test stub: terminal reset behavior is not relevant in this test.
 }
 
+void paneUiLeaveForExit( void )
+{
+   // Test stub: pane cleanup behavior is not relevant in this test.
+}
+
 void sError( const char *message, const char *heading )
 {
    (void)message;

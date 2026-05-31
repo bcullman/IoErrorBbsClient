@@ -288,6 +288,7 @@ static void initializeConfigDefaults( void )
    flagsConfiguration.shouldEnableClickableUrls = 1;
    flagsConfiguration.shouldEnableNameAutocomplete = 1;
    flagsConfiguration.shouldEnableTitleBar = 1;
+   flagsConfiguration.shouldUsePaneUi = 0;
    flagsConfiguration.shouldSquelchExpress = 0;
    flagsConfiguration.shouldSquelchPost = 0;
    flagsConfiguration.shouldUseAnsi = 0;
@@ -1154,6 +1155,15 @@ static bool tryProcessTomlKeyValue( TomlSectionId currentSection,
                flagsConfiguration.isScreenReaderModeEnabled =
                   (unsigned int)parsedBooleanValue;
                flagsConfiguration.hasScreenReaderModeSetting = 1;
+            }
+            return true;
+         }
+         if ( strcmp( ptrKeyName, "pane_ui" ) == 0 )
+         {
+            if ( tryParseBooleanValue( ptrValue, ptrKeyName, &parsedBooleanValue ) )
+            {
+               flagsConfiguration.shouldUsePaneUi =
+                  (unsigned int)parsedBooleanValue;
             }
             return true;
          }

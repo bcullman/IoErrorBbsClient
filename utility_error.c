@@ -11,6 +11,7 @@
 #include "client_globals.h"
 #include "config_globals.h"
 #include "defs.h"
+#include "pane_ui.h"
 #include "utility.h"
 static void reopenTempFileForShutdown( void );
 static void waitForChildShutdown( void );
@@ -51,6 +52,7 @@ noreturn void myExit( void )
 {
    fflush( stdout );
    waitForChildShutdown();
+   paneUiLeaveForExit();
    resetTerm();
    reopenTempFileForShutdown();
    deinitialize();

@@ -55,6 +55,16 @@ instead.
 On macOS, builds configured with
 .B --enable-keychain
 can store passwords in Keychain.
+.sp
+The experimental
+.B pane_ui
+behavior setting enables a wide-terminal layout when at least 103 columns
+are available. The normal 80-column BBS session remains on the left and an
+automatically refreshed online-user snapshot appears on the right. The
+snapshot is clipped to the available width. Narrow terminals and screen-reader
+mode continue to use the classic view. In pane mode, use the mouse wheel over
+the left pane to scroll through up to 1,000 retained rows without moving the
+online-user snapshot.
 
 .SH CONFIGURATION
 To configure your client, you will enter the client configuration menu.

@@ -189,6 +189,8 @@ static void writeBehaviorSettings( void )
    fprintf( ptrConfigFile, "color_output_mode = " );
    printTomlEscapedString( colorOutputModeName( configuredColorOutputMode ) );
    fprintf( ptrConfigFile, "\n" );
+   fprintf( ptrConfigFile, "pane_ui = %s\n",
+            flagsConfiguration.shouldUsePaneUi ? "true" : "false" );
    fprintf( ptrConfigFile, "screen_reader_mode = %s\n",
             flagsConfiguration.isScreenReaderModeEnabled ? "true" : "false" );
    fprintf( ptrConfigFile, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" );

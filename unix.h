@@ -26,6 +26,9 @@
 #define __svr4__
 #endif
 
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#else
 #ifdef HAVE_TERMIO_H
 #include <termio.h>
 #else
@@ -33,6 +36,7 @@
 #include <sgtty.h>
 #endif
 // If neither is present, punt
+#endif
 #endif
 
 #ifdef _AIX

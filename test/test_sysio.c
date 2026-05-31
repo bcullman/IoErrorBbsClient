@@ -60,16 +60,6 @@ void tempFileError( void )
    tempFileErrorCallCount++;
 }
 
-int colorValueFromLegacyDigit( int inputChar )
-{
-   if ( inputChar >= '0' && inputChar <= '9' )
-   {
-      return inputChar - '0';
-   }
-
-   return inputChar;
-}
-
 static void stripAnsi_WhenEscapeCodesPresent_RemovesAnsiSequences( void **state )
 {
    // Arrange

@@ -13,6 +13,7 @@
 #include "config_globals.h"
 #include "defs.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include <stdarg.h>
 #include "sysio.h"
 #include "utility.h"
@@ -219,6 +220,7 @@ int stdPutChar( int inputChar )
       fatalPerror( "stdPutChar", "Local error" );
    }
    capPutChar( inputChar );
+   paneUiAfterOutputChar( inputChar );
    return inputChar;
 }
 
@@ -238,6 +240,7 @@ int stdPuts( const char *ptrText )
       fflush( stdout );
    }
    capPuts( ptrText );
+   paneUiAfterOutputText( ptrText );
    return 1;
 }
 

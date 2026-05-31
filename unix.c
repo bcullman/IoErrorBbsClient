@@ -17,6 +17,7 @@
 #include "config_globals.h"
 #include "defs.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include "telnet.h"
 #include "unix.h"
 #include "utility.h"
@@ -191,6 +192,7 @@ RETSIGTYPE naws( int signalNumber )
    {
       sendNaws();
    }
+   paneUiMarkResizePending();
 #ifdef SIGWINCH
    signal( SIGWINCH, naws );
 #endif

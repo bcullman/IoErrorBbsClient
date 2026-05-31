@@ -838,7 +838,7 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
-   const int aryYesNoAnswers[] = { 1, 0, 1, 1, 0 };
+   const int aryYesNoAnswers[] = { 1, 1, 0, 1, 1, 0 };
 
    (void)state;
    resetState();
@@ -896,6 +896,12 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       fail_msg( "configClient should mark screen reader mode as configured after toggling it" );
       return;
    }
+   if ( !flagsConfiguration.shouldUsePaneUi )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should enable the pane UI when the option is answered yes" );
+      return;
+   }
    if ( !flagsConfiguration.shouldEnableClickableUrls )
    {
       cleanupWriteConfigFixture();
@@ -927,10 +933,17 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Update terminal title bar? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
+                "Use wide terminal pane UI when space is available?" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should show title bar updates as forced off when screen reader mode is enabled" );
+      fail_msg( "configClient should display the wide terminal pane UI option" );
+      return;
+   }
+   if ( strstr( aryStdPrintfLog,
+                "Update terminal title bar? (Yes) -> " ) == NULL )
+   {
+      cleanupWriteConfigFixture();
+      fail_msg( "configClient should display the title bar option in the Options menu" );
       return;
    }
    if ( strstr( aryStdPrintfLog,
@@ -972,7 +985,7 @@ static void configClient_WhenKeychainEnabled_ShowsNextLoginMessage( void **state
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
-   const int aryYesNoAnswers[] = { 0, 0, 0, 1, 1, 1, 1, 1 };
+   const int aryYesNoAnswers[] = { 0, 0, 0, 0, 1, 1, 1, 1, 1 };
 
    (void)state;
    resetState();
@@ -1047,7 +1060,7 @@ static void configClient_WhenKeychainDisabled_DeletesCurrentBbsPassword( void **
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
-   const int aryYesNoAnswers[] = { 0, 0, 0, 1, 1, 1, 1, 0 };
+   const int aryYesNoAnswers[] = { 0, 0, 0, 0, 1, 1, 1, 1, 0 };
 
    (void)state;
    resetState();
@@ -1138,7 +1151,7 @@ static void configClient_WhenForgetKeychainPasswordSelected_DeletesCurrentBbsPas
 {
    // Arrange
    const int aryMenuKeys[] = { 'o', 'q' };
-   const int aryYesNoAnswers[] = { 0, 0, 0, 1, 1, 1, 0, 1, 1 };
+   const int aryYesNoAnswers[] = { 0, 0, 0, 0, 1, 1, 1, 0, 1, 1 };
 
    (void)state;
    resetState();
@@ -1292,6 +1305,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
    flagsConfiguration.shouldAutoAnswerAnsiPrompt = true;
    flagsConfiguration.shouldEnableClickableUrls = true;
    flagsConfiguration.shouldEnableTitleBar = true;
+   flagsConfiguration.shouldUsePaneUi = true;
    flagsConfiguration.isScreenReaderModeEnabled = true;
    flagsConfiguration.shouldEnableNameAutocomplete = false;
    flagsConfiguration.shouldSquelchExpress = true;
@@ -1388,6 +1402,7 @@ static void writeConfig_WhenCoreSettingsEnabled_WritesTomlTrueValues( void **sta
         strstr( aryOutput, "auto_reply_to_x_messages = false\n" ) == NULL ||
         strstr( aryOutput, "dark_theme_black_background_fallback = true\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"truecolor\"\n" ) == NULL ||
+        strstr( aryOutput, "pane_ui = true\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = true\n" ) == NULL ||
         strstr( aryOutput, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" ) == NULL ||
         strstr( aryOutput, "# Saved values are preserved here, but screen reader mode takes precedence.\n" ) == NULL ||
@@ -1525,6 +1540,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
    flagsConfiguration.shouldAutoAnswerAnsiPrompt = false;
    flagsConfiguration.shouldEnableClickableUrls = false;
    flagsConfiguration.shouldEnableTitleBar = false;
+   flagsConfiguration.shouldUsePaneUi = false;
    flagsConfiguration.isScreenReaderModeEnabled = false;
    flagsConfiguration.shouldEnableNameAutocomplete = true;
    flagsConfiguration.shouldSquelchExpress = false;
@@ -1591,6 +1607,7 @@ static void writeConfig_WhenCoreSettingsDisabled_WritesTomlFalseValues( void **s
         strstr( aryOutput, "auto_reply_to_x_messages = true\n" ) == NULL ||
         strstr( aryOutput, "dark_theme_black_background_fallback = false\n" ) == NULL ||
         strstr( aryOutput, "color_output_mode = \"256\"\n" ) == NULL ||
+        strstr( aryOutput, "pane_ui = false\n" ) == NULL ||
         strstr( aryOutput, "screen_reader_mode = false\n" ) == NULL ||
         strstr( aryOutput, "# When screen_reader_mode is true, the client forces some settings off at runtime.\n" ) == NULL ||
         strstr( aryOutput, "# Saved values are preserved here, but screen reader mode takes precedence.\n" ) == NULL ||

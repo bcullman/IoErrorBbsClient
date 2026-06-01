@@ -29,6 +29,7 @@ noinst_HEADERS = \
 	macos_keychain.h \
 	network_globals.h \
 	pane_ui.h \
+	pane_ui_internal.h \
 	proto.h \
 	sysio.h \
 	telnet.h \
@@ -68,6 +69,8 @@ bbs_SOURCES = \
 	macos_keychain.c \
 	main.c \
 	pane_ui.c \
+	pane_ui_capture.c \
+	pane_ui_render.c \
 	queue.c \
 	slist.c \
 	sysio.c \
@@ -85,7 +88,7 @@ bbs_SOURCES = \
 	unix_term.c
 
 if HAVE_CMOCKA
-check_PROGRAMS = test_queue test_slist test_utility test_config_file test_getline test_inkey test_filter test_color test_config test_macos_keychain test_sysio test_edit test_telnet test_pane_ui
+check_PROGRAMS = test_queue test_slist test_utility test_config_file test_getline test_inkey test_filter test_color test_config test_macos_keychain test_sysio test_edit test_telnet test_pane_ui_lifecycle test_pane_ui_capture test_pane_ui_render
 TESTS = $(check_PROGRAMS)
 test_queue_SOURCES = test/test_queue.c test/test_helpers.c queue.c
 test_queue_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
@@ -102,10 +105,10 @@ test_config_file_LDADD = $(CMOCKA_LIBS)
 test_getline_SOURCES = test/test_getline.c test/test_helpers.c getline.c getline_name.c slist.c global.c
 test_getline_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_getline_LDADD = $(CMOCKA_LIBS)
-test_inkey_SOURCES = test/test_inkey.c test/test_helpers.c color.c inkey.c pane_ui.c slist.c utility_compare.c utility_string.c global.c
+test_inkey_SOURCES = test/test_inkey.c test/test_helpers.c color.c inkey.c pane_ui.c pane_ui_capture.c pane_ui_render.c slist.c utility_compare.c utility_string.c global.c
 test_inkey_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_inkey_LDADD = $(CMOCKA_LIBS)
-test_filter_SOURCES = test/test_filter.c test/test_helpers.c browser.c browser_urls.c filter_data.c filter_express.c filter_post.c filter_who.c pane_ui.c queue.c slist.c global.c
+test_filter_SOURCES = test/test_filter.c test/test_helpers.c browser.c browser_urls.c filter_data.c filter_express.c filter_post.c filter_who.c pane_ui.c pane_ui_capture.c pane_ui_render.c queue.c slist.c global.c
 test_filter_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_filter_LDADD = $(CMOCKA_LIBS)
 test_color_SOURCES = test/test_color.c test/test_helpers.c color.c color_config.c color_themes.c slist.c global.c
@@ -117,7 +120,7 @@ test_config_LDADD = $(CMOCKA_LIBS)
 test_macos_keychain_SOURCES = test/test_macos_keychain.c test/test_helpers.c macos_keychain.c global.c
 test_macos_keychain_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_macos_keychain_LDADD = $(CMOCKA_LIBS) $(KEYCHAIN_LDFLAGS)
-test_sysio_SOURCES = test/test_sysio.c test/test_helpers.c color.c pane_ui.c slist.c sysio.c utility_compare.c utility_string.c global.c
+test_sysio_SOURCES = test/test_sysio.c test/test_helpers.c color.c pane_ui.c pane_ui_capture.c pane_ui_render.c slist.c sysio.c utility_compare.c utility_string.c global.c
 test_sysio_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_sysio_LDADD = $(CMOCKA_LIBS)
 test_edit_SOURCES = test/test_edit.c test/test_helpers.c edit.c edit_check.c edit_prompt.c global.c
@@ -126,10 +129,16 @@ test_edit_LDADD = $(CMOCKA_LIBS)
 test_telnet_SOURCES = test/test_telnet.c test/test_helpers.c telnet.c queue.c global.c
 test_telnet_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
 test_telnet_LDADD = $(CMOCKA_LIBS)
-test_pane_ui_SOURCES = test/test_pane_ui.c test/test_helpers.c color.c pane_ui.c slist.c utility_compare.c utility_string.c global.c
-test_pane_ui_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
-test_pane_ui_LDADD = $(CMOCKA_LIBS)
-EXTRA_DIST = bbs.1.in test/test_helpers.h
+test_pane_ui_lifecycle_SOURCES = test/test_pane_ui_lifecycle.c test/pane_ui_test_helpers.c test/test_helpers.c color.c pane_ui.c pane_ui_capture.c pane_ui_render.c slist.c utility_compare.c utility_string.c global.c
+test_pane_ui_lifecycle_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
+test_pane_ui_lifecycle_LDADD = $(CMOCKA_LIBS)
+test_pane_ui_capture_SOURCES = test/test_pane_ui_capture.c test/pane_ui_test_helpers.c test/test_helpers.c color.c pane_ui.c pane_ui_capture.c pane_ui_render.c slist.c utility_compare.c utility_string.c global.c
+test_pane_ui_capture_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
+test_pane_ui_capture_LDADD = $(CMOCKA_LIBS)
+test_pane_ui_render_SOURCES = test/test_pane_ui_render.c test/pane_ui_test_helpers.c test/test_helpers.c color.c pane_ui.c pane_ui_capture.c pane_ui_render.c slist.c utility_compare.c utility_string.c global.c
+test_pane_ui_render_CFLAGS = $(AM_CFLAGS) $(CMOCKA_CFLAGS)
+test_pane_ui_render_LDADD = $(CMOCKA_LIBS)
+EXTRA_DIST = bbs.1.in test/test_helpers.h test/pane_ui_test_helpers.h
 else
 TESTS =
 endif

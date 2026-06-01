@@ -289,6 +289,12 @@ int netPutChar( int inputChar )
    return inputChar;
 }
 
+void sendTrackedCharWithoutReplay( int inputChar )
+{
+   netPutChar( inputChar );
+   byte++;
+}
+
 void clearKeychainSessionState( void )
 {
    // Test stub: keychain session state is not relevant in this test.

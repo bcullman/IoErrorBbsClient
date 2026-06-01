@@ -202,6 +202,7 @@ int getKey( void )
          continue;
       }
 
+      paneUiHandleNetworkIdle();
       flushPendingOutput();
       result = handleWaitEvent();
       if ( result.kind == GETKEY_RESULT_RETURN )

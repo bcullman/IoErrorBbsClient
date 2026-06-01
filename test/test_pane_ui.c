@@ -21,6 +21,19 @@ static int terminalInput;
 static int terminalMaster;
 static FILE *terminalOutput;
 
+int netPutChar( int inputChar )
+{
+   return putc( inputChar, netOutputFile );
+}
+
+void sendTrackedCharWithoutReplay( int inputChar )
+{
+   netPutChar( inputChar );
+   arySavedBytes[byte] = (char)inputChar;
+   arySavedByteCanReplay[byte] = false;
+   byte++;
+}
+
 static void readOutput( char *ptrBuffer, size_t bufferSize )
 {
    fflush( stdout );
@@ -38,6 +51,39 @@ static void resetOutput( void )
       fail_msg( "unable to truncate captured pane UI terminal output" );
    }
    rewind( terminalOutput );
+}
+
+static void feedIncomingText( const char *ptrText, bool expectedHandled )
+{
+   while ( *ptrText != '\0' )
+   {
+      int inputChar = *ptrText++;
+      bool handled = paneUiHandleIncomingChar( inputChar );
+
+      if ( handled != expectedHandled )
+      {
+         fail_msg( "incoming character %d ('%c') handled=%d, expected=%d, "
+                   "remaining input: %s",
+                   inputChar, inputChar, handled, expectedHandled, ptrText );
+      }
+   }
+}
+
+static void readNetOutput( char *ptrBuffer, size_t bufferSize )
+{
+   if ( !tryReadFileIntoBuffer( netOutputFile, ptrBuffer, bufferSize ) )
+   {
+      fail_msg( "unable to read captured pane UI network output" );
+   }
+}
+
+static void feedMouseInput( const char *ptrText )
+{
+   while ( *ptrText != '\0' )
+   {
+      assert_true( paneUiHandleLocalInput( *ptrText, ptrText[1] != '\0' ) );
+      ptrText++;
+   }
 }
 
 static void setTerminalSize( int columns )
@@ -116,6 +162,8 @@ static int setup( void **state )
    color.ansiMagentaTextColor = 91;
    color.ansiWhiteTextColor = 252;
    color.background = 236;
+   aryKeyMap['w'] = 'w';
+   aryKeyMap['W'] = 'W';
    byte = 0;
    for ( savedByteIndex = 0;
          savedByteIndex < (int)sizeof arySavedByteCanReplay;
@@ -737,6 +785,343 @@ static void paneUiRefresh_WhenCaptureTimesOut_DoesNotSendCatchUpBurst( void **st
    assert_string_equal( aryNetOutput, "W" );
 }
 
+static void paneUiView_WhenUserTypesHelpAtSafePrompt_CapturesHiddenSidebar( void **state )
+{
+   char aryNetOutput[16];
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( '?', false ) );
+   feedIncomingText( "Help first\r\nHelp second\r\nLobby> ", true );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_string_equal( aryNetOutput, "?" );
+   assert_non_null( strstr( aryTerminalOutput, "Help first" ) );
+   assert_non_null( strstr( aryTerminalOutput, "Help second" ) );
+   assert_null( strstr( aryTerminalOutput, "Lobby>" ) );
+}
+
+static void paneUiView_WhenUserTypesAidesAtSafePrompt_CapturesHiddenSidebar( void **state )
+{
+   char aryNetOutput[16];
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( '@', false ) );
+   feedIncomingText( "Sysops\r\nRoomaides\r\nLobby> ", true );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_string_equal( aryNetOutput, "@" );
+   assert_non_null( strstr( aryTerminalOutput, "Sysops" ) );
+   assert_non_null( strstr( aryTerminalOutput, "Roomaides" ) );
+}
+
+static void paneUiView_WhenPromptIsUnsafe_LeavesHelpAndAidesUnhandled( void **state )
+{
+   char aryNetOutput[16];
+
+   (void)state;
+   paneUiEnterIfEligible();
+
+   assert_false( paneUiHandleLocalInput( '?', false ) );
+   assert_false( paneUiHandleLocalInput( '@', false ) );
+   assert_false( paneUiHandleLocalInput( 'i', false ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   assert_string_equal( aryNetOutput, "" );
+}
+
+static void paneUiView_WhenUserTypesForumInfo_PrependsCurrentForumName( void **state )
+{
+   char aryNetOutput[16];
+   char aryTerminalOutput[8192];
+   const char *ptrBody;
+   const char *ptrTitle;
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "[Intel PCs And Clones> msg #12795] Read cmd ->", false );
+
+   assert_true( paneUiHandleLocalInput( 'i', false ) );
+   paneUiHandleMorePromptStateChanged( true );
+   paneUiHandleMorePromptStateChanged( false );
+   feedIncomingText(
+      "\033[32mForum moderator is Big Dan.\033[0m\r\n"
+      "--MORE--(12%)\r\n"
+      "\033[35mForum information body.\033[0m\r\n"
+      "Intel PCs And Clones> ",
+      true );
+   paneUiHandleNetworkIdle();
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+   ptrTitle = strstr( aryTerminalOutput, "Intel PCs And Clones" );
+   ptrBody = strstr( aryTerminalOutput, "Forum moderator is Big Dan." );
+
+   assert_string_equal( aryNetOutput, "i " );
+   assert_non_null( ptrTitle );
+   assert_non_null( ptrBody );
+   assert_true( ptrTitle < ptrBody );
+   assert_non_null( strstr( aryTerminalOutput,
+                            "\033[38;5;91mForum information body." ) );
+   assert_null( strstr( aryTerminalOutput, "--MORE--" ) );
+}
+
+static void paneUiView_WhenLobbyInfoDocumentsCommandPrompt_KeepsCapturing( void **state )
+{
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( 'i', false ) );
+   feedIncomingText( "Forum Info\r\n", true );
+   feedIncomingText( "Forum moderator is (Sysop).\r\n", true );
+   feedIncomingText( "Documentation mentions Read cmd -> Next command.\r\n",
+                     true );
+   feedIncomingText( "Still part of Lobby forum information.\r\n", true );
+   feedIncomingText( "Lobby> ", true );
+   paneUiHandleNetworkIdle();
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput, "Lobby" ) );
+   assert_non_null( strstr( aryTerminalOutput, "Still part of Lobby" ) );
+}
+
+static void paneUiView_WhenForumInfoHasPreliminaryPrompt_WaitsForBody( void **state )
+{
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( 'i', false ) );
+   feedIncomingText( "Forum Info\r\nLobby> \r\n", true );
+   feedIncomingText( "Forum moderator is (Sysop).\r\n", true );
+   paneUiHandleMorePromptStateChanged( true );
+   paneUiHandleMorePromptStateChanged( false );
+   feedIncomingText( "Lobby forum information.\r\nLobby> ", true );
+   paneUiHandleNetworkIdle();
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput, "Forum moderator is (Sysop)." ) );
+   assert_non_null( strstr( aryTerminalOutput, "Lobby forum information." ) );
+}
+
+static void paneUiView_WhenUserTypesUppercaseForumInfo_CapturesSidebar( void **state )
+{
+   char aryNetOutput[16];
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Weird>", false );
+
+   assert_true( paneUiHandleLocalInput( 'I', false ) );
+   feedIncomingText(
+      "Forum moderator is KAM.\r\n"
+      "Welcome to Weird! You are encouraged to be WEIRD!\r\n"
+      "Weird> ",
+      true );
+   paneUiHandleNetworkIdle();
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_string_equal( aryNetOutput, "i" );
+   assert_non_null( strstr( aryTerminalOutput, "Weird" ) );
+   assert_non_null( strstr( aryTerminalOutput, "Welcome to Weird!" ) );
+}
+
+static void paneUiView_WhenForumInfoBodyStartsWithPromptText_KeepsCapturing( void **state )
+{
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Weird>", false );
+
+   assert_true( paneUiHandleLocalInput( 'i', false ) );
+   feedIncomingText(
+      "Forum moderator is KAM.\r\n"
+      "Weird> even if they have been self-deleted.\r\n"
+      "Still part of Weird forum information.\r\n"
+      "Weird> ",
+      true );
+   paneUiHandleNetworkIdle();
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput,
+                            "Weird> even if they have been self-deleted." ) );
+   assert_non_null( strstr( aryTerminalOutput,
+                            "Still part of Weird forum information." ) );
+}
+
+static void paneUiView_WhenPagedHelpCompletes_ClearsStaleMoreState( void **state )
+{
+   char aryNetOutput[16];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( '?', false ) );
+   flagsConfiguration.isMorePromptActive = true;
+   paneUiHandleMorePromptStateChanged( true );
+   feedIncomingText( "Help contents\r\nLobby> ", true );
+
+   assert_false( flagsConfiguration.isMorePromptActive );
+   assert_true( paneUiHandleLocalInput( 'i', false ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   assert_string_equal( aryNetOutput, "? i" );
+}
+
+static void paneUiView_WhenCapturedResponsePages_SendsHiddenSpaces( void **state )
+{
+   char aryNetOutput[16];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+   byte = 18;
+
+   assert_true( paneUiHandleLocalInput( '?', false ) );
+   paneUiHandleMorePromptStateChanged( true );
+   paneUiHandleMorePromptStateChanged( false );
+   paneUiHandleMorePromptStateChanged( true );
+   assert_true( paneUiHandleLocalInput( 'x', false ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+
+   assert_string_equal( aryNetOutput, "?  " );
+   assert_int_equal( byte, 21 );
+   assert_int_equal( arySavedBytes[18], '?' );
+   assert_int_equal( arySavedBytes[19], ' ' );
+   assert_int_equal( arySavedBytes[20], ' ' );
+   assert_false( arySavedByteCanReplay[18] );
+   assert_false( arySavedByteCanReplay[19] );
+   assert_false( arySavedByteCanReplay[20] );
+}
+
+static void paneUiView_WhenPagedResponseContainsMoreMarker_StripsOnlyMarker( void **state )
+{
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( '@', false ) );
+   feedIncomingText( "Before marker\r\n--MORE--(112%)After marker\r\nLobby> ",
+                     true );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput, "Before marker" ) );
+   assert_non_null( strstr( aryTerminalOutput, "After marker" ) );
+   assert_null( strstr( aryTerminalOutput, "--MORE--" ) );
+}
+
+static void paneUiView_WhenPagedResponseOverwritesPrompt_KeepsAidesAligned( void **state )
+{
+   char aryTerminalOutput[8192];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_true( paneUiHandleLocalInput( '@', false ) );
+   feedIncomingText(
+      "--MORE--(112%)        \rBiological Sciences\r\n"
+      "Elon xxxx\b\b\b\bMusk\r\nLobby> ",
+      true );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput, "Biological Sciences" ) );
+   assert_non_null( strstr( aryTerminalOutput, "Elon Musk" ) );
+   assert_null( strstr( aryTerminalOutput, "        Biological Sciences" ) );
+   assert_null( strstr( aryTerminalOutput, "--MORE--" ) );
+   assert_null( strstr( aryTerminalOutput, "Elon xxxx" ) );
+}
+
+static void paneUiView_WhenHelpPinned_DoesNotRefreshUntilWhoSelected( void **state )
+{
+   char aryNetOutput[16];
+   time_t futureTime;
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+   assert_true( paneUiHandleLocalInput( '?', false ) );
+   feedIncomingText( "Help\r\nLobby> ", true );
+   futureTime = time( NULL ) + 30;
+
+   paneUiHandleTimerAt( futureTime );
+   assert_true( paneUiHandleLocalInput( 'W', false ) );
+   feedIncomingText( "Who\r\nLobby> ", true );
+   paneUiHandleTimerAt( futureTime );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+
+   assert_string_equal( aryNetOutput, "?WW" );
+}
+
+static void paneUiScroll_WhenMouseWheelMovesOverSidebar_RedrawsRightViewport( void **state )
+{
+   char aryLine[32];
+   char aryTerminalOutput[32768];
+   int lineIndex;
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+   assert_true( paneUiHandleLocalInput( '?', false ) );
+   for ( lineIndex = 0; lineIndex < 30; lineIndex++ )
+   {
+      snprintf( aryLine, sizeof( aryLine ), "%sHelp line %02d\r\n",
+                lineIndex == 0 ? "\033[33m" : "", lineIndex );
+      feedIncomingText( aryLine, true );
+   }
+   feedIncomingText( "Lobby> ", true );
+   resetOutput();
+
+   feedMouseInput( "\033[<65;90;10M" );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput, "Help line 03" ) );
+   assert_non_null( strstr( aryTerminalOutput,
+                            "\033[0;38;5;220;48;5;236mHelp line 03" ) );
+   assert_non_null( strstr( aryTerminalOutput, "Help lines 4-26 of 30" ) );
+   assert_null( strstr( aryTerminalOutput, "\033[1;1H" ) );
+}
+
+static void paneUiView_WhenResponseExceedsLimit_MarksFooterTruncated( void **state )
+{
+   char aryLine[32];
+   char aryTerminalOutput[32768];
+   int lineIndex;
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+   assert_true( paneUiHandleLocalInput( '?', false ) );
+   for ( lineIndex = 0; lineIndex < 1001; lineIndex++ )
+   {
+      snprintf( aryLine, sizeof( aryLine ), "Help line %04d\r\n", lineIndex );
+      feedIncomingText( aryLine, true );
+   }
+   resetOutput();
+   feedIncomingText( "Lobby> ", true );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_non_null( strstr( aryTerminalOutput,
+                            "Help lines 1-23 of 1000 truncated" ) );
+}
+
 int main( void )
 {
    const struct CMUnitTest aryTests[] = {
@@ -795,6 +1180,50 @@ int main( void )
          paneUiRefresh_WhenPostingOrPaging_DoesNotInjectWhoCommand, setup, teardown ),
       cmocka_unit_test_setup_teardown(
          paneUiRefresh_WhenCaptureTimesOut_DoesNotSendCatchUpBurst, setup, teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenUserTypesHelpAtSafePrompt_CapturesHiddenSidebar, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenUserTypesAidesAtSafePrompt_CapturesHiddenSidebar, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenPromptIsUnsafe_LeavesHelpAndAidesUnhandled, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenUserTypesForumInfo_PrependsCurrentForumName, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenLobbyInfoDocumentsCommandPrompt_KeepsCapturing, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenForumInfoHasPreliminaryPrompt_WaitsForBody, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenUserTypesUppercaseForumInfo_CapturesSidebar, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenForumInfoBodyStartsWithPromptText_KeepsCapturing, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenPagedHelpCompletes_ClearsStaleMoreState, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenCapturedResponsePages_SendsHiddenSpaces, setup, teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenPagedResponseContainsMoreMarker_StripsOnlyMarker, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenPagedResponseOverwritesPrompt_KeepsAidesAligned, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenHelpPinned_DoesNotRefreshUntilWhoSelected, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiScroll_WhenMouseWheelMovesOverSidebar_RedrawsRightViewport, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenResponseExceedsLimit_MarksFooterTruncated, setup,
+         teardown ),
    };
 
    return cmocka_run_group_tests( aryTests, NULL, NULL );

@@ -9,6 +9,7 @@
 #include "defs.h"
 
 bool paneUiHandleIncomingChar( int inputChar );
+bool paneUiHandleCapturedIncomingChar( int inputChar );
 bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput );
 bool paneUiHasPendingLocalInput( void );
 bool paneUiIsActive( void );
@@ -20,6 +21,8 @@ void paneUiAfterOutputText( const char *ptrText );
 void paneUiEnterIfEligible( void );
 void paneUiHandleTimer( void );
 void paneUiHandleTimerAt( time_t now );
+void paneUiHandleMorePromptStateChanged( bool isActive );
+void paneUiHandleNetworkIdle( void );
 void paneUiLeave( void );
 void paneUiLeaveForExit( void );
 void paneUiMarkResizePending( void );

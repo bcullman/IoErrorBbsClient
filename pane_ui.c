@@ -10,23 +10,38 @@
 #include "network_globals.h"
 #include "pane_ui.h"
 #include "unix.h"
+#include "utility.h"
 
 #define PANE_UI_LEFT_COLUMNS 80
 #define PANE_UI_USERNAME_COLUMNS 21
 #define PANE_UI_MIN_COLUMNS ( PANE_UI_LEFT_COLUMNS + 2 + PANE_UI_USERNAME_COLUMNS )
 #define PANE_UI_REFRESH_SECONDS 5
 #define PANE_UI_CAPTURE_TIMEOUT_SECONDS 5
-#define PANE_UI_MAX_LINES 160
+#define PANE_UI_MAX_LINES 1000
 #define PANE_UI_MAX_LINE_LENGTH 256
 #define PANE_UI_LEFT_HISTORY_LINES 1000
 #define PANE_UI_LEFT_LINE_LENGTH 1024
 #define PANE_UI_MOUSE_INPUT_LENGTH 32
 #define PANE_UI_SCROLL_ROWS 3
 
+typedef enum
+{
+   PANE_UI_VIEW_NONE = 0,
+   PANE_UI_VIEW_WHO,
+   PANE_UI_VIEW_HELP,
+   PANE_UI_VIEW_AIDES,
+   PANE_UI_VIEW_FORUM_INFO
+} PaneUiView;
+
 typedef struct
 {
    bool active;
    bool captureActive;
+   bool captureCarriageReturnPending;
+   bool captureForumPromptPending;
+   bool captureHasForumInfoBody;
+   bool captureTruncated;
+   bool snapshotTruncated;
    bool resizePending;
    bool sessionReady;
    bool sidebarVisible;
@@ -43,6 +58,7 @@ typedef struct
    int columns;
    int captureLineCount;
    int snapshotLineCount;
+   int sidebarScrollOffset;
    int leftLineCount;
    int leftScrollOffset;
    int leftVisibleColumn;
@@ -55,8 +71,13 @@ typedef struct
    time_t captureStarted;
    time_t nextRefresh;
    time_t snapshotRefreshedAt;
-   char aryCaptureLines[PANE_UI_MAX_LINES][PANE_UI_MAX_LINE_LENGTH];
+   PaneUiView activeView;
+   PaneUiView captureView;
+   char captureCommand;
+   char aryCaptureLines[PANE_UI_MAX_LINES + 1][PANE_UI_MAX_LINE_LENGTH];
    char aryCaptureAnsi[16];
+   char aryCaptureForumName[PANE_UI_MAX_LINE_LENGTH];
+   char aryCurrentForumName[PANE_UI_MAX_LINE_LENGTH];
    char arySnapshotLines[PANE_UI_MAX_LINES][PANE_UI_MAX_LINE_LENGTH];
    char aryObservedLine[PANE_UI_MAX_LINE_LENGTH];
    char aryLeftLines[PANE_UI_LEFT_HISTORY_LINES][PANE_UI_LEFT_LINE_LENGTH];
@@ -74,7 +95,9 @@ static void advanceLeftLine( void );
 static bool canActivatePaneUi( void );
 static bool canRefreshSidebar( void );
 static void completeCapture( void );
+static void discardCurrentCaptureLine( void );
 static void drawSidebar( void );
+static void drawSidebarFooter( int row, int sidebarWidth, int visibleRows );
 static void drawSidebarLine( const char *ptrLine, int visibleWidth,
                              int *ptrForegroundColor );
 static void drawSidebarTimestamp( int row, const char *ptrLine, int visibleWidth );
@@ -83,15 +106,21 @@ static void drawThemedForeground( int foregroundColor );
 static void formatSnapshotRefreshTime( char *ptrBuffer, size_t bufferSize );
 static bool isCapturedSgrSequence( void );
 static bool isSafePromptLine( const char *ptrLine );
+static bool isForumInfoReturnPrompt( const char *ptrLine );
 static void queuePendingLocalInput( void );
 static void repaintLeftPane( void );
 static void repaintVisibleLeftPane( void );
 static void readTerminalSize( void );
+static void removeMorePromptMarkers( char *ptrLine );
 static void resetObservedLine( void );
+static void scanSidebarForeground( const char *ptrLine, int *ptrForegroundColor );
 static void scrollLeftPane( int rowDelta );
-static void startCapture( time_t now );
+static void scrollSidebar( int rowDelta );
+static void sendHiddenSidebarChar( int inputChar );
+static void startCapture( time_t now, int command, PaneUiView view );
 static bool shouldSwallowPromptRemainderChar( int inputChar );
-static void trackHiddenWhoCommand( void );
+static void updateCurrentForumName( const char *ptrPrompt );
+static const char *viewName( PaneUiView view );
 static int visibleHeaderLabelWidth( const char *ptrLine );
 static void writeRaw( const char *ptrText );
 
@@ -185,6 +214,28 @@ static void scrollLeftPane( int rowDelta )
       paneUi.leftScrollOffset = maximumOffset;
    }
    repaintVisibleLeftPane();
+}
+
+static void scrollSidebar( int rowDelta )
+{
+   int maximumOffset;
+   int visibleRows;
+
+   visibleRows = paneUi.snapshotLineCount > paneUi.rows ? paneUi.rows - 1
+                                                        : paneUi.rows;
+   maximumOffset = paneUi.snapshotLineCount > visibleRows
+                      ? paneUi.snapshotLineCount - visibleRows
+                      : 0;
+   paneUi.sidebarScrollOffset += rowDelta;
+   if ( paneUi.sidebarScrollOffset < 0 )
+   {
+      paneUi.sidebarScrollOffset = 0;
+   }
+   else if ( paneUi.sidebarScrollOffset > maximumOffset )
+   {
+      paneUi.sidebarScrollOffset = maximumOffset;
+   }
+   drawSidebar();
 }
 
 static void repaintLeftPane( void )
@@ -338,6 +389,40 @@ static void drawSidebarLine( const char *ptrLine, int visibleWidth,
    writeRaw( "\033[0m" );
 }
 
+static void scanSidebarForeground( const char *ptrLine, int *ptrForegroundColor )
+{
+   while ( *ptrLine != '\0' )
+   {
+      if ( ptrLine[0] == '\033' && ptrLine[1] == '[' )
+      {
+         const char *ptrSequenceEnd;
+
+         ptrSequenceEnd = ptrLine + 2;
+         while ( *ptrSequenceEnd != '\0' &&
+                 ( isdigit( (unsigned char)*ptrSequenceEnd ) ||
+                   *ptrSequenceEnd == ';' ) )
+         {
+            ptrSequenceEnd++;
+         }
+         if ( *ptrSequenceEnd == 'm' )
+         {
+            if ( ptrSequenceEnd - ptrLine == 4 && ptrLine[2] == '3' )
+            {
+               *ptrForegroundColor = ansiTransform( ptrLine[3] );
+            }
+            else if ( ptrSequenceEnd - ptrLine == 2 ||
+                      ( ptrSequenceEnd - ptrLine == 3 && ptrLine[2] == '0' ) )
+            {
+               *ptrForegroundColor = color.text;
+            }
+            ptrLine = ptrSequenceEnd + 1;
+            continue;
+         }
+      }
+      ptrLine++;
+   }
+}
+
 static int visibleHeaderLabelWidth( const char *ptrLine )
 {
    const char *ptrDoingEnd;
@@ -416,11 +501,60 @@ static void drawSidebarTimestamp( int row, const char *ptrLine, int visibleWidth
    writeRaw( "\033[0m" );
 }
 
+static const char *viewName( PaneUiView view )
+{
+   switch ( view )
+   {
+      case PANE_UI_VIEW_WHO:
+         return "Who";
+
+      case PANE_UI_VIEW_HELP:
+         return "Help";
+
+      case PANE_UI_VIEW_AIDES:
+         return "Aides";
+
+      case PANE_UI_VIEW_FORUM_INFO:
+         return "Forum Info";
+
+      default:
+         return "Sidebar";
+   }
+}
+
+static void drawSidebarFooter( int row, int sidebarWidth, int visibleRows )
+{
+   char aryFooter[PANE_UI_MAX_LINE_LENGTH];
+   char arySequence[64];
+   int firstLine;
+   int footerForegroundColor;
+   int lastLine;
+
+   firstLine = paneUi.sidebarScrollOffset + 1;
+   lastLine = paneUi.sidebarScrollOffset + visibleRows;
+   if ( lastLine > paneUi.snapshotLineCount )
+   {
+      lastLine = paneUi.snapshotLineCount;
+   }
+   snprintf( aryFooter, sizeof( aryFooter ), "%s lines %d-%d of %d%s",
+             viewName( paneUi.activeView ), firstLine, lastLine,
+             paneUi.snapshotLineCount,
+             paneUi.snapshotTruncated ? " truncated" : "" );
+   snprintf( arySequence, sizeof( arySequence ), "\033[%d;%dH",
+             row, PANE_UI_LEFT_COLUMNS + 1 );
+   writeRaw( arySequence );
+   drawThemedDisplayState( color.text );
+   writeRaw( "|\033[K " );
+   footerForegroundColor = color.text;
+   drawSidebarLine( aryFooter, sidebarWidth - 1, &footerForegroundColor );
+}
+
 static void drawSidebar( void )
 {
    int row;
    int sidebarWidth;
    int snapshotForegroundColor;
+   int visibleRows;
    char arySequence[64];
 
    if ( !paneUi.active || !paneUi.sidebarVisible )
@@ -429,7 +563,14 @@ static void drawSidebar( void )
    }
 
    sidebarWidth = paneUi.columns - PANE_UI_LEFT_COLUMNS - 1;
+   visibleRows = paneUi.snapshotLineCount > paneUi.rows ? paneUi.rows - 1
+                                                        : paneUi.rows;
    snapshotForegroundColor = color.text;
+   for ( row = 0; row < paneUi.sidebarScrollOffset; row++ )
+   {
+      scanSidebarForeground( paneUi.arySnapshotLines[row],
+                             &snapshotForegroundColor );
+   }
    writeRaw( "\0337" );
    for ( row = 1; row <= paneUi.rows; row++ )
    {
@@ -438,12 +579,13 @@ static void drawSidebar( void )
       writeRaw( arySequence );
       drawThemedDisplayState( color.text );
       writeRaw( "|\033[K" );
-      if ( row - 1 < paneUi.snapshotLineCount )
+      if ( row <= visibleRows &&
+           paneUi.sidebarScrollOffset + row - 1 < paneUi.snapshotLineCount )
       {
          const char *ptrLine;
          int labelWidth;
 
-         ptrLine = paneUi.arySnapshotLines[row - 1];
+         ptrLine = paneUi.arySnapshotLines[paneUi.sidebarScrollOffset + row - 1];
          putchar( ' ' );
          labelWidth = visibleHeaderLabelWidth( ptrLine );
          if ( labelWidth > sidebarWidth - 1 )
@@ -458,6 +600,10 @@ static void drawSidebar( void )
       {
          writeRaw( "\033[0m" );
       }
+   }
+   if ( paneUi.snapshotLineCount > paneUi.rows )
+   {
+      drawSidebarFooter( paneUi.rows, sidebarWidth, visibleRows );
    }
    writeRaw( "\0338" );
    fflush( stdout );
@@ -509,6 +655,7 @@ void paneUiLeave( void )
    paneUi.sidebarVisible = false;
    paneUi.swallowingPromptRemainder = false;
    paneUi.leftScrollOffset = 0;
+   paneUi.sidebarScrollOffset = 0;
    paneUi.mouseInputLength = 0;
    paneUi.pendingLocalInputIndex = 0;
    paneUi.pendingLocalInputLength = 0;
@@ -538,6 +685,13 @@ void paneUiResetSession( void )
    paneUi.swallowingPromptRemainder = false;
    paneUi.nextRefresh = 0;
    paneUi.snapshotRefreshedAt = 0;
+   paneUi.activeView = PANE_UI_VIEW_NONE;
+   paneUi.captureView = PANE_UI_VIEW_NONE;
+   paneUi.captureCommand = '\0';
+   paneUi.captureCarriageReturnPending = false;
+   paneUi.captureTruncated = false;
+   paneUi.snapshotTruncated = false;
+   paneUi.sidebarScrollOffset = 0;
    paneUi.leftLineCount = 1;
    paneUi.leftScrollOffset = 0;
    paneUi.leftVisibleColumn = 0;
@@ -545,6 +699,8 @@ void paneUiResetSession( void )
    paneUi.mouseInputLength = 0;
    paneUi.pendingLocalInputIndex = 0;
    paneUi.pendingLocalInputLength = 0;
+   paneUi.aryCaptureForumName[0] = '\0';
+   paneUi.aryCurrentForumName[0] = '\0';
    memset( paneUi.aryLeftLines, 0, sizeof( paneUi.aryLeftLines ) );
    resetObservedLine();
 }
@@ -614,18 +770,40 @@ static bool isSafePromptLine( const char *ptrLine )
 {
    const char *ptrCursor;
    const char *ptrEnd;
-
-   if ( strstr( ptrLine, "cmd ->" ) != NULL )
-   {
-      return true;
-   }
+   size_t lineLength;
+   const char *ptrReadCommandPrompt;
+   size_t readCommandPromptLength;
 
    ptrEnd = ptrLine + strlen( ptrLine );
    while ( ptrEnd > ptrLine && ptrEnd[-1] == ' ' )
    {
       ptrEnd--;
    }
+   lineLength = (size_t)( ptrEnd - ptrLine );
+   readCommandPromptLength = strlen( "Read cmd ->" );
+   if ( lineLength >= readCommandPromptLength )
+   {
+      ptrReadCommandPrompt = ptrEnd - readCommandPromptLength;
+   }
+   else
+   {
+      ptrReadCommandPrompt = ptrEnd;
+   }
+   if ( lineLength >= readCommandPromptLength &&
+        strncmp( ptrReadCommandPrompt, "Read cmd ->", readCommandPromptLength ) ==
+           0 &&
+        ( ptrReadCommandPrompt == ptrLine ||
+          ( ptrReadCommandPrompt >= ptrLine + 2 &&
+            ptrReadCommandPrompt[-2] == ']' &&
+            ptrReadCommandPrompt[-1] == ' ' ) ) )
+   {
+      return true;
+   }
    if ( ptrEnd == ptrLine || ptrEnd[-1] != '>' )
+   {
+      return false;
+   }
+   if ( ptrEnd - ptrLine >= 2 && ptrEnd[-2] == '-' )
    {
       return false;
    }
@@ -640,6 +818,60 @@ static bool isSafePromptLine( const char *ptrLine )
       }
    }
    return ptrCursor > ptrLine;
+}
+
+static bool isForumInfoReturnPrompt( const char *ptrLine )
+{
+   const char *ptrEnd;
+   size_t forumNameLength;
+
+   forumNameLength = strlen( paneUi.aryCaptureForumName );
+   if ( forumNameLength == 0 )
+   {
+      return false;
+   }
+
+   ptrEnd = ptrLine + strlen( ptrLine );
+   while ( ptrEnd > ptrLine && ptrEnd[-1] == ' ' )
+   {
+      ptrEnd--;
+   }
+   if ( (size_t)( ptrEnd - ptrLine ) == forumNameLength + 1 &&
+        strncmp( ptrLine, paneUi.aryCaptureForumName, forumNameLength ) == 0 &&
+        ptrLine[forumNameLength] == '>' )
+   {
+      return true;
+   }
+   return ptrLine[0] == '[' &&
+          strncmp( ptrLine + 1, paneUi.aryCaptureForumName, forumNameLength ) == 0 &&
+          ptrLine[forumNameLength + 1] == '>' &&
+          strstr( ptrLine + forumNameLength + 2, "] Read cmd ->" ) != NULL;
+}
+
+static void updateCurrentForumName( const char *ptrPrompt )
+{
+   const char *ptrEnd;
+   const char *ptrStart;
+   size_t nameLength;
+
+   ptrEnd = strchr( ptrPrompt, '>' );
+   if ( ptrEnd == NULL )
+   {
+      return;
+   }
+   ptrStart = ptrPrompt[0] == '[' ? ptrPrompt + 1 : ptrPrompt;
+   if ( ptrEnd <= ptrStart )
+   {
+      return;
+   }
+
+   nameLength = (size_t)( ptrEnd - ptrStart );
+   if ( nameLength >= sizeof( paneUi.aryCurrentForumName ) )
+   {
+      nameLength = sizeof( paneUi.aryCurrentForumName ) - 1;
+   }
+   memcpy( paneUi.aryCurrentForumName, ptrStart, nameLength );
+   paneUi.aryCurrentForumName[nameLength] = '\0';
 }
 
 static bool shouldSwallowPromptRemainderChar( int inputChar )
@@ -711,6 +943,42 @@ static void appendCaptureText( const char *ptrText, size_t textLength )
 
 static void appendCaptureChar( int inputChar )
 {
+   paneUi.captureStarted = time( NULL );
+   if ( inputChar == '\r' )
+   {
+      paneUi.captureCarriageReturnPending = true;
+      return;
+   }
+   if ( inputChar == '\n' )
+   {
+      paneUi.captureCarriageReturnPending = false;
+      if ( paneUi.captureLineCount < PANE_UI_MAX_LINES )
+      {
+         paneUi.captureLineCount++;
+      }
+      else
+      {
+         paneUi.captureTruncated = true;
+      }
+      paneUi.captureLineLength = 0;
+      paneUi.aryCaptureLines[paneUi.captureLineCount][0] = '\0';
+      return;
+   }
+   if ( paneUi.captureCarriageReturnPending )
+   {
+      paneUi.captureCarriageReturnPending = false;
+      paneUi.captureLineLength = 0;
+      paneUi.aryCaptureLines[paneUi.captureLineCount][0] = '\0';
+   }
+   if ( inputChar == '\b' )
+   {
+      if ( paneUi.captureLineLength > 0 )
+      {
+         paneUi.aryCaptureLines[paneUi.captureLineCount]
+                               [--paneUi.captureLineLength] = '\0';
+      }
+      return;
+   }
    if ( inputChar == '\033' )
    {
       paneUi.skippingAnsi = true;
@@ -740,18 +1008,9 @@ static void appendCaptureChar( int inputChar )
       }
       return;
    }
-   if ( inputChar == '\r' )
+   if ( paneUi.captureLineCount >= PANE_UI_MAX_LINES )
    {
-      return;
-   }
-   if ( inputChar == '\n' )
-   {
-      if ( paneUi.captureLineCount < PANE_UI_MAX_LINES - 1 )
-      {
-         paneUi.captureLineCount++;
-      }
-      paneUi.captureLineLength = 0;
-      paneUi.aryCaptureLines[paneUi.captureLineCount][0] = '\0';
+      paneUi.captureTruncated = true;
       return;
    }
    if ( inputChar < ASCII_PRINTABLE_MIN || inputChar >= ASCII_PRINTABLE_MAX )
@@ -766,12 +1025,53 @@ static void appendCaptureChar( int inputChar )
    }
 }
 
+static void discardCurrentCaptureLine( void )
+{
+   paneUi.captureCarriageReturnPending = false;
+   paneUi.captureForumPromptPending = false;
+   paneUi.captureLineLength = 0;
+   paneUi.aryCaptureLines[paneUi.captureLineCount][0] = '\0';
+}
+
+static void removeMorePromptMarkers( char *ptrLine )
+{
+   char *ptrMarker;
+
+   while ( ( ptrMarker = strstr( ptrLine, "--MORE--(" ) ) != NULL )
+   {
+      char *ptrEnd;
+      const char *ptrPercentage;
+
+      ptrEnd = ptrMarker + strlen( "--MORE--(" );
+      ptrPercentage = ptrEnd;
+      while ( isdigit( (unsigned char)*ptrEnd ) )
+      {
+         ptrEnd++;
+      }
+      if ( ptrEnd == ptrPercentage || ptrEnd[0] != '%' || ptrEnd[1] != ')' )
+      {
+         ptrLine = ptrEnd;
+         continue;
+      }
+      ptrEnd += 2;
+      memmove( ptrMarker, ptrEnd, strlen( ptrEnd ) + 1 );
+      ptrLine = ptrMarker;
+   }
+}
+
 static void completeCapture( void )
 {
    int firstLine;
+   int lineIndex;
    int lineCount;
+   int snapshotContentLineCount;
+   int snapshotLineOffset;
 
    lineCount = paneUi.captureLineCount;
+   for ( lineIndex = 0; lineIndex < lineCount; lineIndex++ )
+   {
+      removeMorePromptMarkers( paneUi.aryCaptureLines[lineIndex] );
+   }
    while ( lineCount > 0 && paneUi.aryCaptureLines[lineCount - 1][0] == '\0' )
    {
       lineCount--;
@@ -781,14 +1081,40 @@ static void completeCapture( void )
    {
       firstLine++;
    }
-   paneUi.snapshotLineCount = lineCount - firstLine;
+   snapshotLineOffset = paneUi.captureView == PANE_UI_VIEW_FORUM_INFO &&
+                              paneUi.aryCaptureForumName[0] != '\0'
+                           ? 1
+                           : 0;
+   snapshotContentLineCount = lineCount - firstLine;
+   if ( snapshotContentLineCount > PANE_UI_MAX_LINES - snapshotLineOffset )
+   {
+      snapshotContentLineCount = PANE_UI_MAX_LINES - snapshotLineOffset;
+      paneUi.captureTruncated = true;
+   }
+   paneUi.snapshotLineCount = snapshotContentLineCount + snapshotLineOffset;
+   paneUi.snapshotTruncated = paneUi.captureTruncated;
    memset( paneUi.arySnapshotLines, 0, sizeof( paneUi.arySnapshotLines ) );
-   memcpy( paneUi.arySnapshotLines, paneUi.aryCaptureLines + firstLine,
-           (size_t)paneUi.snapshotLineCount * sizeof( paneUi.arySnapshotLines[0] ) );
+   if ( snapshotLineOffset )
+   {
+      snprintf( paneUi.arySnapshotLines[0], sizeof( paneUi.arySnapshotLines[0] ),
+                "%s", paneUi.aryCaptureForumName );
+   }
+   memcpy( paneUi.arySnapshotLines + snapshotLineOffset,
+           paneUi.aryCaptureLines + firstLine,
+           (size_t)snapshotContentLineCount * sizeof( paneUi.arySnapshotLines[0] ) );
    paneUi.captureActive = false;
-   paneUi.snapshotRefreshedAt = time( NULL );
+   paneUi.activeView = paneUi.captureView;
+   paneUi.captureView = PANE_UI_VIEW_NONE;
+   paneUi.captureCommand = '\0';
+   flagsConfiguration.isMorePromptActive = false;
+   paneUi.sidebarScrollOffset = 0;
+   paneUi.snapshotRefreshedAt = paneUi.activeView == PANE_UI_VIEW_WHO
+                                   ? time( NULL )
+                                   : 0;
    paneUi.promptReady = true;
-   paneUi.nextRefresh = time( NULL ) + PANE_UI_REFRESH_SECONDS;
+   paneUi.nextRefresh = paneUi.activeView == PANE_UI_VIEW_WHO
+                           ? time( NULL ) + PANE_UI_REFRESH_SECONDS
+                           : 0;
    paneUi.swallowingPromptRemainder = true;
    resetObservedLine();
    drawSidebar();
@@ -809,14 +1135,39 @@ bool paneUiHandleIncomingChar( int inputChar )
    if ( paneUi.captureActive )
    {
       appendCaptureChar( inputChar );
+      if ( paneUi.captureView == PANE_UI_VIEW_FORUM_INFO &&
+           strstr( paneUi.aryCaptureLines[paneUi.captureLineCount],
+                   "Forum moderator is " ) != NULL )
+      {
+         paneUi.captureHasForumInfoBody = true;
+      }
       if ( isSafePromptLine( paneUi.aryObservedLine ) )
       {
+         if ( paneUi.captureView == PANE_UI_VIEW_FORUM_INFO &&
+              !paneUi.captureHasForumInfoBody )
+         {
+            discardCurrentCaptureLine();
+            resetObservedLine();
+            return true;
+         }
+         if ( paneUi.captureView == PANE_UI_VIEW_FORUM_INFO )
+         {
+            paneUi.captureForumPromptPending =
+               isForumInfoReturnPrompt( paneUi.aryObservedLine );
+            return true;
+         }
+         updateCurrentForumName( paneUi.aryObservedLine );
          completeCapture();
+      }
+      else
+      {
+         paneUi.captureForumPromptPending = false;
       }
       return true;
    }
    if ( isSafePromptLine( paneUi.aryObservedLine ) )
    {
+      updateCurrentForumName( paneUi.aryObservedLine );
       paneUi.sessionReady = true;
       if ( !paneUi.sidebarVisible )
       {
@@ -832,6 +1183,16 @@ bool paneUiHandleIncomingChar( int inputChar )
    return false;
 }
 
+bool paneUiHandleCapturedIncomingChar( int inputChar )
+{
+   if ( !paneUi.captureActive )
+   {
+      return false;
+   }
+
+   return paneUiHandleIncomingChar( inputChar );
+}
+
 static bool canRefreshSidebar( void )
 {
    return paneUi.active && paneUi.sidebarVisible && paneUi.promptReady &&
@@ -841,40 +1202,35 @@ static bool canRefreshSidebar( void )
           !flagsConfiguration.shouldCheckExpress && !childPid;
 }
 
-static void trackHiddenWhoCommand( void )
+static void sendHiddenSidebarChar( int inputChar )
 {
-   if ( byte )
+   sendTrackedCharWithoutReplay( inputChar );
+   if ( fflush( netOutputFile ) < 0 )
    {
-      size_t index;
-
-      index = (size_t)( byte % (long)sizeof arySavedBytes );
-      arySavedBytes[index] = 'W';
-      arySavedByteCanReplay[index] = false;
+      paneUi.captureActive = false;
    }
-   byte++;
 }
 
-static void startCapture( time_t now )
+static void startCapture( time_t now, int command, PaneUiView view )
 {
    memset( paneUi.aryCaptureLines, 0, sizeof( paneUi.aryCaptureLines ) );
    paneUi.captureLineCount = 0;
    paneUi.captureLineLength = 0;
    paneUi.captureAnsiLength = 0;
+   paneUi.captureCarriageReturnPending = false;
+   paneUi.captureForumPromptPending = false;
+   paneUi.captureHasForumInfoBody = false;
+   snprintf( paneUi.aryCaptureForumName, sizeof( paneUi.aryCaptureForumName ),
+             "%s", paneUi.aryCurrentForumName );
    paneUi.captureStarted = now;
    paneUi.captureActive = true;
+   paneUi.captureTruncated = false;
+   paneUi.captureView = view;
+   paneUi.captureCommand = (char)command;
    paneUi.promptReady = false;
    paneUi.skippingAnsi = false;
    resetObservedLine();
-   if ( putc( 'W', netOutputFile ) < 0 )
-   {
-      paneUi.captureActive = false;
-      return;
-   }
-   trackHiddenWhoCommand();
-   if ( fflush( netOutputFile ) < 0 )
-   {
-      paneUi.captureActive = false;
-   }
+   sendHiddenSidebarChar( command );
 }
 
 static void queuePendingLocalInput( void )
@@ -904,7 +1260,12 @@ bool paneUiTakePendingLocalInput( int *ptrInputChar )
 
 bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput )
 {
-   bool isWhoSidebarKey;
+   PaneUiView view;
+
+   if ( paneUi.captureActive )
+   {
+      return true;
+   }
 
    if ( paneUi.active && ( paneUi.mouseInputLength > 0 ||
                            ( inputChar == '\033' && hasMoreLocalInput ) ) )
@@ -946,11 +1307,20 @@ bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput )
            consumedLength == paneUi.mouseInputLength )
       {
          paneUi.mouseInputLength = 0;
-         if ( column <= PANE_UI_LEFT_COLUMNS && ( button & 64 ) != 0 )
+         if ( ( button & 64 ) != 0 )
          {
-            scrollLeftPane( ( button & 1 ) == 0
-                               ? PANE_UI_SCROLL_ROWS
-                               : -PANE_UI_SCROLL_ROWS );
+            if ( column <= PANE_UI_LEFT_COLUMNS )
+            {
+               scrollLeftPane( ( button & 1 ) == 0
+                                  ? PANE_UI_SCROLL_ROWS
+                                  : -PANE_UI_SCROLL_ROWS );
+            }
+            else
+            {
+               scrollSidebar( ( button & 1 ) == 0
+                                 ? -PANE_UI_SCROLL_ROWS
+                                 : PANE_UI_SCROLL_ROWS );
+            }
          }
          return true;
       }
@@ -959,15 +1329,57 @@ bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput )
       return true;
    }
 
-   isWhoSidebarKey = inputChar == 'W' ||
-                     ( inputChar == 'w' && aryKeyMap['w'] == 'W' );
-   if ( !isWhoSidebarKey || !canRefreshSidebar() )
+   if ( inputChar == 'W' || ( inputChar == 'w' && aryKeyMap['w'] == 'W' ) )
+   {
+      inputChar = 'W';
+      view = PANE_UI_VIEW_WHO;
+   }
+   else if ( inputChar == '?' )
+   {
+      view = PANE_UI_VIEW_HELP;
+   }
+   else if ( inputChar == '@' )
+   {
+      view = PANE_UI_VIEW_AIDES;
+   }
+   else if ( inputChar == 'i' || inputChar == 'I' )
+   {
+      inputChar = 'i';
+      view = PANE_UI_VIEW_FORUM_INFO;
+   }
+   else
+   {
+      return false;
+   }
+   if ( !canRefreshSidebar() )
    {
       return false;
    }
 
-   startCapture( time( NULL ) );
+   startCapture( time( NULL ), inputChar, view );
    return true;
+}
+
+void paneUiHandleMorePromptStateChanged( bool isActive )
+{
+   if ( !paneUi.captureActive || !isActive )
+   {
+      return;
+   }
+
+   paneUi.captureStarted = time( NULL );
+   sendHiddenSidebarChar( ' ' );
+}
+
+void paneUiHandleNetworkIdle( void )
+{
+   if ( !paneUi.captureActive || !paneUi.captureForumPromptPending )
+   {
+      return;
+   }
+
+   updateCurrentForumName( paneUi.aryObservedLine );
+   completeCapture();
 }
 
 void paneUiHandleTimer( void )
@@ -990,8 +1402,15 @@ void paneUiHandleTimerAt( time_t now )
    {
       paneUi.captureActive = false;
       paneUi.promptReady = false;
-      paneUi.nextRefresh = now + PANE_UI_REFRESH_SECONDS;
+      paneUi.nextRefresh = paneUi.activeView == PANE_UI_VIEW_WHO
+                              ? now + PANE_UI_REFRESH_SECONDS
+                              : 0;
       drawSidebar();
+      return;
+   }
+   if ( paneUi.activeView != PANE_UI_VIEW_NONE &&
+        paneUi.activeView != PANE_UI_VIEW_WHO )
+   {
       return;
    }
    if ( paneUi.nextRefresh == 0 || now < paneUi.nextRefresh )
@@ -1005,7 +1424,7 @@ void paneUiHandleTimerAt( time_t now )
       return;
    }
 
-   startCapture( now );
+   startCapture( now, 'W', PANE_UI_VIEW_WHO );
 }
 
 bool paneUiSelectTimeout( struct timeval *ptrTimeout )
@@ -1028,7 +1447,11 @@ bool paneUiSelectTimeout( struct timeval *ptrTimeout )
    wakeTime = paneUi.captureActive
                  ? paneUi.captureStarted + PANE_UI_CAPTURE_TIMEOUT_SECONDS
                  : paneUi.nextRefresh;
-   if ( wakeTime == 0 || wakeTime <= now )
+   if ( wakeTime == 0 )
+   {
+      return false;
+   }
+   if ( wakeTime <= now )
    {
       ptrTimeout->tv_sec = 0;
    }

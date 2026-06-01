@@ -34,6 +34,12 @@ static size_t waitEventResultCount;
 static size_t waitEventResultIndex;
 static int waitNextEventCallCount;
 
+void sendTrackedCharWithoutReplay( int inputChar )
+{
+   (void)inputChar;
+   byte++;
+}
+
 static void resetState( void )
 {
    int keyIndex;

@@ -59,12 +59,27 @@ can store passwords in Keychain.
 The experimental
 .B pane_ui
 behavior setting enables a wide-terminal layout when at least 103 columns
-are available. The normal 80-column BBS session remains on the left and an
-automatically refreshed online-user snapshot appears on the right. The
-snapshot is clipped to the available width. Narrow terminals and screen-reader
-mode continue to use the classic view. In pane mode, use the mouse wheel over
-the left pane to scroll through up to 1,000 retained rows without moving the
-online-user snapshot.
+are available. The normal 80-column BBS session remains on the left and a
+buffered sidebar appears on the right. Narrow terminals and screen-reader
+mode continue to use the classic view.
+.sp
+At a normal BBS command prompt, the sidebar captures these commands instead
+of printing their output in the left pane:
+.BR W " (online users), "
+.BR w " (online users when mapped to the long Who command), "
+.BR ? " (command help), "
+.BR @ " (Sysops, Programmers, and Roomaides), and "
+.BR i " or " I " (current forum information)."
+The online-user view refreshes automatically every five seconds while selected.
+Other views remain pinned until another sidebar command is used. Long
+responses advance through BBS
+.B MORE
+prompts automatically.
+.sp
+In pane mode, use the mouse wheel over the sidebar to scroll buffered sidebar
+content. Use the mouse wheel over the left pane to scroll through up to 1,000
+retained rows without moving the sidebar. Sidebar lines are clipped to the
+available width.
 
 .SH CONFIGURATION
 To configure your client, you will enter the client configuration menu.

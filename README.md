@@ -40,9 +40,25 @@ Settings files (`.bbsrc`) from older client builds are not imported, updated, or
 
 Set `pane_ui = true` in the `[behavior]` config section to enable the
 experimental wide-terminal pane layout. When the terminal is wide enough, the
-client keeps the normal 80-column BBS session on the left and a buffered
+client keeps the normal 80-column BBS session on the left and shows a buffered
 sidebar on the right. Narrow terminals and screen-reader mode continue to use
 the classic view.
+
+At a normal BBS command prompt, these commands populate the sidebar instead of
+printing their output in the left pane:
+
+- `W`: online users
+- `w`: online users when lowercase `w` is mapped to the long Who command
+- `?`: command help
+- `@`: Sysops, Programmers, and Roomaides
+- `i` or `I`: information for the current forum
+
+The online-user view refreshes automatically every five seconds while it is
+selected. Other views remain pinned until another sidebar command is used. Long
+responses advance through BBS `MORE` prompts automatically and can be scrolled
+with the mouse wheel over the sidebar. Use the mouse wheel over the left pane to
+scroll through up to 1,000 retained rows without moving the sidebar. Sidebar
+lines are clipped to the available width.
 
 ## Shell And Editor Commands
 

@@ -23,6 +23,12 @@
 static int fatalPerrorCallCount;
 static int tempFileErrorCallCount;
 
+void sendTrackedCharWithoutReplay( int inputChar )
+{
+   (void)inputChar;
+   byte++;
+}
+
 static void resetState( void )
 {
    fatalPerrorCallCount = 0;

@@ -13,7 +13,8 @@ static void advanceLeftLine( void );
 static void drawSidebarFooter( int row, int sidebarWidth, int visibleRows );
 static void drawSidebarLine( const char *ptrLine, int visibleWidth,
                              int *ptrForegroundColor );
-static void drawSidebarTimestamp( int row, const char *ptrLine, int visibleWidth );
+static void drawSidebarTimestamp( int row, int snapshotLineIndex,
+                                  const char *ptrLine, int visibleWidth );
 static void drawThemedDisplayState( int foregroundColor );
 static void drawThemedForeground( int foregroundColor );
 static void formatSnapshotRefreshTime( char *ptrBuffer, size_t bufferSize );
@@ -328,6 +329,38 @@ static int visibleHeaderLabelWidth( const char *ptrLine )
    return visibleWidth;
 }
 
+static int visibleLastDashOffset( const char *ptrLine )
+{
+   int lastDashOffset;
+   int visibleOffset;
+
+   lastDashOffset = 0;
+   visibleOffset = 0;
+   while ( *ptrLine != '\0' )
+   {
+      if ( *ptrLine == '\033' )
+      {
+         while ( *ptrLine != '\0' && !isalpha( (unsigned char)*ptrLine ) )
+         {
+            ptrLine++;
+         }
+      }
+      else
+      {
+         visibleOffset++;
+         if ( *ptrLine == '-' )
+         {
+            lastDashOffset = visibleOffset;
+         }
+      }
+      if ( *ptrLine != '\0' )
+      {
+         ptrLine++;
+      }
+   }
+   return lastDashOffset;
+}
+
 static void formatSnapshotRefreshTime( char *ptrBuffer, size_t bufferSize )
 {
    struct tm localTime;
@@ -346,11 +379,14 @@ static void formatSnapshotRefreshTime( char *ptrBuffer, size_t bufferSize )
              localTime.tm_hour < 12 ? "AM" : "PM" );
 }
 
-static void drawSidebarTimestamp( int row, const char *ptrLine, int visibleWidth )
+static void drawSidebarTimestamp( int row, int snapshotLineIndex,
+                                  const char *ptrLine, int visibleWidth )
 {
    char arySequence[64];
    char aryTimestamp[32];
    int labelWidth;
+   int rightColumn;
+   int separatorWidth;
    int timestampLength;
 
    labelWidth = visibleHeaderLabelWidth( ptrLine );
@@ -366,8 +402,22 @@ static void drawSidebarTimestamp( int row, const char *ptrLine, int visibleWidth
       return;
    }
 
+   rightColumn = paneUi.columns;
+   if ( snapshotLineIndex + 1 < paneUi.snapshotLineCount )
+   {
+      separatorWidth =
+         visibleLastDashOffset( paneUi.arySnapshotLines[snapshotLineIndex + 1] );
+      if ( separatorWidth > visibleWidth )
+      {
+         separatorWidth = visibleWidth;
+      }
+      if ( separatorWidth > 0 )
+      {
+         rightColumn = PANE_UI_LEFT_COLUMNS + 2 + separatorWidth;
+      }
+   }
    snprintf( arySequence, sizeof( arySequence ), "\033[%d;%dH",
-             row, paneUi.columns - timestampLength + 1 );
+             row, rightColumn - timestampLength + 1 );
    paneUiWriteRaw( arySequence );
    drawThemedForeground( ansiTransform( '7' ) );
    paneUiWriteRaw( aryTimestamp );
@@ -463,7 +513,8 @@ void paneUiDrawSidebar( void )
          }
          drawSidebarLine( ptrLine, labelWidth ? labelWidth : sidebarWidth - 1,
                           &snapshotForegroundColor );
-         drawSidebarTimestamp( row, ptrLine, sidebarWidth - 1 );
+         drawSidebarTimestamp( row, paneUi.sidebarScrollOffset + row - 1,
+                               ptrLine, sidebarWidth - 1 );
       }
       else
       {

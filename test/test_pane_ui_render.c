@@ -83,12 +83,15 @@ static void paneUiRefresh_WhenSidebarWide_ShowsSuccessfulRefreshTimeWithSeconds(
 {
    char aryAfterTimestamp[32];
    char aryBeforeTimestamp[32];
+   char aryExpectedAfterSequence[64];
+   char aryExpectedBeforeSequence[64];
    char aryTerminalOutput[8192];
    const char *ptrCursor;
    const char *ptrPrompt = "Lobby>";
    const char *ptrWhoOutput =
       "There is 1 user (0 queued)\r\n"
       "User Name           Time Doing             5/30/26 7:10 PM\r\n"
+      "----------------------------------------\r\n"
       "Alice                   123:45 Writing\r\n"
       "Lobby> ";
    time_t afterTimestamp;
@@ -113,10 +116,16 @@ static void paneUiRefresh_WhenSidebarWide_ShowsSuccessfulRefreshTimeWithSeconds(
                          beforeTimestamp );
    formatLocalTimestamp( aryAfterTimestamp, sizeof( aryAfterTimestamp ),
                          afterTimestamp );
+   snprintf( aryExpectedBeforeSequence, sizeof( aryExpectedBeforeSequence ),
+             "\033[2;%zuH", 122 - strlen( aryBeforeTimestamp ) + 1 );
+   snprintf( aryExpectedAfterSequence, sizeof( aryExpectedAfterSequence ),
+             "\033[2;%zuH", 122 - strlen( aryAfterTimestamp ) + 1 );
 
    assert_null( strstr( aryTerminalOutput, "5/30/26 7:10 PM" ) );
    assert_true( strstr( aryTerminalOutput, aryBeforeTimestamp ) != NULL ||
                 strstr( aryTerminalOutput, aryAfterTimestamp ) != NULL );
+   assert_true( strstr( aryTerminalOutput, aryExpectedBeforeSequence ) != NULL ||
+                strstr( aryTerminalOutput, aryExpectedAfterSequence ) != NULL );
    assert_non_null( strstr( aryTerminalOutput, "\033[38;5;252m" ) );
 }
 

@@ -26,7 +26,8 @@ typedef enum
    PANE_UI_VIEW_WHO,
    PANE_UI_VIEW_HELP,
    PANE_UI_VIEW_AIDES,
-   PANE_UI_VIEW_FORUM_INFO
+   PANE_UI_VIEW_FORUM_INFO,
+   PANE_UI_VIEW_NEXT_POST
 } PaneUiView;
 
 typedef struct
@@ -43,6 +44,7 @@ typedef struct
    bool sidebarVisible;
    bool swallowingPromptRemainder;
    bool promptReady;
+   bool roomPromptReady;
    bool promptRemainderSkippingAnsi;
    bool observedSkippingAnsi;
    bool skippingAnsi;

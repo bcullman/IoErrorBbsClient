@@ -326,6 +326,102 @@ static void paneUiView_WhenUserTypesAidesAtSafePrompt_CapturesHiddenSidebar( voi
    assert_non_null( strstr( aryTerminalOutput, "Roomaides" ) );
 }
 
+static void paneUiView_WhenUserTypesNextPostAtRoomPrompt_CapturesHiddenSidebar( void **state )
+{
+   char aryNetOutput[16];
+   char aryTerminalOutput[8192];
+   const char *ptrBody;
+   const char *ptrSpacer;
+   const char *ptrTitle;
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Babble>", false );
+   paneUiNoteUserInput();
+   feedIncomingText(
+      "Current post.\r\n"
+      "[Babble> msg #57527 (2 remaining)] Read cmd ->",
+      false );
+
+   assert_true( paneUiHandleLocalInput( 'n', false ) );
+   paneUiHandleMorePromptStateChanged( true );
+   paneUiHandleMorePromptStateChanged( false );
+   feedIncomingText(
+      "Babble> Read New\r\n"
+      "\033[32mNext post first page.\033[0m\r\n"
+      "--MORE--(50%)\r\n"
+      "Next post second page.\r\n"
+      "[Babble> msg #57528 (1 remaining)] Read cmd ->",
+      true );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_string_equal( aryNetOutput, "n " );
+   ptrTitle = strstr( aryTerminalOutput, "Babble" );
+   ptrBody = strstr( aryTerminalOutput, "Next post first page." );
+   assert_non_null( ptrTitle );
+   assert_non_null( ptrBody );
+   assert_true( ptrTitle < ptrBody );
+   assert_non_null( strstr( aryTerminalOutput,
+                            "\033[38;5;220mBabble>\033[0;38;5;34;48;5;236m" ) );
+   ptrSpacer = strstr( ptrTitle, "\033[2;81H" );
+   assert_non_null( ptrSpacer );
+   assert_true( ptrSpacer < ptrBody );
+   assert_non_null( strstr( aryTerminalOutput, "Next post second page." ) );
+   assert_null( strstr( aryTerminalOutput, "--MORE--" ) );
+   assert_null( strstr( aryTerminalOutput, "Read New" ) );
+
+   resetOutput();
+   assert_true( paneUiHandleLocalInput( 'n', false ) );
+   feedIncomingText(
+      "Babble> Next\r\n"
+      "Following post.\r\n"
+      "[Babble> msg #57529 (0 remaining)] Read cmd ->",
+      true );
+   memset( aryNetOutput, 0, sizeof( aryNetOutput ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_string_equal( aryNetOutput, "n n" );
+   ptrTitle = strstr( aryTerminalOutput, "Babble" );
+   ptrBody = strstr( aryTerminalOutput, "Following post." );
+   assert_non_null( ptrTitle );
+   assert_non_null( ptrBody );
+   assert_true( ptrTitle < ptrBody );
+   assert_non_null( strstr( aryTerminalOutput,
+                            "\033[38;5;220mBabble>\033[0;38;5;34;48;5;236m" ) );
+   ptrSpacer = strstr( ptrTitle, "\033[2;81H" );
+   assert_non_null( ptrSpacer );
+   assert_true( ptrSpacer < ptrBody );
+   assert_null( strstr( aryTerminalOutput, "Babble> Next" ) );
+}
+
+static void paneUiView_WhenNotAtRoomPrompt_LeavesNextPostUnhandled( void **state )
+{
+   char aryNetOutput[16];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Read cmd ->", false );
+
+   assert_false( paneUiHandleLocalInput( 'n', false ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   assert_string_equal( aryNetOutput, "" );
+}
+
+static void paneUiView_WhenAtRoomPrompt_LeavesSpaceUnhandled( void **state )
+{
+   char aryNetOutput[16];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+
+   assert_false( paneUiHandleLocalInput( ' ', false ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   assert_string_equal( aryNetOutput, "" );
+}
+
 static void paneUiView_WhenPromptIsUnsafe_LeavesHelpAndAidesUnhandled( void **state )
 {
    char aryNetOutput[16];
@@ -607,6 +703,13 @@ int main( void )
       cmocka_unit_test_setup_teardown(
          paneUiView_WhenUserTypesAidesAtSafePrompt_CapturesHiddenSidebar, setup,
          teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenUserTypesNextPostAtRoomPrompt_CapturesHiddenSidebar, setup,
+         teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenNotAtRoomPrompt_LeavesNextPostUnhandled, setup, teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenAtRoomPrompt_LeavesSpaceUnhandled, setup, teardown ),
       cmocka_unit_test_setup_teardown(
          paneUiView_WhenPromptIsUnsafe_LeavesHelpAndAidesUnhandled, setup, teardown ),
       cmocka_unit_test_setup_teardown(

@@ -436,6 +436,8 @@ static const char *viewName( PaneUiView view )
          return "Aides";
       case PANE_UI_VIEW_FORUM_INFO:
          return "Forum Info";
+      case PANE_UI_VIEW_NEXT_POST:
+         return "Next Post";
       default:
          return "Sidebar";
    }

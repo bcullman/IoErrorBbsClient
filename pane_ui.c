@@ -63,6 +63,7 @@ void paneUiEnterIfEligible( void )
    paneUi.active = true;
    paneUi.captureActive = false;
    paneUi.promptReady = false;
+   paneUi.roomPromptReady = false;
    paneUi.sidebarVisible = paneUi.sessionReady;
    paneUi.swallowingPromptRemainder = false;
    paneUi.nextRefresh = 0;
@@ -81,6 +82,7 @@ void paneUiLeave( void )
    paneUi.active = false;
    paneUi.captureActive = false;
    paneUi.promptReady = false;
+   paneUi.roomPromptReady = false;
    paneUi.sidebarVisible = false;
    paneUi.swallowingPromptRemainder = false;
    paneUi.leftScrollOffset = 0;
@@ -111,6 +113,7 @@ void paneUiResetSession( void )
    paneUi.sidebarVisible = false;
    paneUi.captureActive = false;
    paneUi.promptReady = false;
+   paneUi.roomPromptReady = false;
    paneUi.swallowingPromptRemainder = false;
    paneUi.nextRefresh = 0;
    paneUi.snapshotRefreshedAt = 0;
@@ -152,6 +155,7 @@ void paneUiMarkResizePending( void )
 void paneUiNoteUserInput( void )
 {
    paneUi.promptReady = false;
+   paneUi.roomPromptReady = false;
    paneUi.swallowingPromptRemainder = false;
 }
 
@@ -269,6 +273,10 @@ bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput )
       inputChar = 'i';
       view = PANE_UI_VIEW_FORUM_INFO;
    }
+   else if ( inputChar == 'n' && paneUi.roomPromptReady )
+   {
+      view = PANE_UI_VIEW_NEXT_POST;
+   }
    else
    {
       return false;
@@ -302,6 +310,7 @@ void paneUiHandleTimerAt( time_t now )
    {
       paneUi.captureActive = false;
       paneUi.promptReady = false;
+      paneUi.roomPromptReady = false;
       paneUi.nextRefresh = paneUi.activeView == PANE_UI_VIEW_WHO
                               ? now + PANE_UI_REFRESH_SECONDS
                               : 0;

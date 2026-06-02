@@ -13,9 +13,14 @@ static void appendCaptureChar( int inputChar );
 static void appendCaptureText( const char *ptrText, size_t textLength );
 static void appendObservedChar( int inputChar );
 static void completeCapture( void );
+static void copyCapturedPlainText( char *ptrTarget, size_t targetSize,
+                                   const char *ptrSource );
 static void discardCurrentCaptureLine( void );
 static bool isCapturedSgrSequence( void );
 static bool isForumInfoReturnPrompt( const char *ptrLine );
+static bool isNextPostCommandEcho( const char *ptrLine );
+static bool isNextPostReturnPrompt( const char *ptrLine );
+static bool isRoomPromptLine( const char *ptrLine );
 static bool isSafePromptLine( const char *ptrLine );
 static void removeMorePromptMarkers( char *ptrLine );
 static void sendHiddenSidebarChar( int inputChar );
@@ -142,6 +147,71 @@ static bool isForumInfoReturnPrompt( const char *ptrLine )
           strncmp( ptrLine + 1, paneUi.aryCaptureForumName, forumNameLength ) == 0 &&
           ptrLine[forumNameLength + 1] == '>' &&
           strstr( ptrLine + forumNameLength + 2, "] Read cmd ->" ) != NULL;
+}
+
+static bool isRoomPromptLine( const char *ptrLine )
+{
+   if ( !isSafePromptLine( ptrLine ) )
+   {
+      return false;
+   }
+   if ( strstr( ptrLine, "Read cmd ->" ) == NULL )
+   {
+      return true;
+   }
+   return ptrLine[0] == '[' && strstr( ptrLine, "> msg #" ) != NULL;
+}
+
+static bool isNextPostCommandEcho( const char *ptrLine )
+{
+   char aryLine[PANE_UI_MAX_LINE_LENGTH];
+   const char *ptrCommand;
+   size_t forumNameLength;
+
+   copyCapturedPlainText( aryLine, sizeof( aryLine ), ptrLine );
+   ptrCommand = aryLine;
+   forumNameLength = strlen( paneUi.aryCaptureForumName );
+   if ( forumNameLength > 0 &&
+        strncmp( ptrCommand, paneUi.aryCaptureForumName, forumNameLength ) == 0 &&
+        ptrCommand[forumNameLength] == '>' &&
+        ptrCommand[forumNameLength + 1] == ' ' )
+   {
+      ptrCommand += forumNameLength + 2;
+   }
+   return strcmp( ptrCommand, "Read New" ) == 0 ||
+          strcmp( ptrCommand, "Next" ) == 0;
+}
+
+static void copyCapturedPlainText( char *ptrTarget, size_t targetSize,
+                                   const char *ptrSource )
+{
+   size_t targetLength;
+
+   targetLength = 0;
+   while ( *ptrSource != '\0' && targetLength + 1 < targetSize )
+   {
+      if ( *ptrSource == '\033' )
+      {
+         ptrSource++;
+         while ( *ptrSource != '\0' &&
+                 !isalpha( (unsigned char)*ptrSource ) )
+         {
+            ptrSource++;
+         }
+         if ( *ptrSource != '\0' )
+         {
+            ptrSource++;
+         }
+         continue;
+      }
+      ptrTarget[targetLength++] = *ptrSource++;
+   }
+   ptrTarget[targetLength] = '\0';
+}
+
+static bool isNextPostReturnPrompt( const char *ptrLine )
+{
+   return isRoomPromptLine( ptrLine ) && strstr( ptrLine, "Read cmd ->" ) != NULL;
 }
 
 static void updateCurrentForumName( const char *ptrPrompt )
@@ -377,10 +447,28 @@ static void completeCapture( void )
    {
       firstLine++;
    }
-   snapshotLineOffset = paneUi.captureView == PANE_UI_VIEW_FORUM_INFO &&
-                              paneUi.aryCaptureForumName[0] != '\0'
-                           ? 1
-                           : 0;
+   if ( paneUi.captureView == PANE_UI_VIEW_NEXT_POST &&
+        firstLine < lineCount &&
+        isNextPostCommandEcho( paneUi.aryCaptureLines[firstLine] ) )
+   {
+      firstLine++;
+      while ( firstLine < lineCount &&
+              paneUi.aryCaptureLines[firstLine][0] == '\0' )
+      {
+         firstLine++;
+      }
+   }
+   snapshotLineOffset = 0;
+   if ( paneUi.captureView == PANE_UI_VIEW_FORUM_INFO &&
+        paneUi.aryCaptureForumName[0] != '\0' )
+   {
+      snapshotLineOffset = 1;
+   }
+   else if ( paneUi.captureView == PANE_UI_VIEW_NEXT_POST &&
+             paneUi.aryCaptureForumName[0] != '\0' )
+   {
+      snapshotLineOffset = 2;
+   }
    snapshotContentLineCount = lineCount - firstLine;
    if ( snapshotContentLineCount > PANE_UI_MAX_LINES - snapshotLineOffset )
    {
@@ -390,7 +478,13 @@ static void completeCapture( void )
    paneUi.snapshotLineCount = snapshotContentLineCount + snapshotLineOffset;
    paneUi.snapshotTruncated = paneUi.captureTruncated;
    memset( paneUi.arySnapshotLines, 0, sizeof( paneUi.arySnapshotLines ) );
-   if ( snapshotLineOffset )
+   if ( paneUi.captureView == PANE_UI_VIEW_NEXT_POST &&
+        snapshotLineOffset )
+   {
+      snprintf( paneUi.arySnapshotLines[0], sizeof( paneUi.arySnapshotLines[0] ),
+                "\033[33m%s>\033[0m", paneUi.aryCaptureForumName );
+   }
+   else if ( snapshotLineOffset )
    {
       snprintf( paneUi.arySnapshotLines[0], sizeof( paneUi.arySnapshotLines[0] ),
                 "%s", paneUi.aryCaptureForumName );
@@ -452,7 +546,13 @@ bool paneUiHandleIncomingChar( int inputChar )
                isForumInfoReturnPrompt( paneUi.aryObservedLine );
             return true;
          }
+         if ( paneUi.captureView == PANE_UI_VIEW_NEXT_POST &&
+              !isNextPostReturnPrompt( paneUi.aryObservedLine ) )
+         {
+            return true;
+         }
          updateCurrentForumName( paneUi.aryObservedLine );
+         paneUi.roomPromptReady = isRoomPromptLine( paneUi.aryObservedLine );
          completeCapture();
       }
       else
@@ -464,6 +564,7 @@ bool paneUiHandleIncomingChar( int inputChar )
    if ( isSafePromptLine( paneUi.aryObservedLine ) )
    {
       updateCurrentForumName( paneUi.aryObservedLine );
+      paneUi.roomPromptReady = isRoomPromptLine( paneUi.aryObservedLine );
       paneUi.sessionReady = true;
       if ( !paneUi.sidebarVisible )
       {
@@ -524,6 +625,7 @@ void paneUiStartCapture( time_t now, int command, PaneUiView view )
    paneUi.captureView = view;
    paneUi.captureCommand = (char)command;
    paneUi.promptReady = false;
+   paneUi.roomPromptReady = false;
    paneUi.skippingAnsi = false;
    paneUiResetObservedLine();
    sendHiddenSidebarChar( command );
@@ -548,5 +650,6 @@ void paneUiHandleNetworkIdle( void )
    }
 
    updateCurrentForumName( paneUi.aryObservedLine );
+   paneUi.roomPromptReady = isRoomPromptLine( paneUi.aryObservedLine );
    completeCapture();
 }

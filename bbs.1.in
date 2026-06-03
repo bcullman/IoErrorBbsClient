@@ -72,8 +72,10 @@ of printing their output in the left pane:
 .BR i " or " I " (current forum information)."
 At a room prompt,
 .B n
-captures the next post in the sidebar. The space bar retains its normal
-server-driven next-post behavior.
+captures the next post in the sidebar, and
+.B A
+captures the current post again in the sidebar. The space bar retains its
+normal server-driven next-post behavior.
 The online-user view refreshes automatically every five seconds while selected.
 Other views remain pinned until another sidebar command is used. Long
 responses advance through BBS

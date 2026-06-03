@@ -386,7 +386,6 @@ static void drawSidebarTimestamp( int row, int snapshotLineIndex,
    char aryTimestamp[32];
    int labelWidth;
    int rightColumn;
-   int separatorWidth;
    int timestampLength;
 
    labelWidth = visibleHeaderLabelWidth( ptrLine );
@@ -405,6 +404,8 @@ static void drawSidebarTimestamp( int row, int snapshotLineIndex,
    rightColumn = paneUi.columns;
    if ( snapshotLineIndex + 1 < paneUi.snapshotLineCount )
    {
+      int separatorWidth;
+
       separatorWidth =
          visibleLastDashOffset( paneUi.arySnapshotLines[snapshotLineIndex + 1] );
       if ( separatorWidth > visibleWidth )

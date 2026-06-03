@@ -940,10 +940,10 @@ static void configClient_WhenOptionsToggleScreenReaderMode_UpdatesFlags( void **
       return;
    }
    if ( strstr( aryStdPrintfLog,
-                "Update terminal title bar? (Yes) -> " ) == NULL )
+                "Update terminal title bar? (Off)\r\nForced off by screen reader mode.\r\n" ) == NULL )
    {
       cleanupWriteConfigFixture();
-      fail_msg( "configClient should display the title bar option in the Options menu" );
+      fail_msg( "configClient should show the title bar option as forced off when screen reader mode is enabled" );
       return;
    }
    if ( strstr( aryStdPrintfLog,

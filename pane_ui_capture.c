@@ -123,8 +123,10 @@ static bool isSafePromptLine( const char *ptrLine )
 
 static bool isForumInfoReturnPrompt( const char *ptrLine )
 {
+   char aryExpectedPrompt[PANE_UI_MAX_LINE_LENGTH];
    const char *ptrEnd;
    size_t forumNameLength;
+   size_t trimmedLength;
 
    forumNameLength = strlen( paneUi.aryCaptureForumName );
    if ( forumNameLength == 0 )
@@ -137,9 +139,11 @@ static bool isForumInfoReturnPrompt( const char *ptrLine )
    {
       ptrEnd--;
    }
-   if ( (size_t)( ptrEnd - ptrLine ) == forumNameLength + 1 &&
-        strncmp( ptrLine, paneUi.aryCaptureForumName, forumNameLength ) == 0 &&
-        ptrLine[forumNameLength] == '>' )
+   trimmedLength = (size_t)( ptrEnd - ptrLine );
+   snprintf( aryExpectedPrompt, sizeof( aryExpectedPrompt ), "%s>",
+             paneUi.aryCaptureForumName );
+   if ( strlen( aryExpectedPrompt ) == trimmedLength &&
+        strncmp( ptrLine, aryExpectedPrompt, trimmedLength ) == 0 )
    {
       return true;
    }
@@ -179,7 +183,8 @@ static bool isNextPostCommandEcho( const char *ptrLine )
       ptrCommand += forumNameLength + 2;
    }
    return strcmp( ptrCommand, "Read New" ) == 0 ||
-          strcmp( ptrCommand, "Next" ) == 0;
+          strcmp( ptrCommand, "Next" ) == 0 ||
+          strcmp( ptrCommand, "Again" ) == 0;
 }
 
 static void copyCapturedPlainText( char *ptrTarget, size_t targetSize,

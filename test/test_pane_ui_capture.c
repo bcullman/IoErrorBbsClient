@@ -394,6 +394,30 @@ static void paneUiView_WhenUserTypesNextPostAtRoomPrompt_CapturesHiddenSidebar( 
    assert_non_null( ptrSpacer );
    assert_true( ptrSpacer < ptrBody );
    assert_null( strstr( aryTerminalOutput, "Babble> Next" ) );
+
+   resetOutput();
+   assert_true( paneUiHandleLocalInput( 'A', false ) );
+   feedIncomingText(
+      "Babble> Again\r\n"
+      "Repeated post.\r\n"
+      "[Babble> msg #57529 (0 remaining)] Read cmd ->",
+      true );
+   memset( aryNetOutput, 0, sizeof( aryNetOutput ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   readOutput( aryTerminalOutput, sizeof( aryTerminalOutput ) );
+
+   assert_string_equal( aryNetOutput, "n nA" );
+   ptrTitle = strstr( aryTerminalOutput, "Babble" );
+   ptrBody = strstr( aryTerminalOutput, "Repeated post." );
+   assert_non_null( ptrTitle );
+   assert_non_null( ptrBody );
+   assert_true( ptrTitle < ptrBody );
+   assert_non_null( strstr( aryTerminalOutput,
+                            "\033[38;5;220mBabble>\033[0;38;5;34;48;5;236m" ) );
+   ptrSpacer = strstr( ptrTitle, "\033[2;81H" );
+   assert_non_null( ptrSpacer );
+   assert_true( ptrSpacer < ptrBody );
+   assert_null( strstr( aryTerminalOutput, "Babble> Again" ) );
 }
 
 static void paneUiView_WhenNotAtRoomPrompt_LeavesNextPostUnhandled( void **state )

@@ -53,6 +53,7 @@ printing their output in the left pane:
 - `@`: Sysops, Programmers, and Roomaides
 - `i` or `I`: information for the current forum
 - `n`: next post when used at a room prompt
+- `A`: repeat the current post in the sidebar when used at a room prompt
 
 The online-user view refreshes automatically every five seconds while it is
 selected. Other views remain pinned until another sidebar command is used. Long

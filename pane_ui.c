@@ -273,7 +273,8 @@ bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput )
       inputChar = 'i';
       view = PANE_UI_VIEW_FORUM_INFO;
    }
-   else if ( inputChar == 'n' && paneUi.roomPromptReady )
+   else if ( ( inputChar == 'n' || inputChar == 'A' ) &&
+             paneUi.roomPromptReady )
    {
       view = PANE_UI_VIEW_NEXT_POST;
    }

@@ -14,6 +14,7 @@
 #include "filter_globals.h"
 #include "getline_input.h"
 #include "network_globals.h"
+#include "pane_ui.h"
 #include "sysio.h"
 #include "telnet.h"
 #include "utility.h"
@@ -22,7 +23,9 @@ static bool copyNamedFileIntoMessage( FILE *ptrMessageFile, const char *ptrInput
 static void flushEditorNetworkOutput( void );
 static bool loadNamedFileIntoMessage( FILE **ptrMessageFile, char *ptrInputPath,
                                       int commandChar );
+static int countFormattedDraftLines( FILE *ptrMessageFile );
 static void printEditorCommandPrompt( void );
+static void printFormattedDraft( FILE *ptrMessageFile, bool shouldPrintHeader );
 static void resetEditorReplayState( void );
 static const char *resolveEditorCommand( void );
 static void sendEditorCommand( int inputChar );
@@ -39,7 +42,7 @@ static void continueAfterExternalEdit( FILE **ptrMessageFile )
    {
       printAnsiDisplayStateValue( lastColor, color.background );
    }
-   printf( "[Editing complete]\r\n" );
+   stdPuts( "[Editing complete]\r\n" );
    if ( !( tempFile = freopen( aryTempFileName, "r+", tempFile ) ) )
    {
       fatalPerror( "aryEditor return: freopen(aryTempFileName, \"r+\")", "Edit file error" );
@@ -66,7 +69,7 @@ static bool copyNamedFileIntoMessage( FILE *ptrMessageFile, const char *ptrInput
    ptrCopyFile = fopen( ptrInputPath, "r" );
    if ( ptrCopyFile == NULL )
    {
-      printf( "\r\n[Error:  named file does not exist]\r\n\n" );
+      stdPuts( "\r\n[Error:  named file does not exist]\r\n\n" );
       return false;
    }
 
@@ -118,7 +121,7 @@ static bool loadNamedFileIntoMessage( FILE **ptrMessageFile, char *ptrInputPath,
    fseek( *ptrMessageFile, 0L, SEEK_END );
    if ( ftell( *ptrMessageFile ) )
    {
-      printf( "\r\nThere is text in your edit file.  Do you wish to erase it? (Y/N) -> " );
+      stdPuts( "\r\nThere is text in your edit file.  Do you wish to erase it? (Y/N) -> " );
       if ( yesNo() )
       {
          if ( !( tempFile = freopen( aryTempFileName, "w+", tempFile ) ) )
@@ -132,7 +135,7 @@ static bool loadNamedFileIntoMessage( FILE **ptrMessageFile, char *ptrInputPath,
          return false;
       }
    }
-   printf( "\r\nFilename -> " );
+   stdPuts( "\r\nFilename -> " );
    getString( 67, ptrInputPath, -999 );
    if ( !*ptrInputPath )
    {
@@ -140,6 +143,29 @@ static bool loadNamedFileIntoMessage( FILE **ptrMessageFile, char *ptrInputPath,
    }
 
    return copyNamedFileIntoMessage( *ptrMessageFile, ptrInputPath );
+}
+
+/// @brief Count the screen lines used by the current draft file.
+///
+/// @param ptrMessageFile Draft file to inspect.
+///
+/// @return Number of display lines occupied by the draft.
+static int countFormattedDraftLines( FILE *ptrMessageFile )
+{
+   int inputChar;
+   int lineCount;
+
+   lineCount = 1;
+   rewind( ptrMessageFile );
+   while ( ( inputChar = getc( ptrMessageFile ) ) > 0 )
+   {
+      if ( inputChar == '\n' )
+      {
+         lineCount++;
+      }
+   }
+   fseek( ptrMessageFile, 0L, SEEK_END );
+   return lineCount;
 }
 
 /// @brief Print the ANSI-colored editor command prompt legend.
@@ -160,7 +186,7 @@ static void printEditorCommandPrompt( void )
 
    if ( !flagsConfiguration.shouldUseAnsi )
    {
-      printf( "<A>bort <C>ontinue <E>dit <P>rint <S>ave <X>press -> " );
+      stdPuts( "<A>bort <C>ontinue <E>dit <P>rint <S>ave <X>press -> " );
       return;
    }
 
@@ -170,25 +196,82 @@ static void printEditorCommandPrompt( void )
    {
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.forum );
-      printf( "%s", aryAnsiSequence );
-      printf( "%c", aryCommandLabels[itemIndex][0] );
+      stdPuts( aryAnsiSequence );
+      stdPutChar( aryCommandLabels[itemIndex][0] );
 
       formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                     color.number );
-      printf( "%s", aryAnsiSequence );
-      printf( "%s", aryCommandLabels[itemIndex] + 1 );
+      stdPuts( aryAnsiSequence );
+      stdPuts( aryCommandLabels[itemIndex] + 1 );
 
       if ( itemIndex + 1 <
            sizeof( aryCommandLabels ) / sizeof( aryCommandLabels[0] ) )
       {
-         printf( "  " );
+         stdPuts( "  " );
       }
    }
 
-   printf( " -> " );
+   stdPuts( " -> " );
    formatAnsiForegroundSequence( aryAnsiSequence, sizeof( aryAnsiSequence ),
                                  color.text );
-   printf( "%s", aryAnsiSequence );
+   stdPuts( aryAnsiSequence );
+}
+
+/// @brief Print the current draft as it would appear from the editor prompt.
+///
+/// @param ptrMessageFile Draft file to print.
+/// @param shouldPrintHeader True to include the editor print label and saved
+/// post header.
+///
+/// @return This helper does not return a value.
+static void printFormattedDraft( FILE *ptrMessageFile, bool shouldPrintHeader )
+{
+   int inputChar;
+   int itemIndex;
+   int lineLength;
+   int lines;
+   long size;
+
+   if ( shouldPrintHeader )
+   {
+      stdPrintf( "Print formatted\r\n\n%s", arySavedHeader );
+   }
+   fseek( ptrMessageFile, 0L, SEEK_END );
+   size = ftell( ptrMessageFile );
+   rewind( ptrMessageFile );
+   lines = 2;
+   lineLength = 0;
+   itemIndex = 0;
+   while ( ( inputChar = getc( ptrMessageFile ) ) > 0 )
+   {
+      itemIndex++;
+      if ( inputChar == TAB )
+      {
+         do
+         {
+            stdPutChar( ' ' );
+         } while ( ++lineLength & 7 );
+      }
+      else
+      {
+         if ( inputChar == '\n' )
+         {
+            stdPutChar( '\r' );
+         }
+         stdPutChar( inputChar );
+         lineLength++;
+      }
+      if ( inputChar == '\n' )
+      {
+         lineLength = 0;
+         if ( ++lines == rows &&
+              more( &lines, size > 0 ? (int)( itemIndex * 100 / size ) : 0 ) < 0 )
+         {
+            break;
+         }
+      }
+   }
+   fseek( ptrMessageFile, 0L, SEEK_END );
 }
 
 /// @brief Handle the command prompt shown while composing a local message.
@@ -202,10 +285,7 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
 {
    int itemIndex;
    int inputChar = commandChar;
-   int lineLength;
    unsigned int invalid = 0;
-   long size;
-   int lines;
    char aryCurrentLine[80];
 
    itemIndex = 0;
@@ -252,11 +332,11 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
             }
             // Flush repeated keystrokes before returning to edit mode.
             flushInput( (unsigned)itemIndex );
-            printf( "\r\n" );
+            stdPuts( "\r\n" );
             continue;
 
          case 'a':
-            printf( "Abort: are you sure? " );
+            stdPuts( "Abort: are you sure? " );
             if ( yesNo() )
             {
                sendEditorCommand( 'a' );
@@ -267,7 +347,7 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
             continue;
 
          case 'c':
-            printf( "Continue...\r\n" );
+            stdPuts( "Continue...\r\n" );
             if ( flagsConfiguration.shouldUseAnsi )
             {
                continuedPostHelper();
@@ -275,54 +355,20 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
             break;
 
          case 'p':
-            if ( *previousChar == -1 )
             {
-               *previousChar = '\n';
-            }
-            else
-            {
-               printf( "Print formatted\r\n\n%s", arySavedHeader );
-            }
-            fseek( ptrMessageFile, 0L, SEEK_END );
-            size = ftell( ptrMessageFile );
-            rewind( ptrMessageFile );
-            lines = 2;
-            lineLength = 0;
-            itemIndex = 0;
-            while ( ( inputChar = getc( ptrMessageFile ) ) > 0 )
-            {
-               itemIndex++;
-               if ( inputChar == TAB )
+               bool shouldPrintHeader;
+
+               shouldPrintHeader = *previousChar != -1;
+               if ( *previousChar == -1 )
                {
-                  do
-                  {
-                     putchar( ' ' );
-                  } while ( ++lineLength & 7 );
+                  *previousChar = '\n';
                }
-               else
-               {
-                  if ( inputChar == '\n' )
-                  {
-                     putchar( '\r' );
-                  }
-                  putchar( inputChar );
-                  lineLength++;
-               }
-               if ( inputChar == '\n' )
-               {
-                  lineLength = 0;
-                  if ( ++lines == rows &&
-                       more( &lines, size > 0 ? (int)( itemIndex * 100 / size ) : 0 ) < 0 )
-                  {
-                     break;
-                  }
-               }
+               printFormattedDraft( ptrMessageFile, shouldPrintHeader );
             }
-            fseek( ptrMessageFile, 0L, SEEK_END );
             break;
 
          case 's':
-            printf( "Save message\r\n" );
+            stdPuts( "Save message\r\n" );
             if ( checkFile( ptrMessageFile ) )
             {
                continue;
@@ -355,20 +401,23 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
             {
                const char *ptrEditorCommand;
 
-               printf( "Edit\r\n" );
+               stdPuts( "Edit\r\n" );
                ptrEditorCommand = resolveEditorCommand();
                if ( ptrEditorCommand == NULL )
                {
-                  printf( "[Error:  No editor available]\r\n" );
+                  stdPuts( "[Error:  No editor available]\r\n" );
                }
                else
                {
+                  int oldDraftLineCount;
+
                   if ( !loadNamedFileIntoMessage( &ptrMessageFile,
                                                   aryCurrentLine,
                                                   commandChar ) )
                   {
                      continue;
                   }
+                  oldDraftLineCount = countFormattedDraftLines( ptrMessageFile );
                   // We have to close and reopen the tempFile due to locking
                   fclose( tempFile );
                   run( ptrEditorCommand, aryTempFileName );
@@ -376,7 +425,13 @@ int prompt( FILE *ptrMessageFile, int *previousChar, int commandChar )
                   {
                      fatalPerror( "openTmpFile: fopen", "Local error" );
                   }
+                  paneUiForgetRecentLocalOutput( oldDraftLineCount + 2 );
+                  paneUiPrepareLocalRedraw();
                   continueAfterExternalEdit( &ptrMessageFile );
+                  printFormattedDraft( ptrMessageFile, true );
+                  showEditorCommandPrompt();
+                  fflush( stdout );
+                  itemIndex = 1;
                }
                continue;
             }
@@ -433,6 +488,6 @@ static void showEditorCommandPrompt( void )
    }
    else
    {
-      printf( "<A>bort <C>ontinue <E>dit <P>rint <S>ave <X>press -> " );
+      stdPuts( "<A>bort <C>ontinue <E>dit <P>rint <S>ave <X>press -> " );
    }
 }

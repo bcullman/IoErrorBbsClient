@@ -20,7 +20,10 @@ static void drawThemedForeground( int foregroundColor );
 static void formatSnapshotRefreshTime( char *ptrBuffer, size_t bufferSize );
 static void scanSidebarForeground( const char *ptrLine, int *ptrForegroundColor );
 static const char *viewName( PaneUiView view );
+static int leftPaneStartLine( void );
 static int visibleHeaderLabelWidth( const char *ptrLine );
+static int visibleLineWidth( const char *ptrLine );
+static void positionLeftCursorAtEnd( void );
 
 void paneUiWriteRaw( const char *ptrText )
 {
@@ -43,11 +46,93 @@ static void advanceLeftLine( void )
    paneUi.leftVisibleColumn = 0;
 }
 
+static int leftPaneStartLine( void )
+{
+   if ( paneUi.leftScrollOffset == 0 && paneUi.leftRenderAnchorActive )
+   {
+      if ( paneUi.leftLineCount - paneUi.leftRenderAnchorLine > paneUi.rows )
+      {
+         return paneUi.leftLineCount - paneUi.rows;
+      }
+      return paneUi.leftRenderAnchorLine;
+   }
+
+   return paneUi.leftLineCount > paneUi.rows + paneUi.leftScrollOffset
+             ? paneUi.leftLineCount - paneUi.rows - paneUi.leftScrollOffset
+             : 0;
+}
+
+static int visibleLineWidth( const char *ptrLine )
+{
+   int visibleWidth;
+
+   visibleWidth = 0;
+   while ( *ptrLine != '\0' )
+   {
+      if ( ptrLine[0] == '\033' && ptrLine[1] == '[' )
+      {
+         ptrLine += 2;
+         while ( *ptrLine != '\0' && !isalpha( (unsigned char)*ptrLine ) )
+         {
+            ptrLine++;
+         }
+      }
+      else if ( *ptrLine >= ASCII_PRINTABLE_MIN &&
+                *ptrLine < ASCII_PRINTABLE_MAX )
+      {
+         visibleWidth++;
+      }
+      if ( *ptrLine != '\0' )
+      {
+         ptrLine++;
+      }
+   }
+   return visibleWidth;
+}
+
+static void positionLeftCursorAtEnd( void )
+{
+   char arySequence[64];
+   int column;
+   int currentLine;
+   int row;
+   int startLine;
+
+   if ( paneUi.leftLineCount == 0 )
+   {
+      return;
+   }
+
+   startLine = leftPaneStartLine();
+   currentLine = paneUi.leftLineCount - 1;
+   row = currentLine - startLine + 1;
+   if ( row < 1 )
+   {
+      row = 1;
+   }
+   else if ( row > paneUi.rows )
+   {
+      row = paneUi.rows;
+   }
+   column = visibleLineWidth( paneUi.aryLeftLines[currentLine] ) + 1;
+   if ( column > PANE_UI_LEFT_COLUMNS )
+   {
+      column = PANE_UI_LEFT_COLUMNS;
+   }
+   snprintf( arySequence, sizeof( arySequence ), "\033[%d;%dH", row, column );
+   paneUiWriteRaw( arySequence );
+   fflush( stdout );
+}
+
 void paneUiAppendLeftChar( int outputChar )
 {
    char *ptrLine;
    size_t lineLength;
 
+   if ( !flagsConfiguration.isPosting )
+   {
+      paneUi.leftRenderAnchorActive = false;
+   }
    paneUi.leftScrollOffset = 0;
    if ( paneUi.leftLineCount == 0 )
    {
@@ -95,6 +180,65 @@ void paneUiAppendLeftChar( int outputChar )
    }
 }
 
+bool paneUiWriteLocalOutputChar( int outputChar )
+{
+   if ( !paneUi.active || !flagsConfiguration.isPosting )
+   {
+      return false;
+   }
+
+   paneUiAppendLeftChar( outputChar );
+   paneUiRepaintVisibleLeftPane();
+   paneUiDrawSidebar();
+   positionLeftCursorAtEnd();
+   return true;
+}
+
+bool paneUiWriteLocalOutputText( const char *ptrText )
+{
+   const char *ptrCursor;
+
+   if ( !paneUi.active || !flagsConfiguration.isPosting )
+   {
+      return false;
+   }
+
+   for ( ptrCursor = ptrText; *ptrCursor != '\0'; ptrCursor++ )
+   {
+      paneUiAppendLeftChar( *ptrCursor );
+   }
+   paneUiRepaintVisibleLeftPane();
+   paneUiDrawSidebar();
+   positionLeftCursorAtEnd();
+   return true;
+}
+
+void paneUiForgetRecentLocalOutput( int lineCount )
+{
+   const char *ptrLine;
+
+   if ( !paneUi.active || lineCount <= 0 )
+   {
+      return;
+   }
+
+   if ( lineCount >= paneUi.leftLineCount )
+   {
+      memset( paneUi.aryLeftLines, 0, sizeof( paneUi.aryLeftLines ) );
+      paneUi.leftLineCount = 1;
+   }
+   else
+   {
+      paneUi.leftLineCount -= lineCount;
+      memset( paneUi.aryLeftLines + paneUi.leftLineCount, 0,
+              (size_t)lineCount * sizeof( paneUi.aryLeftLines[0] ) );
+   }
+   ptrLine = paneUi.aryLeftLines[paneUi.leftLineCount - 1];
+   paneUi.leftVisibleColumn = visibleLineWidth( ptrLine );
+   paneUi.leftSkippingAnsi = false;
+   paneUi.leftScrollOffset = 0;
+}
+
 void paneUiScrollLeftPane( int rowDelta )
 {
    int maximumOffset;
@@ -136,15 +280,50 @@ void paneUiScrollSidebar( int rowDelta )
    paneUiDrawSidebar();
 }
 
+void paneUiPrepareLocalRedraw( void )
+{
+   int row;
+   char arySequence[64];
+   const char *ptrCurrentLine;
+
+   if ( !paneUi.active )
+   {
+      return;
+   }
+
+   if ( paneUi.leftLineCount == 0 )
+   {
+      paneUi.leftLineCount = 1;
+   }
+   ptrCurrentLine = paneUi.aryLeftLines[paneUi.leftLineCount - 1];
+   if ( ptrCurrentLine[0] != '\0' )
+   {
+      advanceLeftLine();
+   }
+   paneUi.leftScrollOffset = 0;
+   paneUi.leftVisibleColumn = 0;
+   paneUi.leftSkippingAnsi = false;
+   paneUi.leftRenderAnchorActive = true;
+   paneUi.leftRenderAnchorLine = paneUi.leftLineCount - 1;
+
+   for ( row = 1; row <= paneUi.rows; row++ )
+   {
+      snprintf( arySequence, sizeof( arySequence ), "\033[%d;1H", row );
+      paneUiWriteRaw( arySequence );
+      drawThemedDisplayState( color.text );
+      paneUiWriteRaw( "\033[80X" );
+   }
+   paneUiWriteRaw( "\033[1;1H\033[0m" );
+   fflush( stdout );
+}
+
 void paneUiRepaintLeftPane( void )
 {
    int lineIndex;
    int startLine;
 
    paneUiWriteRaw( "\033[2J\033[H" );
-   startLine = paneUi.leftLineCount > paneUi.rows + paneUi.leftScrollOffset
-                  ? paneUi.leftLineCount - paneUi.rows - paneUi.leftScrollOffset
-                  : 0;
+   startLine = leftPaneStartLine();
    for ( lineIndex = startLine; lineIndex < paneUi.leftLineCount; lineIndex++ )
    {
       if ( lineIndex > startLine )
@@ -168,9 +347,7 @@ void paneUiRepaintVisibleLeftPane( void )
       return;
    }
 
-   startLine = paneUi.leftLineCount > paneUi.rows + paneUi.leftScrollOffset
-                  ? paneUi.leftLineCount - paneUi.rows - paneUi.leftScrollOffset
-                  : 0;
+   startLine = leftPaneStartLine();
    paneUiWriteRaw( "\0337" );
    for ( row = 1; row <= paneUi.rows; row++ )
    {

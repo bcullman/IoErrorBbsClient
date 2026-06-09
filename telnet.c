@@ -85,6 +85,7 @@ static int handleTelnetGetCommand( unsigned char *aryTelnetBuffer )
             return -1;
          }
          makeMessage( aryTelnetBuffer[1] );
+         paneUiEnterIfEligible();
          break;
 
       case G_FIVE:

@@ -49,6 +49,7 @@ typedef struct
    bool observedSkippingAnsi;
    bool skippingAnsi;
    bool leftSkippingAnsi;
+   bool leftRenderAnchorActive;
    int ansiBytesRemaining;
    int observedAnsiBytesRemaining;
    int promptRemainderAnsiBytesRemaining;
@@ -60,6 +61,7 @@ typedef struct
    int leftLineCount;
    int leftScrollOffset;
    int leftVisibleColumn;
+   int leftRenderAnchorLine;
    int mouseInputLength;
    int pendingLocalInputIndex;
    int pendingLocalInputLength;

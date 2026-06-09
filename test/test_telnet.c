@@ -37,6 +37,7 @@ static int makeMessageArg;
 static int configClientCallCount;
 static int sendAnXCallCount;
 static int morePromptHelperCallCount;
+static int paneUiEnterIfEligibleCallCount;
 static int paneUiMorePromptCallCount;
 static bool paneUiLastMorePromptState;
 static bool paneUiCaptureIncomingResult;
@@ -137,6 +138,7 @@ static void resetState( void )
    configClientCallCount = 0;
    sendAnXCallCount = 0;
    morePromptHelperCallCount = 0;
+   paneUiEnterIfEligibleCallCount = 0;
    paneUiMorePromptCallCount = 0;
    paneUiLastMorePromptState = false;
    paneUiCaptureIncomingResult = false;
@@ -204,6 +206,11 @@ void makeMessage( int upload )
 {
    makeMessageCallCount++;
    makeMessageArg = upload;
+}
+
+void paneUiEnterIfEligible( void )
+{
+   paneUiEnterIfEligibleCallCount++;
 }
 
 void morePromptHelper( void )
@@ -460,6 +467,11 @@ static void telReceive_WhenPostCommandArrives_MarksReplayWindowNonReplayable( vo
    if ( makeMessageCallCount != 1 )
    {
       fail_msg( "G_POST flow should call makeMessage once; got %d", makeMessageCallCount );
+   }
+   if ( paneUiEnterIfEligibleCallCount != 1 )
+   {
+      fail_msg( "G_POST flow should re-evaluate pane UI after posting; got %d",
+                paneUiEnterIfEligibleCallCount );
    }
    if ( arySavedByteCanReplay[19] ||
         arySavedByteCanReplay[20] ||

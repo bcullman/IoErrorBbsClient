@@ -215,6 +215,12 @@ int stdPrintf( const char *format, ... )
 /// @return The input character value.
 int stdPutChar( int inputChar )
 {
+   if ( paneUiWriteLocalOutputChar( inputChar ) )
+   {
+      capPutChar( inputChar );
+      return inputChar;
+   }
+
    if ( putchar( inputChar ) < 0 )
    {
       fatalPerror( "stdPutChar", "Local error" );
@@ -231,6 +237,12 @@ int stdPutChar( int inputChar )
 /// @return Always returns `1` on success.
 int stdPuts( const char *ptrText )
 {
+   if ( paneUiWriteLocalOutputText( ptrText ) )
+   {
+      capPuts( ptrText );
+      return 1;
+   }
+
    if ( fputs( ptrText, stdout ) == EOF )
    {
       fatalPerror( "stdPuts", "Local error" );

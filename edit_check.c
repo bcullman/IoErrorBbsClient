@@ -229,7 +229,7 @@ int checkFile( FILE *ptrMessageFile )
       }
       if ( fileState.didWrapLongLine )
       {
-         printf( "\r\n[Wrapped long lines while saving]\r\n\n" );
+         stdPrintf( "\r\n[Wrapped long lines while saving]\r\n\n" );
       }
    }
    free( ptrNormalizedText );
@@ -284,8 +284,8 @@ static int nextLineWidth( int currentWidth, int inputChar )
 static int reportIllegalCharacter( char *ptrNormalizedText, int lineNumber )
 {
    free( ptrNormalizedText );
-   printf( "\r\n[Warning:  illegal character in line %d, edit file before saving]\r\n\n",
-           lineNumber );
+   stdPrintf( "\r\n[Warning:  illegal character in line %d, edit file before saving]\r\n\n",
+              lineNumber );
    return 1;
 }
 
@@ -298,8 +298,8 @@ static int reportIllegalCharacter( char *ptrNormalizedText, int lineNumber )
 static int reportLineTooLong( char *ptrNormalizedText, int lineNumber )
 {
    free( ptrNormalizedText );
-   printf( "\r\n[Warning:  line %d too long, edit file before saving]\r\n\n",
-           lineNumber );
+   stdPrintf( "\r\n[Warning:  line %d too long, edit file before saving]\r\n\n",
+              lineNumber );
    return 1;
 }
 
@@ -311,7 +311,7 @@ static int reportLineTooLong( char *ptrNormalizedText, int lineNumber )
 static int reportMessageTooLong( char *ptrNormalizedText )
 {
    free( ptrNormalizedText );
-   printf( "\r\n[Warning:  message too long, edit file before saving]\r\n\n" );
+   stdPrintf( "\r\n[Warning:  message too long, edit file before saving]\r\n\n" );
    return 1;
 }
 

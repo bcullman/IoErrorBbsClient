@@ -17,6 +17,7 @@
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <unistd.h>
 #include "telnet.h"
 #include "test_helpers.h"
 #include "utility.h"
@@ -122,6 +123,16 @@ void looper( void )
    // Test stub: main-loop behavior is not relevant in this test.
 }
 
+void paneUiPrepareLocalRedraw( void )
+{
+   // Test stub: pane redraw behavior is covered by pane UI tests.
+}
+
+void paneUiForgetRecentLocalOutput( int lineCount )
+{
+   (void)lineCount;
+}
+
 int more( int *line, int percentComplete )
 {
    (void)line;
@@ -163,6 +174,34 @@ void sendTrackedChar( int inputChar )
 void sendTrackedCharWithoutReplay( int inputChar )
 {
    sendTrackedChar( inputChar );
+}
+
+int stdPrintf( const char *format, ... )
+{
+   va_list ap;
+   int result;
+
+   va_start( ap, format );
+#if defined( __clang__ )
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
+   result = vprintf( format, ap );
+#if defined( __clang__ )
+#pragma clang diagnostic pop
+#endif
+   va_end( ap );
+   return result;
+}
+
+int stdPutChar( int inputChar )
+{
+   return putchar( inputChar );
+}
+
+int stdPuts( const char *ptrText )
+{
+   return fputs( ptrText, stdout );
 }
 
 void run( const char *ptrCommand, const char *ptrArg )
@@ -559,6 +598,69 @@ static void prompt_WhenSaveSelected_SavesMessageAndReturnsMinusOne( void **state
    fclose( ptrMessageFile );
 }
 
+static void prompt_WhenExternalEditReturns_AllowsImmediateSave( void **state )
+{
+   // Arrange
+   FILE *ptrMessageFile;
+   int aryKeys[] = { '\n', 'e', 's' };
+   int fd;
+   int previousChar;
+   int result;
+
+   (void)state;
+
+   resetState();
+   setInputSequence( aryKeys, sizeof( aryKeys ) / sizeof( aryKeys[0] ) );
+   snprintf( aryEditor, sizeof( aryEditor ), "%s", "true" );
+   snprintf( aryTempFileName, sizeof( aryTempFileName ),
+             "%s", "/tmp/bbs-edit-test.XXXXXX" );
+   fd = mkstemp( aryTempFileName );
+   if ( fd < 0 )
+   {
+      fail_msg( "mkstemp failed in external edit prompt test setup" );
+      return;
+   }
+   tempFile = fdopen( fd, "w+" );
+   if ( tempFile == NULL )
+   {
+      close( fd );
+      unlink( aryTempFileName );
+      fail_msg( "fdopen failed in external edit prompt test setup" );
+      return;
+   }
+   ptrMessageFile = tempFile;
+   fprintf( ptrMessageFile, "External editor text\n" );
+   fflush( ptrMessageFile );
+   previousChar = 0;
+   flagsConfiguration.isPosting = 1;
+
+   // Act
+   result = prompt( ptrMessageFile, &previousChar, '\n' );
+
+   // Assert
+   if ( result != -1 )
+   {
+      fclose( tempFile );
+      tempFile = NULL;
+      unlink( aryTempFileName );
+      fail_msg( "prompt should allow saving immediately after returning from external edit; got %d", result );
+      return;
+   }
+   if ( !flagsConfiguration.isLastSave || flagsConfiguration.isPosting )
+   {
+      fclose( tempFile );
+      tempFile = NULL;
+      unlink( aryTempFileName );
+      fail_msg( "prompt should save after external edit; got isLastSave=%u isPosting=%u",
+                flagsConfiguration.isLastSave, flagsConfiguration.isPosting );
+      return;
+   }
+
+   fclose( tempFile );
+   tempFile = NULL;
+   unlink( aryTempFileName );
+}
+
 static void prompt_WhenInvokedWithPrintCommand_LoadsExistingMessage( void **state )
 {
    // Arrange
@@ -622,6 +724,7 @@ int main( void )
       cmocka_unit_test( checkFile_WhenTotalMessageSizeExceedsLimit_ReturnsOne ),
       cmocka_unit_test( checkFile_WhenSupportedUtf8PunctuationPresent_NormalizesToAsciiAndReturnsZero ),
       cmocka_unit_test( prompt_WhenSaveSelected_SavesMessageAndReturnsMinusOne ),
+      cmocka_unit_test( prompt_WhenExternalEditReturns_AllowsImmediateSave ),
       cmocka_unit_test( prompt_WhenInvokedWithPrintCommand_LoadsExistingMessage ),
    };
 

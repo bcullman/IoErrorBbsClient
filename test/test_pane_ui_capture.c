@@ -460,6 +460,23 @@ static void paneUiView_WhenPromptIsUnsafe_LeavesHelpAndAidesUnhandled( void **st
    assert_string_equal( aryNetOutput, "" );
 }
 
+static void paneUiView_WhenPosting_LeavesSidebarCommandsUnhandled( void **state )
+{
+   char aryNetOutput[16];
+
+   (void)state;
+   paneUiEnterIfEligible();
+   feedIncomingText( "Lobby>", false );
+   flagsConfiguration.isPosting = 1;
+
+   assert_false( paneUiHandleLocalInput( 'A', false ) );
+   assert_false( paneUiHandleLocalInput( 'n', false ) );
+   assert_false( paneUiHandleLocalInput( '?', false ) );
+   assert_false( paneUiHandleLocalInput( 'W', false ) );
+   readNetOutput( aryNetOutput, sizeof( aryNetOutput ) );
+   assert_string_equal( aryNetOutput, "" );
+}
+
 static void paneUiView_WhenUserTypesForumInfo_PrependsCurrentForumName( void **state )
 {
    char aryNetOutput[16];
@@ -736,6 +753,8 @@ int main( void )
          paneUiView_WhenAtRoomPrompt_LeavesSpaceUnhandled, setup, teardown ),
       cmocka_unit_test_setup_teardown(
          paneUiView_WhenPromptIsUnsafe_LeavesHelpAndAidesUnhandled, setup, teardown ),
+      cmocka_unit_test_setup_teardown(
+         paneUiView_WhenPosting_LeavesSidebarCommandsUnhandled, setup, teardown ),
       cmocka_unit_test_setup_teardown(
          paneUiView_WhenUserTypesForumInfo_PrependsCurrentForumName, setup, teardown ),
       cmocka_unit_test_setup_teardown(

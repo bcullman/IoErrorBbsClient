@@ -86,6 +86,7 @@ void paneUiLeave( void )
    paneUi.sidebarVisible = false;
    paneUi.swallowingPromptRemainder = false;
    paneUi.leftScrollOffset = 0;
+   paneUi.leftRenderAnchorActive = false;
    paneUi.sidebarScrollOffset = 0;
    paneUi.mouseInputLength = 0;
    paneUi.pendingLocalInputIndex = 0;
@@ -128,6 +129,8 @@ void paneUiResetSession( void )
    paneUi.leftScrollOffset = 0;
    paneUi.leftVisibleColumn = 0;
    paneUi.leftSkippingAnsi = false;
+   paneUi.leftRenderAnchorActive = false;
+   paneUi.leftRenderAnchorLine = 0;
    paneUi.mouseInputLength = 0;
    paneUi.pendingLocalInputIndex = 0;
    paneUi.pendingLocalInputLength = 0;
@@ -253,6 +256,11 @@ bool paneUiHandleLocalInput( int inputChar, bool hasMoreLocalInput )
 
       queuePendingLocalInput();
       return true;
+   }
+
+   if ( flagsConfiguration.isPosting )
+   {
+      return false;
    }
 
    if ( inputChar == 'W' || ( inputChar == 'w' && aryKeyMap['w'] == 'W' ) )

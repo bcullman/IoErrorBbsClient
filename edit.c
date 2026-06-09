@@ -40,12 +40,12 @@ void makeMessage( int upload )
    flagsConfiguration.isPosting = 1;
    if ( isAway )
    {
-      printf( "[No longer away]\r\n" );
+      stdPrintf( "[No longer away]\r\n" );
       isAway = false;
    }
    if ( capture )
    {
-      printf( "[Capture to temp file turned OFF]\r\n" );
+      stdPrintf( "[Capture to temp file turned OFF]\r\n" );
       capture = 0;
       fflush( tempFile );
    }
@@ -62,7 +62,7 @@ void makeMessage( int upload )
    if ( getc( ptrMessageFile ) >= 0 )
    {
       rewind( ptrMessageFile );
-      printf( "There is text in your edit file.  Do you wish to erase it? (Y/N) -> " );
+      stdPrintf( "There is text in your edit file.  Do you wish to erase it? (Y/N) -> " );
       if ( yesNo() )
       {
          if ( !( tempFile = freopen( aryTempFileName, "w+", tempFile ) ) )
@@ -87,7 +87,7 @@ void makeMessage( int upload )
       {
          if ( previousChar != -1 )
          {
-            printf( "\r\nMessage too long, must Abort or Save\r\n\n" );
+            stdPrintf( "\r\nMessage too long, must Abort or Save\r\n\n" );
             fflush( stdout );
             mySleep( 1 );
             flushInput( 0 );
@@ -127,7 +127,7 @@ void makeMessage( int upload )
       if ( inputChar == CTRL_R )
       {
          aryCurrentLine[lineLength + 1] = 0;
-         printf( "\r\n%s", aryCurrentLine + 1 );
+         stdPrintf( "\r\n%s", aryCurrentLine + 1 );
          continue;
       }
       if ( inputChar == TAB )
@@ -139,9 +139,9 @@ void makeMessage( int upload )
       {
          if ( lineLength )
          {
-            putchar( '\b' );
-            putchar( ' ' );
-            putchar( '\b' );
+            stdPutChar( '\b' );
+            stdPutChar( ' ' );
+            stdPutChar( '\b' );
             if ( lineLength-- == lastSpacePosition )
             {
                for ( ; --lastSpacePosition && aryCurrentLine[lastSpacePosition] != ' '; )
@@ -172,9 +172,9 @@ void makeMessage( int upload )
             {
                itemIndex = 1;
             }
-            putchar( '\b' );
-            putchar( ' ' );
-            putchar( '\b' );
+            stdPutChar( '\b' );
+            stdPutChar( ' ' );
+            stdPutChar( '\b' );
          }
          if ( !lineLength || aryCurrentLine[lineLength] == ' ' )
          {
@@ -190,9 +190,9 @@ void makeMessage( int upload )
       { // ctrl-X works like in normal Unix
          for ( ; lineLength; lineLength-- )
          {
-            putchar( '\b' );
-            putchar( ' ' );
-            putchar( '\b' );
+            stdPutChar( '\b' );
+            stdPutChar( ' ' );
+            stdPutChar( '\b' );
          }
          lastSpacePosition = 0;
          previousChar = '\n';
@@ -231,9 +231,9 @@ void makeMessage( int upload )
             {
                if ( itemIndex > lastSpacePosition )
                {
-                  putchar( '\b' );
-                  putchar( ' ' );
-                  putchar( '\b' );
+                  stdPutChar( '\b' );
+                  stdPutChar( ' ' );
+                  stdPutChar( '\b' );
                }
             }
             for ( lineLength = 1; lineLength <= itemIndex; lineLength++ )
@@ -247,11 +247,11 @@ void makeMessage( int upload )
             {
                tempFileError();
             }
-            printf( "\r\n" );
+            stdPrintf( "\r\n" );
             for ( lineLength = 1; ( lineLength + lastSpacePosition ) < 80; lineLength++ )
             {
                previousChar = aryCurrentLine[lineLength + lastSpacePosition];
-               putchar( previousChar );
+               stdPutChar( previousChar );
                aryCurrentLine[lineLength] = (char)previousChar;
             }
             lastSpacePosition = 0;
@@ -269,7 +269,7 @@ void makeMessage( int upload )
             {
                tempFileError();
             }
-            printf( "\r\n" );
+            stdPrintf( "\r\n" );
             previousChar = '\n';
             lastSpacePosition = 0;
             lineLength = 1;
@@ -277,7 +277,7 @@ void makeMessage( int upload )
       }
       if ( inputChar != CTRL_D && inputChar != '\n' && previousChar != -1 )
       {
-         putchar( inputChar ); // echo aryUser's input to screen
+         stdPutChar( inputChar ); // echo aryUser's input to screen
          aryCurrentLine[lineLength] = (char)inputChar;
       }
       else if ( lineLength && inputChar == CTRL_D )
@@ -293,7 +293,7 @@ void makeMessage( int upload )
          {
             tempFileError();
          }
-         printf( "\r\n" );
+         stdPrintf( "\r\n" );
          lastSpacePosition = 0;
          lineLength = 0;
       }
@@ -314,7 +314,7 @@ void makeMessage( int upload )
             {
                tempFileError();
             }
-            printf( "\r\n" );
+            stdPrintf( "\r\n" );
             lastSpacePosition = 0;
             lineLength = 0;
          }

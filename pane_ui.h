@@ -19,6 +19,7 @@ size_t paneUiTerminalContentColumns( void );
 void paneUiAfterOutputChar( int outputChar );
 void paneUiAfterOutputText( const char *ptrText );
 void paneUiEnterIfEligible( void );
+void paneUiForgetRecentLocalOutput( int lineCount );
 void paneUiHandleTimer( void );
 void paneUiHandleTimerAt( time_t now );
 void paneUiHandleMorePromptStateChanged( bool isActive );
@@ -27,6 +28,9 @@ void paneUiLeave( void );
 void paneUiLeaveForExit( void );
 void paneUiMarkResizePending( void );
 void paneUiNoteUserInput( void );
+void paneUiPrepareLocalRedraw( void );
 void paneUiResetSession( void );
+bool paneUiWriteLocalOutputChar( int outputChar );
+bool paneUiWriteLocalOutputText( const char *ptrText );
 
 #endif // PANE_UI_H_INCLUDED
